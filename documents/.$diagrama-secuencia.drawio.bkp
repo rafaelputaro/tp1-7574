@@ -382,6 +382,9 @@
             <mxPoint as="offset" />
           </mxGeometry>
         </mxCell>
+        <mxCell id="j3LI6nltsNEcjTMjVk2M-31" value="Report Generator" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+          <mxGeometry x="890" y="50" width="120" height="60" as="geometry" />
+        </mxCell>
         <mxCell id="j3LI6nltsNEcjTMjVk2M-32" value="" style="endArrow=none;dashed=1;html=1;rounded=0;entryX=0.574;entryY=1.039;entryDx=0;entryDy=0;entryPerimeter=0;exitX=0.543;exitY=0.471;exitDx=0;exitDy=0;exitPerimeter=0;" parent="1" edge="1" source="t7C_n8LYkQoy_fx5SAK3-14">
           <mxGeometry width="50" height="50" relative="1" as="geometry">
             <mxPoint x="952" y="560" as="sourcePoint" />
@@ -503,9 +506,6 @@
         </mxCell>
         <mxCell id="t7C_n8LYkQoy_fx5SAK3-15" value="" style="html=1;points=[[0,0,0,0,5],[0,1,0,0,-5],[1,0,0,0,5],[1,1,0,0,-5]];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;newEdgeStyle={&quot;curved&quot;:0,&quot;rounded&quot;:0};" vertex="1" parent="1">
           <mxGeometry x="945" y="520" width="10" height="44" as="geometry" />
-        </mxCell>
-        <mxCell id="t7C_n8LYkQoy_fx5SAK3-16" value="Report Generator" style="ellipse;shape=umlControl;whiteSpace=wrap;html=1;" vertex="1" parent="1">
-          <mxGeometry x="916" y="40" width="70" height="80" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
