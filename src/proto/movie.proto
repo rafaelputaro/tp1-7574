@@ -1,0 +1,30 @@
+option go_package = "./protopb";
+
+message Movie {
+  required bool adult = 1;
+  optional string belongs_to_collection = 2;
+  required uint32 budget = 3;
+  required string genres = 4;
+  optional string homepage = 5;
+  required uint32 id = 6;
+  required string imdb_id = 7;
+  required string original_language = 8;
+  required string original_title = 9;
+  required string overview = 10;
+  required float popularity = 11;
+  required string poster_path = 12;
+  required string production_companies = 13;
+  required string production_countries = 14;
+  required string release_date = 15;
+  required double revenue = 16;
+  required double runtime = 17;
+  required string spoken_languages = 18;
+  required string status = 19;
+  optional string tagline = 20;
+  required string title = 21;
+  required bool video = 22;
+  required double vote_average = 23;
+  required uint32 vote_count = 24;
+  optional bool eof = 25;
+}
+
