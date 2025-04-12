@@ -3,10 +3,10 @@ option go_package = "./protopb";
 message Movie {
   required bool adult = 1;
   optional string belongs_to_collection = 2;
-  required uint32 budget = 3;
+  required int32 budget = 3;
   required string genres = 4;
   optional string homepage = 5;
-  required uint32 id = 6;
+  required int32 id = 6;
   required string imdb_id = 7;
   required string original_language = 8;
   required string original_title = 9;
@@ -24,7 +24,7 @@ message Movie {
   required string title = 21;
   required bool video = 22;
   required double vote_average = 23;
-  required uint32 vote_count = 24;
+  required int32 vote_count = 24;
   optional bool eof = 25;
 }
 

@@ -1,0 +1,9 @@
+option go_package = "./protopb";
+
+message Credit {
+  required string cast = 1;
+  required string crew = 2;
+  required int64 id = 3;
+  optional bool eof = 4;
+}
+
