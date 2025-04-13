@@ -27,4 +27,3 @@ message Movie {
   required int32 vote_count = 24;
   optional bool eof = 25;
 }
-

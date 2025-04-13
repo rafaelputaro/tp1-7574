@@ -6,4 +6,3 @@ message Credit {
   required int64 id = 3;
   optional bool eof = 4;
 }
-

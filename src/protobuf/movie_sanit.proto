@@ -11,4 +11,3 @@ message MovieSanit {
   required string title = 8;
   optional bool eof = 9;
 }
-
