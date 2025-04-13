@@ -1,0 +1,14 @@
+option go_package = "./protopb";
+
+message MovieSanit {
+  required int32 budget = 1;
+  repeated string genres = 2;
+  required int32 id = 3;
+  required string overview = 4;
+  repeated string production_countries = 5;
+  required uint32 release_year = 6;
+  required double revenue = 7;
+  required string title = 8;
+  optional bool eof = 9;
+}
+

@@ -83,8 +83,62 @@ func TestRating(t *testing.T) {
 	checkUnmarshal(t, proto.Unmarshal(data, &protopb.Rating{}))
 }
 
-/*
+func TestMovieSanit(t *testing.T) {
+	message := &protopb.MovieSanit{
+		Budget:              proto.Int32(30000000),
+		Genres:              []string{"Animation", "Comedy", "Family"},
+		Id:                  proto.Int32(862),
+		Overview:            proto.String("Led by Woody, Andy's toys live happily in his room until Andy's birthday brings Buzz Lightyear onto the scene. Afraid of losing his place in Andy's heart, Woody plots against Buzz. But when circumstances separate Buzz and Woody from their owner, the duo eventually learns to put aside their differences."),
+		ProductionCountries: []string{"US"},
+		ReleaseYear:         proto.Uint32(1995),
+		Revenue:             proto.Float64(373554033),
+		Title:               proto.String("Toy Story"),
+		Eof:                 proto.Bool(false),
+	}
+	data, err := proto.Marshal(message)
+	checkMarshal(t, data, err)
+	checkUnmarshal(t, proto.Unmarshal(data, &protopb.MovieSanit{}))
+}
 
-1) 	Mov: género, nombre, fecha y origen
-2) Mov: origen, inversión
+func TestCreditSanit(t *testing.T) {
+	message := &protopb.CreditSanit{
+		CastNames:    []string{"Tom Hanks", "Tim Allen", "Don Rickles", "Jim Varney"},
+		ProfilePaths: []string{"/pQFoyx7rp09CJTAb932F2g8Nlho.jpg", "/uX2xVf6pMmPepxnvFWyBtjexzgY.jpg", "/h5BcaDMPRVLHLDzbQavec4xfSdt.jpg", "/eIo2jVVXYgjDtaHoF19Ll9vtW7h.jpg"},
+		Id:           proto.Int64(862),
+		Eof:          proto.Bool(false),
+	}
+	data, err := proto.Marshal(message)
+	checkMarshal(t, data, err)
+	checkUnmarshal(t, proto.Unmarshal(data, &protopb.CreditSanit{}))
+}
+
+func TestRatingSanit(t *testing.T) {
+	message := &protopb.RatingSanit{
+		MovieId: proto.Int64(31),
+		Rating:  proto.Float32(2.5),
+		Eof:     proto.Bool(false),
+	}
+	data, err := proto.Marshal(message)
+	checkMarshal(t, data, err)
+	checkUnmarshal(t, proto.Unmarshal(data, &protopb.RatingSanit{}))
+}
+
+/*
+ @TODO: borrar luego
+
+Las consultas necesitan los siguientes datos:
+1) 	Mov: id movie, género, nombre, fecha y origen
+2) 	Mov: id movie, origen, budget
+3)  Mov: id movie, fecha y origen
+	Rating: id movie, rating
+4)  Mov: id movie, fecha y origen
+	Credits: id movie, cast
+5)	Mov: id movie, Overview, Revenue, Budget
+
+Sanitizar los datos en el server implica:
+	Movies: id movie, gènero, nombre, fecha, origen(ProductionCountries), overview, revenue, budget
+	Rating: id movie, rating
+	Credits: id movie, cast
+Luego los diversos filtros van a armar otros archivos proto.
+
 */

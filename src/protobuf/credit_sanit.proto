@@ -1,0 +1,8 @@
+option go_package = "./protopb";
+
+message CreditSanit {
+  repeated string castNames = 1;
+  repeated string profilePaths = 2;
+  required int64 id = 3;
+  optional bool eof = 4;
+}

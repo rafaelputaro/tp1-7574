@@ -1,0 +1,7 @@
+option go_package = "./protopb";
+
+message RatingSanit {
+  required int64 movieId = 1;
+  required float rating = 2;
+  optional bool eof = 3;
+}
