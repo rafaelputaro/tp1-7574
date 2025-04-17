@@ -27,3 +27,11 @@ Generar archivos proto
 ```bash
 protoc -I=./src/protobuf --go_out=./src/protobuf --go-grpc_out=./src/protobuf ./src/protobuf/*.proto
 ```
+
+## Tests
+
+Ejecutar en la carpeta `src/`
+
+```bash
+go test ./...
+```
