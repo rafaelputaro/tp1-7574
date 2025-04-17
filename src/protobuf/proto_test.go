@@ -1,7 +1,7 @@
 package proto
 
 import (
-	"protobuf/protopb"
+	"protobuf/protobuf/protopb"
 	"testing"
 
 	"google.golang.org/protobuf/proto"

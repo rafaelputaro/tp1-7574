@@ -1,4 +1,8 @@
+syntax = "proto2";
+
 option go_package = "./protopb";
+
+import "google/protobuf/empty.proto";
 
 message Movie {
   required bool adult = 1;
@@ -27,3 +31,8 @@ message Movie {
   required int32 vote_count = 24;
   optional bool eof = 25;
 }
+
+service MovieService {
+  rpc StreamMovies (stream Movie) returns (google.protobuf.Empty);
+}
+

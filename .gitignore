@@ -26,3 +26,9 @@ go.work.sum
 
 # Idea
 .idea/
+
+# Custom
+src/client/datasets/
+
+# Compilation
+src/client/client
