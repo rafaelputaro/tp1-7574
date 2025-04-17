@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/proto"
 	"log"
 	"os"
@@ -33,7 +34,7 @@ func main() {
 	fmt.Println(" - Ratings:", ratingsPath)
 	fmt.Println(" - Credits:", creditsPath)
 
-	conn, err := grpc.NewClient(grpcAddr)
+	conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("Failed to connect to gRPC server: %v", err)
 	}
