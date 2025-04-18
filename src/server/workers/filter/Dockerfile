@@ -14,8 +14,8 @@ LABEL intermediateStageToBeDeleted=true
 WORKDIR /build/
 # Copy needed files to manage dependencies
 COPY src/go.mod src/go.sum ./
-# Download dependencies
-RUN go mod download
+# Download dependencies (removing unused ones)
+RUN go mod tidy
 # Copy source code
 COPY src/server/workers/filter .
 # Build the binary

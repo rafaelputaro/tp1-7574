@@ -1,5 +1,12 @@
 # Trabajo Práctico Sistemas Distribuidos
 
+## Como levantar el sistema:
+1. Configurar parámetros del sistema en el archivo `config.ini`.
+2. Ejecutar `python3 compose-generator.py` para crear el compose file.
+3. Ejecutar `make docker-compose-up`.
+4. Ejecutar `make docker-compose-logs` para ver los logs de los nodos.
+
+
 ## Client
 
 ```bash

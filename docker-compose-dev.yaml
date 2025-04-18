@@ -1,0 +1,39 @@
+services:
+    2000s-filter-1:
+        container_name: 2000s-filter-1
+        image: filter:latest
+        environment:
+            - FILTER-TYPE=2000s_filter
+        networks:
+            - tp1_net
+
+    ar-es-filter-1:
+        container_name: ar-es-filter-1
+        image: filter:latest
+        environment:
+            - FILTER_TYPE=ar_es_filter
+        networks:
+            - tp1_net
+
+    ar-filter-1:
+        container_name: ar-filter-1
+        image: filter:latest
+        environment:
+            - FILTER_TYPE=ar_filter
+        networks:
+            - tp1_net
+
+    top-5-investors-filter-1:
+        container_name: top-5-investors-filter-1
+        image: filter:latest
+        environment:
+            - FILTER_TYPE=top-5-investors-filter
+        networks:
+            - tp1_net
+
+networks:
+  tp1_net:
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.25.125.0/24
