@@ -74,91 +74,18 @@ func (f *Filter) Close() {
 
 // Jobs --------------------------------------------------------------------------------------------
 
+type MovieFilterFunc func(movie *protopb.MovieSanit) bool
+
 func (f *Filter) process2000sFilter() {
 	inputQueue := "movies_sanit_queue"
 	outputQueue := "movies_2000s_queue"
+	filterName := "2000s_filter"
 
-	f.log.Infof("[2000s_filter] Starting job for ID: %d", f.config.ID)
-
-	_, err := f.channel.QueueDeclare(
-		inputQueue, // Name
-		true,       // Durable
-		false,      // Delete when unused
-		false,      // Exclusive
-		false,      // No-Wait
-		nil,        // Arguments
-	)
-	if err != nil {
-		f.log.Fatalf("Failed to declare input queue: %v", err)
+	filterFunc := func(movie *protopb.MovieSanit) bool {
+		return movie.ReleaseYear != nil && *movie.ReleaseYear >= 2000 && *movie.ReleaseYear <= 2009
 	}
 
-	_, err = f.channel.QueueDeclare(
-		outputQueue, // Name
-		true,        // Durable
-		false,       // Delete when unused
-		false,       // Exclusive
-		false,       // No-Wait
-		nil,         // Arguments
-	)
-	if err != nil {
-		f.log.Fatalf("Failed to declare output queue: %v", err)
-	}
-
-	// Subscribe to input queue
-	msgs, err := f.channel.Consume(
-		inputQueue,
-		"",    // consumer
-		true,  // auto-ack
-		false, // exclusive
-		false, // no-local
-		false, // no-wait
-		nil,   // args
-	)
-	if err != nil {
-		f.log.Fatalf("Failed to consume messages: %v", err)
-	}
-
-	f.log.Infof("[2000s_filter] Waiting for messages...")
-
-	for msg := range msgs {
-		var movie protopb.MovieSanit
-		err := proto.Unmarshal(msg.Body, &movie)
-		if err != nil {
-			f.log.Errorf("Failed to unmarshal message: %v", err)
-			continue
-		}
-
-		if movie.Eof != nil && *movie.Eof {
-			f.log.Infof("[2000s_filter] Received EOF marker")
-			break
-		}
-
-		if movie.ReleaseYear != nil && *movie.ReleaseYear >= 2000 && *movie.ReleaseYear <= 2009 {
-			f.log.Infof("[2000s_filter] Accepted: %s (%d)", movie.Title, movie.ReleaseYear)
-
-			data, err := proto.Marshal(&movie)
-			if err != nil {
-				f.log.Errorf("Failed to marshal message: %v", err)
-				continue
-			}
-
-			err = f.channel.Publish(
-				"",          // exchange
-				outputQueue, // routing key (cola de destino)
-				false,       // mandatory
-				false,       // immediate
-				amqp.Publishing{
-					ContentType: "application/protobuf",
-					Body:        data,
-				})
-
-			// TODO: ver como handlear el error
-			if err != nil {
-				f.log.Errorf("Failed to publish filtered message: %v", err)
-			}
-		}
-	}
-	f.log.Infof("[2000s_filter] Job finished")
+	f.runFilterJob(inputQueue, outputQueue, filterName, filterFunc)
 }
 
 func (f *Filter) processArEsFilter() {
@@ -171,4 +98,63 @@ func (f *Filter) processArFilter() {
 
 func (f *Filter) processTop5InvestorsFilter() {
 	f.log.Infof("[top_5_investors_filter] Starting job for ID: %d", f.config.ID)
+}
+
+func (f *Filter) runFilterJob(
+	inputQueue string,
+	outputQueue string,
+	filterName string,
+	filterFunc MovieFilterFunc,
+) {
+	f.log.Infof("[%s] Starting job for ID: %d", filterName, f.config.ID)
+
+	// Declare queues (if rabbitmq doesn't have them, it creates them)
+	for _, queue := range []string{inputQueue, outputQueue} {
+		_, err := f.channel.QueueDeclare(
+			queue, true, false, false, false, nil,
+		)
+		if err != nil {
+			f.log.Fatalf("Failed to declare queue '%s': %v", queue, err)
+		}
+	}
+
+	msgs, err := f.channel.Consume(inputQueue, "", true, false, false, false, nil)
+	if err != nil {
+		f.log.Fatalf("Failed to consume messages from '%s': %v", inputQueue, err)
+	}
+
+	f.log.Infof("[%s] Waiting for messages...", filterName)
+
+	for msg := range msgs {
+		var movie protopb.MovieSanit
+		if err := proto.Unmarshal(msg.Body, &movie); err != nil {
+			f.log.Errorf("[%s] Failed to unmarshal message: %v", filterName, err)
+			continue
+		}
+
+		// EOF
+		if movie.Eof != nil && *movie.Eof {
+			f.log.Infof("[%s] Received EOF marker", filterName)
+			break
+		}
+
+		if filterFunc(&movie) {
+			f.log.Infof("[%s] Accepted: %s (%d)", filterName, movie.Title, movie.ReleaseYear)
+
+			data, err := proto.Marshal(&movie)
+			if err != nil {
+				f.log.Errorf("[%s] Failed to marshal message: %v", filterName, err)
+				continue
+			}
+
+			err = f.channel.Publish("", outputQueue, false, false, amqp.Publishing{
+				ContentType: "application/protobuf",
+				Body:        data,
+			})
+			if err != nil {
+				f.log.Errorf("[%s] Failed to publish filtered message: %v", filterName, err)
+			}
+		}
+	}
+	f.log.Infof("[%s] Job finished", filterName)
 }
