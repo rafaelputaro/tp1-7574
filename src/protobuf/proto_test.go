@@ -1,8 +1,8 @@
 package proto
 
 import (
-	"protobuf/protobuf/protopb"
 	"testing"
+	"tp1/protobuf/protopb"
 
 	"google.golang.org/protobuf/proto"
 )

@@ -2,18 +2,20 @@ package main
 
 import (
 	"context"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/test/bufconn"
-	"google.golang.org/protobuf/types/known/emptypb"
 	"io"
 	"log"
 	"net"
 	"testing"
 	"time"
 
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/test/bufconn"
+	"google.golang.org/protobuf/types/known/emptypb"
+
+	pb "tp1/protobuf/protopb"
+
 	"google.golang.org/protobuf/proto"
-	pb "protobuf/protobuf/protopb"
 )
 
 var lis *bufconn.Listener // global

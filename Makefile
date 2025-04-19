@@ -43,3 +43,21 @@ docker-compose-down:
 	docker compose -f docker-compose-dev.yaml stop -t 1
 	docker compose -f docker-compose-dev.yaml down
 .PHONY: docker-compose-down
+
+# Tests
+build-test:
+	docker build -f ./Dockerfile-test -t "app-test:latest" .
+.PHONY: build-test
+
+docker-compose-up-test: build-test
+	docker compose -f docker-compose-test.yaml up -d --build
+.PHONY: docker-compose-up-test
+
+docker-compose-down-test:
+	docker compose -f docker-compose-test.yaml stop
+	docker compose -f docker-compose-test.yaml down
+.PHONY: docker-compose-down-test
+
+docker-compose-logs-test:
+	docker compose -f docker-compose-test.yaml logs -f
+.PHONY: docker-compose-logs-test

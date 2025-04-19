@@ -1,0 +1,35 @@
+services:
+
+  rabbitmq:
+      image: rabbitmq:management
+      container_name: rabbitmq
+      ports:
+          # Web Panel port
+          - "15672:15672"
+          - "5672:5672"
+      environment:
+          # To log in at web panel
+          RABBITMQ_DEFAULT_USER: admin
+          RABBITMQ_DEFAULT_PASS: admin
+      volumes:
+          - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+      networks:
+          - testing_net
+  
+  test:
+    container_name: app-test
+    image: app-test:latest
+    restart: on-failure
+    networks:
+      - testing_net
+    depends_on:
+      - rabbitmq
+    links: 
+      - rabbitmq
+
+networks:
+  testing_net:
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.25.125.0/24
