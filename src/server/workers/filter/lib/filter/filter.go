@@ -6,6 +6,8 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"slices"
+
 	"github.com/op/go-logging"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -89,15 +91,41 @@ func (f *Filter) process2000sFilter() {
 }
 
 func (f *Filter) processArEsFilter() {
-	f.log.Infof("[ar_es_filter] Starting job for ID: %d", f.config.ID)
+	inputQueue := "movies_sanit_queue"
+	outputQueue := "movies_ar_es_queue"
+	filterName := "ar_es_filter"
+
+	filterFunc := func(movie *protopb.MovieSanit) bool {
+		for _, country := range movie.ProductionCountries {
+			if country == "Argentina" || country == "Spain" {
+				return true
+			}
+		}
+		return false
+	}
+
+	f.runFilterJob(inputQueue, outputQueue, filterName, filterFunc)
 }
 
 func (f *Filter) processArFilter() {
-	f.log.Infof("[ar_filter] Starting job for ID: %d", f.config.ID)
+	inputQueue := "movies_sanit_queue"
+	outputQueue := "movies_ar_queue"
+	filterName := "ar_filter"
+
+	filterFunc := func(movie *protopb.MovieSanit) bool {
+		return slices.Contains(movie.ProductionCountries, "Argentina")
+	}
+
+	f.runFilterJob(inputQueue, outputQueue, filterName, filterFunc)
 }
 
 func (f *Filter) processTop5InvestorsFilter() {
-	f.log.Infof("[top_5_investors_filter] Starting job for ID: %d", f.config.ID)
+	// inputQueue := "movies_sanit_queue"
+	// outputQueue := "movies_top_5_investors_queue"
+	// filterName := "top_5_investors_filter"
+
+	// TODO: hay que guardar un estado interno del top 5 actual y si la nueva entrada no entra en el
+	// top 5 entonces se descarta. Al recibir el eof se envía el top 5 al aggregator
 }
 
 func (f *Filter) runFilterJob(
@@ -139,7 +167,7 @@ func (f *Filter) runFilterJob(
 		}
 
 		if filterFunc(&movie) {
-			f.log.Infof("[%s] Accepted: %s (%d)", filterName, movie.Title, movie.ReleaseYear)
+			f.log.Debugf("[%s] Accepted: %s (%d)", filterName, movie.Title, movie.ReleaseYear)
 
 			data, err := proto.Marshal(&movie)
 			if err != nil {
@@ -156,5 +184,6 @@ func (f *Filter) runFilterJob(
 			}
 		}
 	}
+
 	f.log.Infof("[%s] Job finished", filterName)
 }
