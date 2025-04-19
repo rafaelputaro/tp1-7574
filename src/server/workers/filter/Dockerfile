@@ -12,17 +12,15 @@ FROM golang:1.24.1 AS builder
 LABEL intermediateStageToBeDeleted=true
 
 WORKDIR /build/
-# Copy needed files to manage dependencies
-COPY src/go.mod src/go.sum ./
+# Source code
+COPY src/ .
 # Download dependencies (removing unused ones)
 RUN go mod tidy
-# Copy source code
-COPY src/server/workers/filter .
 # Build the binary
 # * `CGO_ENABLED` must be disabled to run go binary in Alpine
 # * `GOOS=linux` tells the compiler to generate a binary for Linux
 # * `-o bin/filter` tells go where to store the binary
-RUN CGO_ENABLED=0 GOOS=linux go build -o bin/filter .
+RUN CGO_ENABLED=0 GOOS=linux go build -o bin/filter ./server/workers/filter
 
 # Final image --------------------------------------------------------------------------------------
 # busybox is a minimalist image based on Alpine Linux

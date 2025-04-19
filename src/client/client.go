@@ -4,14 +4,15 @@ import (
 	"context"
 	"encoding/csv"
 	"fmt"
+	"log"
+	"os"
+	"strconv"
+	"time"
+	pb "tp1/protobuf/protopb"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/proto"
-	"log"
-	"os"
-	pb "protobuf/protobuf/protopb"
-	"strconv"
-	"time"
 )
 
 const (

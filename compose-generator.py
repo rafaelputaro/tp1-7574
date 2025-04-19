@@ -21,7 +21,8 @@ for i in range(1, filter_nodes_2000s + 1):
         container_name: 2000s-filter-{i}
         image: filter:latest
         environment:
-            - FILTER-TYPE=2000s_filter
+            - FILTER_TYPE=2000s_filter
+            - FILTER_NUM={i}
         networks:
             - tp1_net
 """
@@ -33,6 +34,7 @@ for i in range(1, ar_es_filter_nodes + 1):
         image: filter:latest
         environment:
             - FILTER_TYPE=ar_es_filter
+            - FILTER_NUM={i}
         networks:
             - tp1_net
 """
@@ -44,6 +46,7 @@ for i in range(1, ar_filter_nodes + 1):
         image: filter:latest
         environment:
             - FILTER_TYPE=ar_filter
+            - FILTER_NUM={i}
         networks:
             - tp1_net
 """
@@ -55,6 +58,7 @@ for i in range(1, top_5_investors_filter_nodes + 1):
         image: filter:latest
         environment:
             - FILTER_TYPE=top-5-investors-filter
+            - FILTER_NUM={i}
         networks:
             - tp1_net
 """

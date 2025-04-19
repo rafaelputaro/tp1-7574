@@ -3,7 +3,8 @@ services:
         container_name: 2000s-filter-1
         image: filter:latest
         environment:
-            - FILTER-TYPE=2000s_filter
+            - FILTER_TYPE=2000s_filter
+            - FILTER_NUM=1
         networks:
             - tp1_net
 
@@ -12,6 +13,7 @@ services:
         image: filter:latest
         environment:
             - FILTER_TYPE=ar_es_filter
+            - FILTER_NUM=1
         networks:
             - tp1_net
 
@@ -20,6 +22,7 @@ services:
         image: filter:latest
         environment:
             - FILTER_TYPE=ar_filter
+            - FILTER_NUM=1
         networks:
             - tp1_net
 
@@ -28,6 +31,7 @@ services:
         image: filter:latest
         environment:
             - FILTER_TYPE=top-5-investors-filter
+            - FILTER_NUM=1
         networks:
             - tp1_net
 

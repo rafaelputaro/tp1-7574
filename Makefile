@@ -25,7 +25,7 @@ docker-compose-up: docker-image
 # `logs`: display logs from all running containers defined in the Compose file
 # second `-f`: follow. Used to keep streaming logs in real time
 docker-compose-logs:
-	docker compose -f docker-compose-dev.yaml logs -f --no-color
+	docker compose -f docker-compose-dev.yaml logs -f
 .PHONY: docker-compose-logs
 
 # `stop`: stop running the containers, without removing them. This means that the containers can be
