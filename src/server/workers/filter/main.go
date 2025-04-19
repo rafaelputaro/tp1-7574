@@ -34,13 +34,14 @@ func main() {
 
 	var wg sync.WaitGroup
 	wg.Add(1)
+	f := filter.NewFilter(config, log)
 
 	go func() {
 		defer wg.Done()
-		f := filter.NewFilter(config, log)
 		f.StartFilterLoop()
 	}()
 
 	// Wait for go routine to finish TODO: or SIGKILL signals
 	wg.Wait()
+	f.Close()
 }
