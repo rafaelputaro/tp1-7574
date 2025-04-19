@@ -6,12 +6,16 @@ SHELL := /bin/bash # Run commands using bash
 
 default: docker-image
 
+# Manage go dependencies. Erase any unused dependency and copy go.mod dependencies to vendor/
+deps:
+	cd src && go mod tidy
+	cd src && go mod vendor
 
 # `-f`: used to specify the dockerfile location
 # `-t`: is used to asign a tag to the created image. <image name>:<tag>
 # `.`: sets the build context to the current directory (root of the proyect). That means that when
 #      path is used in the Dockerfile, it is relative to this directory.
-docker-image:
+docker-image: deps
 	docker build -f ./src/server/workers/filter/Dockerfile -t "filter:latest" .
 .PHONY: docker-image
 

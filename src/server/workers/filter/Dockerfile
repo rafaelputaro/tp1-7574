@@ -14,13 +14,11 @@ LABEL intermediateStageToBeDeleted=true
 WORKDIR /build/
 # Source code
 COPY src/ .
-# Download dependencies (removing unused ones)
-RUN go mod tidy
 # Build the binary
 # * `CGO_ENABLED` must be disabled to run go binary in Alpine
 # * `GOOS=linux` tells the compiler to generate a binary for Linux
 # * `-o bin/filter` tells go where to store the binary
-RUN CGO_ENABLED=0 GOOS=linux go build -o bin/filter ./server/workers/filter
+RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -o bin/filter ./server/workers/filter
 
 # Final image --------------------------------------------------------------------------------------
 # busybox is a minimalist image based on Alpine Linux
