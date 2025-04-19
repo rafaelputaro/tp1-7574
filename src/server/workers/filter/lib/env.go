@@ -3,14 +3,11 @@ package lib
 import (
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
+
+	f "tp1/server/workers/filter/lib/filter"
 )
 
-type FilterConfig struct {
-	Type string
-	Num  int
-}
-
-func LoadConfig() (*FilterConfig, error) {
+func LoadConfig() (*f.FilterConfig, error) {
 	viper.AutomaticEnv()
 
 	filterType := viper.GetString("FILTER_TYPE")
@@ -23,8 +20,8 @@ func LoadConfig() (*FilterConfig, error) {
 		return nil, errors.New("missing or invalid FILTER_NUM environment variable")
 	}
 
-	return &FilterConfig{
+	return &f.FilterConfig{
 		Type: filterType,
-		Num:  filterNum,
+		ID:   filterNum,
 	}, nil
 }
