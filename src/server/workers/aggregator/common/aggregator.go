@@ -1,9 +1,9 @@
 package common
 
 import (
-	"fmt"
 	"time"
 
+	"github.com/op/go-logging"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -13,15 +13,16 @@ type Aggregator struct {
 	InputQueue  amqp.Queue
 	OutputQueue amqp.Queue
 	Config      AggregatorConfig
+	Log         *logging.Logger
 }
 
 // Returns new aggregator ready to work with rabbit
-func NewAggregator() (*Aggregator, error) {
+func NewAggregator(log *logging.Logger) (*Aggregator, error) {
 	var config, err = LoadAggregatorConfig()
 	if err != nil {
+		log.Errorf("Configuration could not be read from config file. Using env variables instead")
 		return nil, err
 	}
-
 	maxRetries := 10
 	var connection *amqp.Connection
 	for i := 1; i <= maxRetries; i++ {
@@ -29,20 +30,19 @@ func NewAggregator() (*Aggregator, error) {
 		if err == nil {
 			break
 		}
-		fmt.Printf("Attempt %d: Could not connect to RabbitMQ: %v", i, err)
+		log.Errorf("Attempt %d: Could not connect to RabbitMQ: %v", i, err)
 		if i < maxRetries {
-			fmt.Printf("Retrying in 3 seconds...")
+			log.Infof("Retrying in 3 seconds...")
 			time.Sleep(3 * time.Second)
 		}
 	}
-	//connection, err := amqp.Dial(config.AmqUrl)
 	if err != nil {
-		fmt.Printf("Error dial: %v", err)
+		log.Errorf("Error dial: %v", err)
 		return nil, err
 	}
 	channel, err := connection.Channel()
 	if err != nil {
-		fmt.Printf("Error channel: %v", err)
+		log.Errorf("Error channel: %v", err)
 		connection.Close()
 		return nil, err
 	}
@@ -78,10 +78,35 @@ func NewAggregator() (*Aggregator, error) {
 		InputQueue:  inputQueue,
 		OutputQueue: outputQueue,
 		Config:      *config,
+		Log:         log,
 	}, nil
 }
 
+func Consume(aggregator *Aggregator) {
+	//msgs, _ :=
+	msgs, err := aggregator.Channel.Consume(
+		aggregator.InputQueue.Name,
+		"",
+		true,
+		aggregator.Config.InputQueue.Exclusive,
+		false,
+		aggregator.Config.InputQueue.NoWait,
+		nil,
+	)
+	if err != nil {
+		aggregator.Log.Infof("error al consumir")
+	} else {
+		aggregator.Log.Infof("Longitud consumido: %v", len(msgs))
+		/*
+			for d := range msgs {
+				aggregator.Log.Infof("Received a message: %s", d.Body)
+			}*/
+	}
+
+}
+
 func Dispose(aggregator *Aggregator) {
+	aggregator.Log.Infof("Close aggregator")
 	if aggregator.Channel != nil {
 		aggregator.Channel.Close()
 	}
