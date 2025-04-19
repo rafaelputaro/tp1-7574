@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"os"
+	"sync"
 
+	"tp1/rabbitmq"
 	"tp1/server/workers/filter/lib"
 
 	"github.com/op/go-logging"
@@ -32,4 +34,20 @@ func main() {
 	}
 
 	fmt.Printf("Filter type: %s | Filter number: %d\n", config.Type, config.Num)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+		conn, err := rabbitmq.ConnectRabbitMQ(log)
+		if err != nil {
+			log.Fatalf("Could not connect to RabbitMQ: %v", err)
+		}
+		defer conn.Close()
+		log.Info("Successful connection with RabbitMQ")
+	}()
+
+	// Wait for go routine to finish
+	wg.Wait()
 }

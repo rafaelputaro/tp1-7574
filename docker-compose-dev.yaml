@@ -9,6 +9,10 @@ services:
             # To log in at web panel
             RABBITMQ_DEFAULT_USER: admin
             RABBITMQ_DEFAULT_PASS: admin
+        volumes:
+            - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+        networks:
+            - tp1_net
 
     2000s-filter-1:
         container_name: 2000s-filter-1
@@ -18,6 +22,9 @@ services:
             - FILTER_NUM=1
         networks:
             - tp1_net
+        depends_on:
+            # TODO: esto solo asegura que el container de rabbitmq se levante primero, no que esté funcionando
+            - rabbitmq 
 
     ar-es-filter-1:
         container_name: ar-es-filter-1
@@ -27,6 +34,8 @@ services:
             - FILTER_NUM=1
         networks:
             - tp1_net
+        depends_on:
+            - rabbitmq 
 
     ar-filter-1:
         container_name: ar-filter-1
@@ -36,6 +45,8 @@ services:
             - FILTER_NUM=1
         networks:
             - tp1_net
+        depends_on:
+            - rabbitmq 
 
     top-5-investors-filter-1:
         container_name: top-5-investors-filter-1
@@ -45,6 +56,8 @@ services:
             - FILTER_NUM=1
         networks:
             - tp1_net
+        depends_on:
+            - rabbitmq 
 
 networks:
   tp1_net:

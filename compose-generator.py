@@ -27,6 +27,10 @@ docker_compose_txt += """
             # To log in at web panel
             RABBITMQ_DEFAULT_USER: admin
             RABBITMQ_DEFAULT_PASS: admin
+        volumes:
+            - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+        networks:
+            - tp1_net
 """
 
 # WORKERS ------------------------------------------------------------------------------------------

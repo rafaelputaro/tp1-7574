@@ -5,6 +5,7 @@ go 1.24.1
 require (
 	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7
 	github.com/pkg/errors v0.9.1
+	github.com/rabbitmq/amqp091-go v1.10.0
 	github.com/spf13/viper v1.20.1
 	google.golang.org/grpc v1.71.1
 	google.golang.org/protobuf v1.36.6
