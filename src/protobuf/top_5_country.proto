@@ -1,0 +1,7 @@
+option go_package = "./protopb";
+
+message Top5Country {
+  repeated int32 budget = 1;
+  repeated string production_countries = 2;
+  optional bool eof = 3;
+}

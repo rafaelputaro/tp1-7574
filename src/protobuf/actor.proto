@@ -1,0 +1,8 @@
+option go_package = "./protopb";
+
+message Actor {
+  required string name = 1;
+  required string profilePath = 2;
+  required int64 countMovies = 3;
+  optional bool eof = 4;
+}
