@@ -1,34 +1,36 @@
 package common
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/spf13/viper"
 )
 
 type AggregatorConfig struct {
-	ID            string
-	AmqUrl        string
-	AmountSources uint32
-	InputQueue    QueueConfig
-	OutputQueue   QueueConfig
+	ID             string
+	AggregatorType string
+	AmountSources  uint32
+	InputQueue     QueueConfig
+	InputQueueSec  QueueConfig
+	OutputQueue    QueueConfig
 	// TODO Probablemente una cola de control
 }
 
 // Returns new aggregator config
 func NewAggregatorConfig(
 	id string,
-	amqUrl string,
+	aggregator_type string,
 	amountSources uint32,
 	inputQueue QueueConfig,
+	inputQueueSec QueueConfig,
 	outputQueue QueueConfig) *AggregatorConfig {
 	config := &AggregatorConfig{
-		ID:            id,
-		AmqUrl:        amqUrl,
-		AmountSources: amountSources,
-		InputQueue:    inputQueue,
-		OutputQueue:   outputQueue,
+		ID:             id,
+		AggregatorType: aggregator_type,
+		AmountSources:  amountSources,
+		InputQueue:     inputQueue,
+		InputQueueSec:  inputQueueSec,
+		OutputQueue:    outputQueue,
 	}
 	return config
 }
@@ -36,9 +38,11 @@ func NewAggregatorConfig(
 // Read configuration from config.yaml or environment
 func LoadAggregatorConfig() (*AggregatorConfig, error) {
 	v := viper.New()
+	v.AutomaticEnv()
+	v.SetEnvPrefix("aggregator")
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	v.BindEnv("type")
 	v.BindEnv("id")
-	v.BindEnv("amqp_url")
 	v.BindEnv("amount_sources")
 	// input queue
 	v.BindEnv("input_queue", "delete_when_unused")
@@ -46,6 +50,12 @@ func LoadAggregatorConfig() (*AggregatorConfig, error) {
 	v.BindEnv("input_queue", "exclusive")
 	v.BindEnv("input_queue", "name")
 	v.BindEnv("input_queue", "no_wait")
+	// input queue secondary
+	v.BindEnv("input_queue_sec", "delete_when_unused")
+	v.BindEnv("input_queue_sec", "durable")
+	v.BindEnv("input_queue_sec", "exclusive")
+	v.BindEnv("input_queue_sec", "name")
+	v.BindEnv("input_queue_sec", "no_wait")
 	// output queue
 	v.BindEnv("output_queue", "delete_when_unused")
 	v.BindEnv("output_queue", "durable")
@@ -54,27 +64,44 @@ func LoadAggregatorConfig() (*AggregatorConfig, error) {
 	v.BindEnv("output_queue", "no_wait")
 	v.SetConfigFile("./config.yaml")
 	if err := v.ReadInConfig(); err != nil {
-		fmt.Printf("Configuration could not be read from config file. Using env variables instead")
 		return nil, err
 	} else {
+		id := v.GetString("id")
+		aggregatorType := v.GetString("type")
+		amountSources := v.GetUint32("amount_sources")
+		inputQueue := *NewQueueConfig(
+			v.GetBool("input_queue.delete_when_unused"),
+			v.GetBool("input_queue.durable"),
+			v.GetBool("input_queue.exclusive"),
+			v.GetString("input_queue.name"),
+			v.GetBool("input_queue.no_wait"),
+		)
+		var inputQueueSec QueueConfig
+		if aggregatorType == METRICS {
+			inputQueueSec = *NewQueueConfig(
+				v.GetBool("input_queue_sec.delete_when_unused"),
+				v.GetBool("input_queue_sec.durable"),
+				v.GetBool("input_queue_sec.exclusive"),
+				v.GetString("input_queue_sec.name"),
+				v.GetBool("input_queue_sec.no_wait"),
+			)
+		} else {
+			inputQueueSec = *DummyQueueConfig()
+		}
+		outputQueue := *NewQueueConfig(
+			v.GetBool("input_queue.delete_when_unused"),
+			v.GetBool("input_queue.durable"),
+			v.GetBool("input_queue.exclusive"),
+			v.GetString("input_queue.name"),
+			v.GetBool("input_queue.no_wait"),
+		)
 		var config *AggregatorConfig = NewAggregatorConfig(
-			v.GetString("id"),
-			v.GetString("amqp_url"),
-			v.GetUint32("amount_sources"),
-			*NewQueueConfig(
-				v.GetBool("input_queue.delete_when_unused"),
-				v.GetBool("input_queue.durable"),
-				v.GetBool("input_queue.exclusive"),
-				v.GetString("input_queue.name"),
-				v.GetBool("input_queue.no_wait"),
-			),
-			*NewQueueConfig(
-				v.GetBool("input_queue.delete_when_unused"),
-				v.GetBool("input_queue.durable"),
-				v.GetBool("input_queue.exclusive"),
-				v.GetString("input_queue.name"),
-				v.GetBool("input_queue.no_wait"),
-			),
+			id,
+			aggregatorType,
+			amountSources,
+			inputQueue,
+			inputQueueSec,
+			outputQueue,
 		)
 		return config, nil
 	}

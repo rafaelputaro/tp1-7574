@@ -4,28 +4,59 @@ package main
 
 import (
 	//"github-app/protobuf/protopb"
-	"fmt"
-	"time"
+
+	//"time"
 
 	//"os"
+
+	"fmt"
+	"os"
+	"sync"
 	"testing"
 
+	//"time"
 	"tp1/server/workers/aggregator/common"
-	//"github.com/NeowayLabs/wabbit/amqptest"
-	//"github.com/NeowayLabs/wabbit/amqptest/server"
-	//"github.com/NeowayLabs/wabbit/amqp"
+	//amqp "github.com/rabbitmq/amqp091-go"
 	//"google.golang.org/protobuf/proto"
 )
 
 func TestAggregatorConfig(t *testing.T) {
-	fmt.Printf("TEsting on docker")
-	var aggregator, _ = common.NewAggregator()
-	if aggregator != nil {
-		fmt.Printf("Config Aggregator: %v", aggregator.Config)
-		//Dispose(aggregator)
+	common.Log.Infof("Testing aggregator")
+	common.Log.Info("Starting aggregator...")
+	fmt.Println("Testing Aggregator")
+	common.InitLogger()
+	var aggregator, err = common.NewAggregator(common.Log)
+	if err != nil {
+		common.Log.Infof("%v: %v", MSG_ERROR_CREATE_AGGREGATOR, err)
+		os.Exit(1)
 	} else {
-		fmt.Printf("Aggregator no se ha podido crear")
-
+		common.Log.Infof("Aggregator type: %s | Aggregator ID: %s\n",
+			aggregator.Config.AggregatorType,
+			aggregator.Config.ID,
+		)
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			aggregator.Start()
+		}()
+		// Wait for go routine to finish TODO: or SIGKILL signals
+		wg.Wait()
+		aggregator.Dispose()
 	}
-	time.Sleep(30 * time.Second)
+
+	/*
+		err := aggregator.Channel.Publish("", aggregator.Config.InputQueue.Name, false, false, amqp.Publishing{
+			ContentType: "text/plain",
+			Body:        []byte("Hola"),
+		})
+		if err != nil {
+			common.Log.Infof("Error subir mensaje")
+		}*/
+	//time.Sleep(20 * time.Second)
+	//	common.Log.Infof("Subio mensaje")
+
+	//	common.Consume(aggregator)
+
+	// time.Sleep(600 * time.Second)
 }

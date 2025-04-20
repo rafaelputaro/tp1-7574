@@ -1,15 +1,15 @@
-id: "1"
-amqp_url: "amqp://admin:admin@rabbitmq:5672/"
-amount_sources: 1
 input_queue:  
   delete_when_unused: false
-  durable: false
+  durable: true
   exclusive: false	
-  name: "AggregatorMovies"	
+  no_wait: false
+input_queue_sec:  
+  delete_when_unused: false
+  durable: true
+  exclusive: false	
   no_wait: false
 output_queue:
   delete_when_unused: false
-  durable: false
+  durable: true
   exclusive: false	
-  name: "AggregatorReport"	
   no_wait: false

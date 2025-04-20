@@ -42,3 +42,7 @@ Ejecutar en la carpeta `src/`
 ```bash
 go test ./...
 ```
+
+## Fuentes:
+
+* RabbitMQ + Golang tutorial: https://www.rabbitmq.com/tutorials/tutorial-one-go

@@ -1,5 +1,7 @@
 package common
 
+const DUMMY_QUEUE_NAME = "DUMMY"
+
 type QueueConfig struct {
 	DeleteWhenUnused bool
 	Durable          bool
@@ -23,4 +25,8 @@ func NewQueueConfig(
 		NoWait:           noWait,
 	}
 	return config
+}
+
+func DummyQueueConfig() *QueueConfig {
+	return NewQueueConfig(false, true, false, DUMMY_QUEUE_NAME, false)
 }
