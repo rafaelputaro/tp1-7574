@@ -35,4 +35,3 @@ message Movie {
 service MovieService {
   rpc StreamMovies (stream Movie) returns (google.protobuf.Empty);
 }
-

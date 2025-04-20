@@ -108,6 +108,54 @@ for i in range(1, top_5_investors_filter_nodes + 1):
             - rabbitmq 
 """
 
+# CONTROLLER ----------------------------------------------------------------------------------------
+all_dependencies = ["rabbitmq"]
+for i in range(1, filter_nodes_2000s + 1):
+    all_dependencies.append(f"2000s-filter-{i}")
+for i in range(1, ar_es_filter_nodes + 1):
+    all_dependencies.append(f"ar-es-filter-{i}")
+for i in range(1, ar_filter_nodes + 1):
+    all_dependencies.append(f"ar-filter-{i}")
+for i in range(1, top_5_investors_filter_nodes + 1):
+    all_dependencies.append(f"top-5-investors-filter-{i}")
+for i in range(1, top_5_investors_filter_nodes + 1):  # same count as NLP nodes
+    all_dependencies.append(f"nlp-{i}")
+
+controller_depends_on = "\n".join([f"            - {name}" for name in all_dependencies])
+
+docker_compose_txt += f"""
+    controller:
+        container_name: controller
+        image: controller:latest
+        build:
+            context: .
+            dockerfile: src/server/gateway/Dockerfile
+        networks:
+            - tp1_net
+        depends_on:
+{controller_depends_on}
+"""
+
+# CLIENT --------------------------------------------------------------------------------------------
+docker_compose_txt += f"""
+    client:
+        container_name: client
+        image: client:latest
+        build:
+            context: .
+            dockerfile: src/client/Dockerfile
+        networks:
+            - tp1_net
+        depends_on:
+            - controller
+        volumes:
+            - ./src/client/datasets:/app/datasets
+        entrypoint: /client
+        command:
+            - /app/datasets/movies.csv
+            - /app/datasets/ratings.csv
+            - /app/datasets/credits.csv
+"""
     
 # tp1_net: Isolated network that allow containers to communicate
 # ipam: IP Address Management settings, used to configure the network

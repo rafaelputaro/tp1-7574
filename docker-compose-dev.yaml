@@ -69,6 +69,40 @@ services:
         depends_on:
             - rabbitmq 
 
+    controller:
+        container_name: controller
+        image: controller:latest
+        build:
+            context: .
+            dockerfile: src/server/gateway/Dockerfile
+        networks:
+            - tp1_net
+        depends_on:
+            - rabbitmq
+            - 2000s-filter-1
+            - ar-es-filter-1
+            - ar-filter-1
+            - top-5-investors-filter-1
+            - nlp-1
+
+    client:
+        container_name: client
+        image: client:latest
+        build:
+            context: .
+            dockerfile: src/client/Dockerfile
+        networks:
+            - tp1_net
+        depends_on:
+            - controller
+        volumes:
+            - ./src/client/datasets:/app/datasets
+        entrypoint: /client
+        command:
+            - /app/datasets/movies.csv
+            - /app/datasets/ratings.csv
+            - /app/datasets/credits.csv
+
 networks:
   tp1_net:
     ipam:

@@ -1,8 +1,16 @@
+syntax = "proto2";
+
 option go_package = "./protopb";
+
+import "google/protobuf/empty.proto";
 
 message Credit {
   required string cast = 1;
   required string crew = 2;
   required int64 id = 3;
   optional bool eof = 4;
+}
+
+service CreditService {
+  rpc StreamCredits (stream Credit) returns (google.protobuf.Empty);
 }

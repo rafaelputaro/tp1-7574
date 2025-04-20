@@ -9,6 +9,7 @@ package protopb
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -93,12 +94,14 @@ var File_credit_proto protoreflect.FileDescriptor
 
 const file_credit_proto_rawDesc = "" +
 	"\n" +
-	"\fcredit.proto\"R\n" +
+	"\fcredit.proto\x1a\x1bgoogle/protobuf/empty.proto\"R\n" +
 	"\x06Credit\x12\x12\n" +
 	"\x04cast\x18\x01 \x02(\tR\x04cast\x12\x12\n" +
 	"\x04crew\x18\x02 \x02(\tR\x04crew\x12\x0e\n" +
 	"\x02id\x18\x03 \x02(\x03R\x02id\x12\x10\n" +
-	"\x03eof\x18\x04 \x01(\bR\x03eofB\vZ\t./protopb"
+	"\x03eof\x18\x04 \x01(\bR\x03eof2C\n" +
+	"\rCreditService\x122\n" +
+	"\rStreamCredits\x12\a.Credit\x1a\x16.google.protobuf.Empty(\x01B\vZ\t./protopb"
 
 var (
 	file_credit_proto_rawDescOnce sync.Once
@@ -114,11 +117,14 @@ func file_credit_proto_rawDescGZIP() []byte {
 
 var file_credit_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_credit_proto_goTypes = []any{
-	(*Credit)(nil), // 0: Credit
+	(*Credit)(nil),        // 0: Credit
+	(*emptypb.Empty)(nil), // 1: google.protobuf.Empty
 }
 var file_credit_proto_depIdxs = []int32{
-	0, // [0:0] is the sub-list for method output_type
-	0, // [0:0] is the sub-list for method input_type
+	0, // 0: CreditService.StreamCredits:input_type -> Credit
+	1, // 1: CreditService.StreamCredits:output_type -> google.protobuf.Empty
+	1, // [1:2] is the sub-list for method output_type
+	0, // [0:1] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -137,7 +143,7 @@ func file_credit_proto_init() {
 			NumEnums:      0,
 			NumMessages:   1,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   1,
 		},
 		GoTypes:           file_credit_proto_goTypes,
 		DependencyIndexes: file_credit_proto_depIdxs,

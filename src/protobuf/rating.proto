@@ -1,4 +1,8 @@
+syntax = "proto2";
+
 option go_package = "./protopb";
+
+import "google/protobuf/empty.proto";
 
 message Rating {
   required int64 userId = 1;
@@ -6,4 +10,8 @@ message Rating {
   required float rating = 3;
   required int64 timestamp = 4;
   optional bool eof = 5;
+}
+
+service RatingService {
+  rpc StreamRatings (stream Rating) returns (google.protobuf.Empty);
 }
