@@ -22,7 +22,6 @@ services:
     restart: on-failure
     environment:
       - AGGREGATOR_TYPE=movies
-      - AGGREGATOR_AMQP_URL=amqp://admin:admin@rabbitmq:5672/
       - AGGREGATOR_ID=1
       - AGGREGATOR_AMOUNT_SOURCES=1
       - AGGREGATOR_INPUT_QUEUE_NAME=movies_aggregator

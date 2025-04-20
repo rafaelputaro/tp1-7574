@@ -1,10 +1,15 @@
 input_queue:  
   delete_when_unused: false
-  durable: false
+  durable: true
+  exclusive: false	
+  no_wait: false
+input_queue_sec:  
+  delete_when_unused: false
+  durable: true
   exclusive: false	
   no_wait: false
 output_queue:
   delete_when_unused: false
-  durable: false
+  durable: true
   exclusive: false	
   no_wait: false
