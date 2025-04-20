@@ -59,6 +59,16 @@ services:
         depends_on:
             - rabbitmq 
 
+    nlp-1:
+        container_name: nlp-1
+        image: nlp:latest
+        environment:
+            - NODE_NUM=1
+        networks:
+            - tp1_net
+        depends_on:
+            - rabbitmq 
+
 networks:
   tp1_net:
     ipam:

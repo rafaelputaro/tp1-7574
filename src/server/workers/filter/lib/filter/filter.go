@@ -128,6 +128,8 @@ func (f *Filter) processTop5InvestorsFilter() {
 	// top 5 entonces se descarta. Al recibir el eof se envía el top 5 al aggregator
 }
 
+// Reads messages from input queue until an EOF is received. Filters based on the filterFunc and
+// sends the resultas through the output queue
 func (f *Filter) runFilterJob(
 	inputQueue string,
 	outputQueue string,
@@ -139,14 +141,27 @@ func (f *Filter) runFilterJob(
 	// Declare queues (if rabbitmq doesn't have them, it creates them)
 	for _, queue := range []string{inputQueue, outputQueue} {
 		_, err := f.channel.QueueDeclare(
-			queue, true, false, false, false, nil,
+			queue, // name
+			true,  // durable: the queue is maintained event after the broker is resetted
+			false, // autoDelete: the queue is not automatically deleted when there are no more consumers
+			false, // exclusive: the queue can be accessed by multiple connections
+			false, // no-wait: wait for the broker's confirmation to know if the queue was succesfully created
+			nil,   // args
 		)
 		if err != nil {
 			f.log.Fatalf("Failed to declare queue '%s': %v", queue, err)
 		}
 	}
 
-	msgs, err := f.channel.Consume(inputQueue, "", true, false, false, false, nil)
+	msgs, err := f.channel.Consume(
+		inputQueue, // name
+		"",         // consumerTag: "" lets rabbitmq generate a tag for this consumer
+		true,       // autoAck: when a msg arrives, the consumers acks the msg
+		false,      // exclusive: allow others to consume from the queue
+		false,      // no-local: ignored field
+		false,      // no-wait: wait for confirmation of the consumers correct registration
+		nil,        // args
+	)
 	if err != nil {
 		f.log.Fatalf("Failed to consume messages from '%s': %v", inputQueue, err)
 	}

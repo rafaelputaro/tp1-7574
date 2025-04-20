@@ -9,6 +9,8 @@ filter_nodes_2000s = int(config["DEFAULT"]["2000s_FILTER_NODES"])
 ar_es_filter_nodes = int(config["DEFAULT"]["AR_ES_FILTER_NODES"])
 ar_filter_nodes = int(config["DEFAULT"]["AR_FILTER_NODES"])
 top_5_investors_filter_nodes = int(config["DEFAULT"]["TOP_5_INVESTORS_FILTER_NODES"])
+nlp_nodes = int(config["DEFAULT"]["NLP_NODES"])
+
 
 # Create compose file
 output_file = "docker-compose-dev.yaml"
@@ -91,6 +93,21 @@ for i in range(1, top_5_investors_filter_nodes + 1):
         depends_on:
             - rabbitmq 
 """
+    
+# NLP
+for i in range(1, top_5_investors_filter_nodes + 1):
+    docker_compose_txt += f"""
+    nlp-{i}:
+        container_name: nlp-{i}
+        image: nlp:latest
+        environment:
+            - NODE_NUM={i}
+        networks:
+            - tp1_net
+        depends_on:
+            - rabbitmq 
+"""
+
     
 # tp1_net: Isolated network that allow containers to communicate
 # ipam: IP Address Management settings, used to configure the network

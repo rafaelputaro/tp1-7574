@@ -1,0 +1,5 @@
+# torch and transformers are too big. Any changes in this file would trigger a re-installation of
+# them, so they are done in a different step on the dockerfile
+# torch
+# transformers
+pika

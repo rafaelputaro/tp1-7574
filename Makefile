@@ -17,6 +17,7 @@ deps:
 #      path is used in the Dockerfile, it is relative to this directory.
 docker-image: deps
 	docker build -f ./src/server/workers/filter/Dockerfile -t "filter:latest" .
+	docker build -f ./src/server/workers/nlp/Dockerfile -t "nlp:latest" .
 .PHONY: docker-image
 
 # `-d`: detached mode. Run the containers in the background as to not take over the terminal session.
@@ -44,7 +45,7 @@ docker-compose-down:
 	docker compose -f docker-compose-dev.yaml down
 .PHONY: docker-compose-down
 
-# Tests
+# Tests --------------------------------------------------------------------------------------------
 build-test:
 	docker build -f ./Dockerfile-test -t "app-test:latest" .
 .PHONY: build-test
