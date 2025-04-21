@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"log"
+	"github.com/op/go-logging"
 	"os"
+	"time"
 	"tp1/client/internal"
 	pb "tp1/protobuf/protopb"
 
@@ -31,29 +32,38 @@ func main() {
 	fmt.Println(" - Ratings:", ratingsPath)
 	fmt.Println(" - Credits:", creditsPath)
 
+	logger := logging.MustGetLogger("controller")
 	// Parsers
 	moviesParser, err := internal.NewMoviesParser(moviesPath, batchSize)
 	if err != nil {
-		log.Fatalf("Failed to create movies parser: %v", err)
+		logger.Fatalf("Failed to create movies parser: %v", err)
 	}
 	defer moviesParser.Close()
 
 	creditsParser, err := internal.NewCreditsParser(creditsPath, batchSize)
 	if err != nil {
-		log.Fatalf("Failed to create credits parser: %v", err)
+		logger.Fatalf("Failed to create credits parser: %v", err)
 	}
 	defer creditsParser.Close()
 
 	ratingsParser, err := internal.NewRatingsParser(ratingsPath, batchSize)
 	if err != nil {
-		log.Fatalf("Failed to create ratings parser: %v", err)
+		logger.Fatalf("Failed to create ratings parser: %v", err)
 	}
 	defer ratingsParser.Close()
 
 	// Senders
-	conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	var conn *grpc.ClientConn
+	for i := 0; i < 5; i++ {
+		conn, err = grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err == nil {
+			break
+		}
+		logger.Infof("Attempt %d: failed to connect to controller: %v", i+1, err)
+		time.Sleep(3 * time.Second)
+	}
 	if err != nil {
-		log.Fatalf("Failed to connect to gRPC server: %v", err)
+		logger.Fatalf("Failed to connect to controller after retries: %v", err)
 	}
 	defer conn.Close()
 

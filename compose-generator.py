@@ -155,6 +155,7 @@ docker_compose_txt += f"""
             - /app/datasets/movies.csv
             - /app/datasets/ratings.csv
             - /app/datasets/credits.csv
+        restart: on-failure
 """
     
 # tp1_net: Isolated network that allow containers to communicate
