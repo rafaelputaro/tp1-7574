@@ -79,24 +79,27 @@ func (f *Filter) Close() {
 type MovieFilterFunc func(movie *protopb.MovieSanit) bool
 
 func (f *Filter) process2000sFilter() {
-	inputQueue := "movies_sanit_queue"
-	outputQueue := "movies_2000s_queue"
+	inputQueue := "movies"
+	outputQueue := "movies_2000s"
 	filterName := "2000s_filter"
 
 	filterFunc := func(movie *protopb.MovieSanit) bool {
-		return movie.ReleaseYear != nil && *movie.ReleaseYear >= 2000 && *movie.ReleaseYear <= 2009
+		releaseYear := movie.GetReleaseYear()
+		return releaseYear >= 2000 && releaseYear <= 2009
 	}
 
 	f.runFilterJob(inputQueue, outputQueue, filterName, filterFunc)
 }
 
 func (f *Filter) processArEsFilter() {
-	inputQueue := "movies_sanit_queue"
+	inputQueue := "movies"
 	outputQueue := "movies_ar_es_queue"
 	filterName := "ar_es_filter"
 
 	filterFunc := func(movie *protopb.MovieSanit) bool {
-		for _, country := range movie.ProductionCountries {
+		productionCountries := movie.GetProductionCountries()
+
+		for _, country := range productionCountries {
 			if country == "Argentina" || country == "Spain" {
 				return true
 			}
@@ -108,19 +111,20 @@ func (f *Filter) processArEsFilter() {
 }
 
 func (f *Filter) processArFilter() {
-	inputQueue := "movies_sanit_queue"
+	inputQueue := "movies"
 	outputQueue := "movies_ar_queue"
 	filterName := "ar_filter"
 
 	filterFunc := func(movie *protopb.MovieSanit) bool {
-		return slices.Contains(movie.ProductionCountries, "Argentina")
+		productionCountries := movie.GetProductionCountries()
+		return slices.Contains(productionCountries, "Argentina")
 	}
 
 	f.runFilterJob(inputQueue, outputQueue, filterName, filterFunc)
 }
 
 func (f *Filter) processTop5InvestorsFilter() {
-	// inputQueue := "movies_sanit_queue"
+	// inputQueue := "movies"
 	// outputQueue := "movies_top_5_investors_queue"
 	// filterName := "top_5_investors_filter"
 
@@ -182,7 +186,7 @@ func (f *Filter) runFilterJob(
 		}
 
 		if filterFunc(&movie) {
-			f.log.Debugf("[%s] Accepted: %s (%d)", filterName, movie.Title, movie.ReleaseYear)
+			f.log.Debugf("[%s] Accepted: %s (%d)", filterName, movie.GetProductionCountries(), movie.GetReleaseYear())
 
 			data, err := proto.Marshal(&movie)
 			if err != nil {

@@ -11,7 +11,7 @@ import (
 func ConnectRabbitMQ(log *logging.Logger) (*amqp.Connection, error) {
 	var conn *amqp.Connection
 	var err error
-	maxRetries := 3
+	maxRetries := 5
 
 	for i := 1; i <= maxRetries; i++ {
 		conn, err = amqp.Dial("amqp://admin:admin@rabbitmq:5672/")
@@ -21,8 +21,8 @@ func ConnectRabbitMQ(log *logging.Logger) (*amqp.Connection, error) {
 
 		log.Infof("Attempt %d: Could not connect to RabbitMQ: %v", i, err)
 		if i < maxRetries {
-			log.Info("Retrying in 3 seconds...")
-			time.Sleep(3 * time.Second)
+			log.Info("Retrying in 5 seconds...")
+			time.Sleep(5 * time.Second)
 		}
 	}
 
