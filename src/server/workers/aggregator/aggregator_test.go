@@ -13,6 +13,7 @@ import (
 	"os"
 	"sync"
 	"testing"
+	"time"
 
 	//"time"
 	"tp1/server/workers/aggregator/common"
@@ -34,6 +35,7 @@ func TestAggregatorConfig(t *testing.T) {
 			aggregator.Config.AggregatorType,
 			aggregator.Config.ID,
 		)
+		common.Log.Infof("%v", aggregator.Config)
 		var wg sync.WaitGroup
 		wg.Add(1)
 		go func() {
@@ -58,5 +60,5 @@ func TestAggregatorConfig(t *testing.T) {
 
 	//	common.Consume(aggregator)
 
-	// time.Sleep(600 * time.Second)
+	time.Sleep(600 * time.Second)
 }

@@ -59,6 +59,22 @@ services:
         depends_on:
             - rabbitmq 
 
+    aggregator_movies:
+        container_name: aggregator_movies
+        image: aggregator:latest
+        environment:
+            - AGGREGATOR_TYPE=movies
+            - AGGREGATOR_ID=1
+            - AGGREGATOR_AMOUNT_SOURCES=1
+            - AGGREGATOR_INPUT_QUEUE_NAME=movies
+            - AGGREGATOR_OUTPUT_QUEUE_NAME=movies_report
+        networks:
+            - tp1_net
+        depends_on:
+            - rabbitmq
+        links: 
+            - rabbitmq
+
     nlp-1:
         container_name: nlp-1
         image: nlp:latest
