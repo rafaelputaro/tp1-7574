@@ -91,20 +91,16 @@ func (f *Filter) process2000sFilter() {
 	f.runFilterJob(inputQueue, outputQueue, filterName, filterFunc)
 }
 
+// Reads result from 2000s filter and returns the movies produced by both Spain and Argentina
 func (f *Filter) processArEsFilter() {
-	inputQueue := "movies"
-	outputQueue := "movies_ar_es_queue"
+	inputQueue := "movies_2000s"
+	outputQueue := "movies_ar_es_2000s"
 	filterName := "ar_es_filter"
 
 	filterFunc := func(movie *protopb.MovieSanit) bool {
 		productionCountries := movie.GetProductionCountries()
 
-		for _, country := range productionCountries {
-			if country == "Argentina" || country == "Spain" {
-				return true
-			}
-		}
-		return false
+		return slices.Contains(productionCountries, "Argentina") && slices.Contains(productionCountries, "Spain")
 	}
 
 	f.runFilterJob(inputQueue, outputQueue, filterName, filterFunc)
@@ -112,7 +108,7 @@ func (f *Filter) processArEsFilter() {
 
 func (f *Filter) processArFilter() {
 	inputQueue := "movies"
-	outputQueue := "movies_ar_queue"
+	outputQueue := "movies_ar"
 	filterName := "ar_filter"
 
 	filterFunc := func(movie *protopb.MovieSanit) bool {
@@ -125,7 +121,7 @@ func (f *Filter) processArFilter() {
 
 func (f *Filter) processTop5InvestorsFilter() {
 	// inputQueue := "movies"
-	// outputQueue := "movies_top_5_investors_queue"
+	// outputQueue := "movies_top_5_investors"
 	// filterName := "top_5_investors_filter"
 
 	// TODO: hay que guardar un estado interno del top 5 actual y si la nueva entrada no entra en el
