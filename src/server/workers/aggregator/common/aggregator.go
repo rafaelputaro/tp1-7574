@@ -159,6 +159,18 @@ func (aggregator *Aggregator) checkEofQueues(amountEOF int, amountQueesPerSource
 	return false
 }
 
+func (aggregator *Aggregator) publishData(data []byte) {
+	// send to report
+	err := aggregator.Channel.Publish("", aggregator.Config.OutputQueue.Name, false, false, amqp.Publishing{
+		ContentType: "application/protobuf",
+		Body:        data,
+	})
+	if err != nil {
+		aggregator.Log.Errorf("[%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_PUBLISH_ON_OUTPUT_QUEUE, err)
+	}
+}
+
+// TODO acá se vuelven a convertir los datos de más para testear rabbit, quitar luego
 func (aggregator *Aggregator) aggregateMovies() {
 	msgs, err := aggregator.consumeQueue(aggregator.Config.InputQueue)
 	if err == nil {
@@ -172,7 +184,9 @@ func (aggregator *Aggregator) aggregateMovies() {
 			// EOF
 			if movie.Eof != nil && *movie.Eof {
 				amountEOF += 1
+				// If all sources sent EOF, submit the EOF to report
 				if aggregator.checkEofSingleQueue(amountEOF) {
+					aggregator.publishData(msg.Body)
 					break
 				}
 			}
@@ -183,13 +197,7 @@ func (aggregator *Aggregator) aggregateMovies() {
 				continue
 			}
 			// send to report
-			err = aggregator.Channel.Publish("", aggregator.Config.OutputQueue.Name, false, false, amqp.Publishing{
-				ContentType: "application/protobuf",
-				Body:        data,
-			})
-			if err != nil {
-				aggregator.Log.Errorf("[%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_PUBLISH_ON_OUTPUT_QUEUE, err)
-			}
+			aggregator.publishData(data)
 		}
 	}
 }
