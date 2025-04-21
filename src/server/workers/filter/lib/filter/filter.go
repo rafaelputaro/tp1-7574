@@ -52,7 +52,7 @@ func NewFilter(config *FilterConfig, log *logging.Logger) *Filter {
 func (f *Filter) StartFilterLoop() {
 	switch f.config.Type {
 	case "2000s_filter":
-		f.process2000sFilter()
+		f.processYearFilters()
 	case "ar_es_filter":
 		f.processArEsFilter()
 	case "ar_filter":
@@ -78,50 +78,37 @@ func (f *Filter) Close() {
 
 type MovieFilterFunc func(movie *protopb.MovieSanit) bool
 
-func (f *Filter) process2000sFilter() {
-	inputQueue := "movies_sanit_queue"
-	outputQueue := "movies_2000s_queue"
-	filterName := "2000s_filter"
-
-	filterFunc := func(movie *protopb.MovieSanit) bool {
-		return movie.ReleaseYear != nil && *movie.ReleaseYear >= 2000 && *movie.ReleaseYear <= 2009
-	}
-
-	f.runFilterJob(inputQueue, outputQueue, filterName, filterFunc)
-}
-
+// Reads result from 2000s filter and returns the movies produced by both Spain and Argentina
 func (f *Filter) processArEsFilter() {
-	inputQueue := "movies_sanit_queue"
-	outputQueue := "movies_ar_es_queue"
+	inputQueue := "movies_2000s"
+	outputQueue := "movies_ar_es_2000s"
 	filterName := "ar_es_filter"
 
 	filterFunc := func(movie *protopb.MovieSanit) bool {
-		for _, country := range movie.ProductionCountries {
-			if country == "Argentina" || country == "Spain" {
-				return true
-			}
-		}
-		return false
+		productionCountries := movie.GetProductionCountries()
+
+		return slices.Contains(productionCountries, "Argentina") && slices.Contains(productionCountries, "Spain")
 	}
 
 	f.runFilterJob(inputQueue, outputQueue, filterName, filterFunc)
 }
 
 func (f *Filter) processArFilter() {
-	inputQueue := "movies_sanit_queue"
-	outputQueue := "movies_ar_queue"
+	inputQueue := "movies_2000_and_later"
+	outputQueue := "movies_ar"
 	filterName := "ar_filter"
 
 	filterFunc := func(movie *protopb.MovieSanit) bool {
-		return slices.Contains(movie.ProductionCountries, "Argentina")
+		productionCountries := movie.GetProductionCountries()
+		return slices.Contains(productionCountries, "Argentina")
 	}
 
 	f.runFilterJob(inputQueue, outputQueue, filterName, filterFunc)
 }
 
 func (f *Filter) processTop5InvestorsFilter() {
-	// inputQueue := "movies_sanit_queue"
-	// outputQueue := "movies_top_5_investors_queue"
+	// inputQueue := "movies"
+	// outputQueue := "movies_top_5_investors"
 	// filterName := "top_5_investors_filter"
 
 	// TODO: hay que guardar un estado interno del top 5 actual y si la nueva entrada no entra en el
@@ -182,7 +169,7 @@ func (f *Filter) runFilterJob(
 		}
 
 		if filterFunc(&movie) {
-			f.log.Debugf("[%s] Accepted: %s (%d)", filterName, movie.Title, movie.ReleaseYear)
+			f.log.Debugf("[%s] Accepted: %s (%d)", filterName, movie.GetProductionCountries(), movie.GetReleaseYear())
 
 			data, err := proto.Marshal(&movie)
 			if err != nil {
@@ -196,6 +183,78 @@ func (f *Filter) runFilterJob(
 			})
 			if err != nil {
 				f.log.Errorf("[%s] Failed to publish filtered message: %v", filterName, err)
+			}
+		}
+	}
+
+	f.log.Infof("[%s] Job finished", filterName)
+}
+
+// Filter that reads from `movies` queue and writes to 3 different queues with the following conditions:
+// * Year between 2000 and 2009
+// * Year greater than 2000
+// * Year greater or equal to 2000
+func (f *Filter) processYearFilters() {
+	inputQueue := "movies"
+	outputQueues := map[string]func(uint32) bool{
+		"movies_2000_to_2009":   func(year uint32) bool { return year >= 2000 && year <= 2009 },
+		"movies_after_2000":     func(year uint32) bool { return year > 2000 },
+		"movies_2000_and_later": func(year uint32) bool { return year >= 2000 },
+	}
+	filterName := "year_branch_filter"
+
+	f.log.Infof("[%s] Starting job for ID: %d", filterName, f.config.ID)
+
+	// Declare queues (input and output)
+	queues := []string{"movies", "movies_2000_to_2009", "movies_after_2000", "movies_2000_and_later"}
+	for _, queue := range queues {
+		// TODO: func declareDirectQueue
+		_, err := f.channel.QueueDeclare(
+			queue, true, false, false, false, nil,
+		)
+		if err != nil {
+			f.log.Fatalf("[%s] Failed to declare queue '%s': %v", filterName, queue, err)
+		}
+	}
+
+	msgs, err := f.channel.Consume(inputQueue, "", true, false, false, false, nil)
+
+	if err != nil {
+		f.log.Fatalf("[%s] Failed to consume messages from '%s': %v", filterName, inputQueue, err)
+	}
+
+	f.log.Infof("[%s] Waiting for messages...", filterName)
+
+	for msg := range msgs {
+		var movie protopb.MovieSanit
+		if err := proto.Unmarshal(msg.Body, &movie); err != nil {
+			f.log.Errorf("[%s] Failed to unmarshal message: %v", filterName, err)
+			continue
+		}
+
+		if movie.Eof != nil && *movie.Eof {
+			f.log.Infof("[%s] Received EOF marker", filterName)
+			break
+		}
+
+		releaseYear := movie.GetReleaseYear()
+
+		data, err := proto.Marshal(&movie)
+		if err != nil {
+			f.log.Errorf("[%s] Failed to marshal message: %v", filterName, err)
+			continue
+		}
+
+		for queueName, condition := range outputQueues {
+			if condition(releaseYear) {
+				f.log.Debugf("[%s] -> [%s] %s (%d)", filterName, queueName, movie.GetTitle(), releaseYear)
+				err = f.channel.Publish("", queueName, false, false, amqp.Publishing{
+					ContentType: "application/protobuf",
+					Body:        data,
+				})
+				if err != nil {
+					f.log.Errorf("[%s] Failed to publish to '%s': %v", filterName, queueName, err)
+				}
 			}
 		}
 	}

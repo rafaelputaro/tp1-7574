@@ -11,7 +11,7 @@ import (
 func ConnectRabbitMQ(log *logging.Logger) (*amqp.Connection, error) {
 	var conn *amqp.Connection
 	var err error
-	maxRetries := 3
+	maxRetries := 20
 
 	for i := 1; i <= maxRetries; i++ {
 		conn, err = amqp.Dial("amqp://admin:admin@rabbitmq:5672/")

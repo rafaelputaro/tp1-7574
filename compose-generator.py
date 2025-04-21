@@ -93,7 +93,26 @@ for i in range(1, top_5_investors_filter_nodes + 1):
         depends_on:
             - rabbitmq 
 """
-    
+
+# AGGREGATOR --------------------------------------------------------------------------------------------
+docker_compose_txt += f"""
+    aggregator_movies:
+        container_name: aggregator_movies
+        image: aggregator:latest
+        environment:
+            - AGGREGATOR_TYPE=movies
+            - AGGREGATOR_ID=1
+            - AGGREGATOR_AMOUNT_SOURCES=1
+            - AGGREGATOR_INPUT_QUEUE_NAME=movies
+            - AGGREGATOR_OUTPUT_QUEUE_NAME=movies_report
+        networks:
+            - tp1_net
+        depends_on:
+            - rabbitmq
+        links: 
+            - rabbitmq
+"""
+
 # NLP
 for i in range(1, top_5_investors_filter_nodes + 1):
     docker_compose_txt += f"""
