@@ -36,7 +36,8 @@ func (p *parser[T]) NextBatch() ([]*T, error) {
 
 		item, err := p.fn(record)
 		if err != nil {
-			return nil, err
+			logger.Errorf("skipping line due to parse error: %v", err)
+			continue
 		}
 
 		batch = append(batch, item)

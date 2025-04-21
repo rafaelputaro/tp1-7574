@@ -49,14 +49,19 @@ func TestNormalizeJSON(t *testing.T) {
 			`{"name": "O'Connor"}`,
 		},
 		{
-			name:     "Complex cast/crew with apostrophes and None",
-			input:    `[{'cast_id': 4, 'character': 'Stuart', 'credit_id': '58f7031a9251415dec00923f', 'gender': 2, 'id': 1219597, 'name': ""Jim O'Heir"", 'order': 4, 'profile_path': None}]`,
-			expected: `[{"cast_id": 4, "character": "Stuart", "credit_id": "58f7031a9251415dec00923f", "gender": 2, "id": 1219597, "name": "Jim O'Heir", "order": 4, "profile_path": null}]`,
+			"Handles apostrophes in names 3",
+			`{"name": "O'Connor"}`,
+			`{"name": "O'Connor"}`,
 		},
 		{
 			"Handles single quote in middle of word",
 			`{'note': 'don''t stop'}`,
 			`{"note": "don't stop"}`, // Note: this only works if input is truly malformed with doubled quotes
+		},
+		{
+			name:     "Complex cast/crew with apostrophes and None",
+			input:    `[{'cast_id': 4, 'character': 'Stuart', 'credit_id': '58f7031a9251415dec00923f', 'gender': 2, 'id': 1219597, 'name': ""Jim O'Heir"", 'order': 4, 'profile_path': None}]`,
+			expected: `[{"cast_id": 4, "character": "Stuart", "credit_id": "58f7031a9251415dec00923f", "gender": 2, "id": 1219597, "name": "Jim O'Heir", "order": 4, "profile_path": null}]`,
 		},
 	}
 
