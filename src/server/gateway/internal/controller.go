@@ -47,7 +47,7 @@ func (c *Controller) StreamMovies(stream pb.MovieService_StreamMoviesServer) err
 		}
 
 		err = c.ch.Publish(
-			"", "movies", false, false,
+			"", "movies_exchange", false, false,
 			amqp.Publishing{
 				ContentType: "application/protobuf",
 				Body:        data,
@@ -81,7 +81,7 @@ func (c *Controller) StreamRatings(stream pb.RatingService_StreamRatingsServer) 
 		}
 
 		err = c.ch.Publish(
-			"", "ratings", false, false,
+			"", "ratings_exchange", false, false,
 			amqp.Publishing{
 				ContentType: "application/protobuf",
 				Body:        data,
@@ -115,7 +115,7 @@ func (c *Controller) StreamCredits(stream pb.CreditService_StreamCreditsServer) 
 		}
 
 		err = c.ch.Publish(
-			"", "credits", false, false,
+			"", "credits_exchange", false, false,
 			amqp.Publishing{
 				ContentType: "application/protobuf",
 				Body:        data,

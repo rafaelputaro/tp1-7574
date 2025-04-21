@@ -34,6 +34,23 @@ func main() {
 		}
 	}
 
+	// Declare fanout exchanges
+	exchanges := []string{"movies_exchange", "ratings_exchange", "credits_exchange"}
+	for _, name := range exchanges {
+		err := ch.ExchangeDeclare(
+			name,
+			"fanout", // exchange type
+			true,     // durable
+			false,    // auto-deleted
+			false,    // internal
+			false,    // no-wait
+			nil,      // arguments
+		)
+		if err != nil {
+			logger.Fatalf("Failed to declare exchange '%s': %v", name, err)
+		}
+	}
+
 	// Start gRPC server
 	lis, err := net.Listen("tcp", ":50051")
 	if err != nil {
