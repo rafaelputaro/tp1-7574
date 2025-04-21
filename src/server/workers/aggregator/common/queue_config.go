@@ -1,5 +1,7 @@
 package common
 
+import "fmt"
+
 const DUMMY_QUEUE_NAME = "DUMMY"
 
 type QueueConfig struct {
@@ -29,4 +31,14 @@ func NewQueueConfig(
 
 func DummyQueueConfig() *QueueConfig {
 	return NewQueueConfig(false, true, false, DUMMY_QUEUE_NAME, false)
+}
+
+func (queueConfig *QueueConfig) ToString() string {
+	return fmt.Sprintf("Name: %v | DeleteWhenUnused: %v | Durable: %v | Exclusive: %v | NoWait: %v",
+		queueConfig.Name,
+		queueConfig.DeleteWhenUnused,
+		queueConfig.Durable,
+		queueConfig.Exclusive,
+		queueConfig.NoWait,
+	)
 }

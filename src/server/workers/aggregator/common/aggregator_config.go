@@ -3,6 +3,7 @@ package common
 import (
 	"strings"
 
+	"github.com/op/go-logging"
 	"github.com/spf13/viper"
 )
 
@@ -89,11 +90,11 @@ func LoadAggregatorConfig() (*AggregatorConfig, error) {
 			inputQueueSec = *DummyQueueConfig()
 		}
 		outputQueue := *NewQueueConfig(
-			v.GetBool("input_queue.delete_when_unused"),
-			v.GetBool("input_queue.durable"),
-			v.GetBool("input_queue.exclusive"),
-			v.GetString("input_queue.name"),
-			v.GetBool("input_queue.no_wait"),
+			v.GetBool("output_queue.delete_when_unused"),
+			v.GetBool("output_queue.durable"),
+			v.GetBool("output_queue.exclusive"),
+			v.GetString("output_queue.name"),
+			v.GetBool("output_queue.no_wait"),
 		)
 		var config *AggregatorConfig = NewAggregatorConfig(
 			id,
@@ -105,4 +106,17 @@ func LoadAggregatorConfig() (*AggregatorConfig, error) {
 		)
 		return config, nil
 	}
+}
+
+func (config *AggregatorConfig) LogConfig(log *logging.Logger) {
+	log.Debugf("ID: %v | AggregatorType: %v | AmountSources: %v",
+		config.ID,
+		config.AggregatorType,
+		config.AmountSources,
+	)
+	log.Debugf("InputQueue: %v", config.InputQueue.ToString())
+	if config.AggregatorType == METRICS {
+		log.Debugf("InputQueueSec: %v", config.InputQueueSec.ToString())
+	}
+	log.Debugf("OutputQueue: %v", config.OutputQueue.ToString())
 }

@@ -25,7 +25,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -o bin/aggregator ./server/wor
 FROM busybox:latest
 # Copy the compiled binary from the previous stage 
 COPY --from=builder /build/bin/aggregator /aggregator
-# COPY ./client/config.yaml /config.yaml
+COPY ./src/server/workers/aggregator/config.yaml /config.yaml
 ENTRYPOINT ["/aggregator"]
 
 

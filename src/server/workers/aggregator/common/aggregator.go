@@ -51,6 +51,7 @@ func NewAggregator(log *logging.Logger) (*Aggregator, error) {
 		log.Fatalf(MSG_ERROR_CONFIG)
 		return nil, err
 	}
+	config.LogConfig(log)
 	connection, err := rabbitUtils.ConnectRabbitMQ(log)
 	if err != nil {
 		log.Fatalf("%v: %v", MSG_ERROR_DIAL, err)
