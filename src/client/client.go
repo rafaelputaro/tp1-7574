@@ -32,7 +32,7 @@ func main() {
 	fmt.Println(" - Ratings:", ratingsPath)
 	fmt.Println(" - Credits:", creditsPath)
 
-	logger := logging.MustGetLogger("controller")
+	logger := logging.MustGetLogger("client")
 	// Parsers
 	moviesParser, err := internal.NewMoviesParser(moviesPath, batchSize)
 	if err != nil {

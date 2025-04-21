@@ -12,13 +12,12 @@ import (
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/emptypb"
-	"tp1/protobuf/protopb"
 )
 
 type Controller struct {
-	protopb.UnimplementedMovieServiceServer
-	protopb.UnimplementedRatingServiceServer
-	protopb.UnimplementedCreditServiceServer
+	pb.UnimplementedMovieServiceServer
+	pb.UnimplementedRatingServiceServer
+	pb.UnimplementedCreditServiceServer
 	ch *amqp.Channel
 }
 
@@ -26,7 +25,7 @@ func NewController(ch *amqp.Channel) *Controller {
 	return &Controller{ch: ch}
 }
 
-func (c *Controller) StreamMovies(stream protopb.MovieService_StreamMoviesServer) error {
+func (c *Controller) StreamMovies(stream pb.MovieService_StreamMoviesServer) error {
 	for {
 		msg, err := stream.Recv()
 		if err == io.EOF {
@@ -60,7 +59,7 @@ func (c *Controller) StreamMovies(stream protopb.MovieService_StreamMoviesServer
 	}
 }
 
-func (c *Controller) StreamRatings(stream protopb.RatingService_StreamRatingsServer) error {
+func (c *Controller) StreamRatings(stream pb.RatingService_StreamRatingsServer) error {
 	for {
 		rating, err := stream.Recv()
 		if err == io.EOF {
@@ -94,7 +93,7 @@ func (c *Controller) StreamRatings(stream protopb.RatingService_StreamRatingsSer
 	}
 }
 
-func (c *Controller) StreamCredits(stream protopb.CreditService_StreamCreditsServer) error {
+func (c *Controller) StreamCredits(stream pb.CreditService_StreamCreditsServer) error {
 	for {
 		credit, err := stream.Recv()
 		if err == io.EOF {
@@ -133,8 +132,8 @@ func sanitizeMovie(m *pb.Movie) (*pb.MovieSanit, error) {
 	var releaseYear uint32
 	if date := m.GetReleaseDate(); date != "" {
 		parts := strings.Split(date, "-")
-		if len(parts) == 0 {
-			return nil, fmt.Errorf("invalid release_date: %s", date)
+		if len(parts) < 1 || len(parts[0]) != 4 {
+			return nil, fmt.Errorf("invalid release_date format: %s", date)
 		}
 		yr, err := strconv.Atoi(parts[0])
 		if err != nil {
@@ -146,11 +145,11 @@ func sanitizeMovie(m *pb.Movie) (*pb.MovieSanit, error) {
 	}
 
 	// Genres
-	jsonGenres := strings.ReplaceAll(m.GetGenres(), `'`, `"`)
+	genresJson := NormalizeJSON(m.GetGenres())
 	var genresParsed []struct {
 		Name string `json:"name"`
 	}
-	if err := json.Unmarshal([]byte(jsonGenres), &genresParsed); err != nil {
+	if err := json.Unmarshal([]byte(genresJson), &genresParsed); err != nil {
 		return nil, fmt.Errorf("invalid genres: %v", err)
 	}
 	var genres []string
@@ -159,11 +158,11 @@ func sanitizeMovie(m *pb.Movie) (*pb.MovieSanit, error) {
 	}
 
 	// Production Countries
-	jsonCountries := strings.ReplaceAll(m.GetProductionCountries(), `'`, `"`)
+	countriesJson := NormalizeJSON(m.GetProductionCountries())
 	var countriesParsed []struct {
 		Name string `json:"name"`
 	}
-	if err := json.Unmarshal([]byte(jsonCountries), &countriesParsed); err != nil {
+	if err := json.Unmarshal([]byte(countriesJson), &countriesParsed); err != nil {
 		return nil, fmt.Errorf("invalid production_countries: %v", err)
 	}
 	var countries []string
@@ -197,12 +196,12 @@ func sanitizeRating(r *pb.Rating) (*pb.RatingSanit, error) {
 }
 
 func sanitizeCredit(c *pb.Credit) (*pb.CreditSanit, error) {
-	jsonCast := strings.ReplaceAll(c.GetCast(), `'`, `"`)
+	castJson := NormalizeJSON(c.GetCast())
 	var parsedCast []struct {
 		Name        string `json:"name"`
 		ProfilePath string `json:"profile_path"`
 	}
-	if err := json.Unmarshal([]byte(jsonCast), &parsedCast); err != nil {
+	if err := json.Unmarshal([]byte(castJson), &parsedCast); err != nil {
 		return nil, fmt.Errorf("invalid cast: %v", err)
 	}
 
