@@ -103,7 +103,7 @@ docker_compose_txt += f"""
             - AGGREGATOR_TYPE=movies
             - AGGREGATOR_ID=1
             - AGGREGATOR_AMOUNT_SOURCES=1
-            - AGGREGATOR_INPUT_QUEUE_NAME=movies
+            - AGGREGATOR_INPUT_QUEUE_NAME=movies_ar_es_2000s
             - AGGREGATOR_OUTPUT_QUEUE_NAME=movies_report
         networks:
             - tp1_net
