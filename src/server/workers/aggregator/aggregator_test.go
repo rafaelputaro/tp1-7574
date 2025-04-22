@@ -3,22 +3,12 @@ package main
 // https://www.rabbitmq.com/tutorials/tutorial-one-go
 
 import (
-	//"github-app/protobuf/protopb"
-
-	//"time"
-
-	//"os"
-
 	"fmt"
 	"os"
 	"sync"
 	"testing"
 	"time"
-
-	//"time"
 	"tp1/server/workers/aggregator/common"
-	//amqp "github.com/rabbitmq/amqp091-go"
-	//"google.golang.org/protobuf/proto"
 )
 
 func TestAggregatorConfig(t *testing.T) {

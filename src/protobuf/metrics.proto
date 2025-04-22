@@ -1,0 +1,7 @@
+option go_package = "./protopb";
+
+message Metrics {
+  required double avgRevenueOverBudgetNegative = 1;
+  required double avgRevenueOverBudgetPositive = 2;
+  optional bool eof = 3;
+}
