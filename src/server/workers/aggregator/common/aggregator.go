@@ -235,7 +235,38 @@ func (aggregator *Aggregator) aggregateTop5() {
 }
 
 func (aggregator *Aggregator) aggregateTop10() {
-
+	msgs, err := aggregator.consumeQueue(aggregator.Config.InputQueue)
+	if err == nil {
+		actorsData := utils.NewActorsData()
+		amountEOF := 0
+		for msg := range msgs {
+			var actorCount protopb.Actor
+			if err := proto.Unmarshal(msg.Body, &actorCount); err != nil {
+				aggregator.Log.Errorf("[%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_UNMARSHAL, err)
+				continue
+			}
+			// EOF
+			if actorCount.Eof != nil && *actorCount.Eof {
+				amountEOF += 1
+				// If all sources sent EOF, send top 10 and submit the EOF to report
+				if aggregator.checkEofSingleQueue(amountEOF) {
+					top10 := actorsData.GetTop10()
+					aggregator.Log.Debugf("[%s] %s: %s", aggregator.Config.AggregatorType, MSG_AGGREGATED, utils.Top10ToString(top10))
+					data, err := proto.Marshal(top10)
+					if err != nil {
+						aggregator.Log.Fatalf("[%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_MARSHAL, err)
+						break
+					}
+					// send top10 to report
+					aggregator.publishData(data)
+					// submit the EOF to report
+					aggregator.publishData(msg.Body)
+					break
+				}
+			}
+			actorsData.UpdateCount(&actorCount)
+		}
+	}
 }
 
 func (aggregator *Aggregator) aggregateTopAndBottom() {

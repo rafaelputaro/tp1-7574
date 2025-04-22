@@ -1,1 +1,99 @@
 package utils
+
+import (
+	"fmt"
+	"slices"
+	"tp1/protobuf/protopb"
+)
+
+type ActorData struct {
+	Name        string
+	ProfilePath string
+	CountMovies int64
+}
+
+// key: path profile
+type ActorsData struct {
+	index map[string]int //key path profile
+	data  []ActorData
+}
+
+func newActorData(name string, profile string, count int64) *ActorData {
+	return &ActorData{
+		Name:        name,
+		ProfilePath: profile,
+		CountMovies: count,
+	}
+}
+
+func NewActorsData() *ActorsData {
+	return &ActorsData{
+		index: make(map[string]int),
+		data:  []ActorData{},
+	}
+}
+
+func (actorsData *ActorsData) UpdateCount(actor *protopb.Actor) {
+	key := *actor.ProfilePath
+	foundIndex, existsData := actorsData.index[key]
+	if existsData {
+		// update
+		foundActorData := actorsData.data[foundIndex]
+		newData := *newActorData(*actor.Name, *actor.ProfilePath, foundActorData.CountMovies+*actor.CountMovies)
+		actorsData.data[foundIndex] = newData
+	} else {
+		// append
+		newIndex := len(actorsData.data)
+		actorsData.index[key] = newIndex
+		newData := *newActorData(*actor.Name, *actor.ProfilePath, *actor.CountMovies)
+		actorsData.data = append(actorsData.data, newData)
+	}
+}
+
+// Returns: 1 coun1 < count2; 0 count1 == count2; -1 count1 > count2
+func cmpData(data1, data2 ActorData) int {
+	count1 := data1.CountMovies
+	count2 := data2.CountMovies
+	if count1 == count2 {
+		return 0
+	}
+	if count1 > count2 {
+		return -1
+	} else {
+		return 1
+	}
+}
+
+// After this function is called, the index becomes inconsistent.
+func (actorsData *ActorsData) sort() {
+	slices.SortFunc(actorsData.data, cmpData)
+}
+
+func (actorsData *ActorsData) GetTop10() *protopb.Top10 {
+	actorsData.sort()
+	lenTop := 10
+	lenData := len(actorsData.data)
+	if lenTop > lenData {
+		lenTop = lenData
+	}
+	toReturn := protopb.Top10{
+		Names:        []string{},
+		ProfilePaths: []string{},
+		CountMovies:  []int64{},
+	}
+	for index := range lenTop {
+		toReturn.Names = append(toReturn.Names, actorsData.data[index].Name)
+		toReturn.ProfilePaths = append(toReturn.ProfilePaths, actorsData.data[index].ProfilePath)
+		toReturn.CountMovies = append(toReturn.CountMovies, actorsData.data[index].CountMovies)
+	}
+	return &toReturn
+}
+
+// Returns string from Top5
+func Top10ToString(top *protopb.Top10) string {
+	toReturn := ""
+	for index := range len(top.Names) {
+		toReturn += fmt.Sprintf("%v(%v) ", top.Names[index], top.CountMovies[index])
+	}
+	return toReturn
+}

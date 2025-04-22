@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 	"tp1/protobuf/protopb"
 
@@ -57,5 +59,46 @@ func TestTopAndBottom(t *testing.T) {
 	if *newTop.TitleTop != *topAndBottom2.TitleTop || *newTop.RatingAvgTop != *topAndBottom2.RatingAvgTop ||
 		*newTop.TitleBottom != *topAndBottom1.TitleBottom || *newTop.RatingAvgBottom != *topAndBottom1.RatingAvgBottom {
 		t.Fatal("Error on reduce bottom and top")
+	}
+}
+
+func TestTop10(t *testing.T) {
+	actorsData := NewActorsData()
+	actorsName := []string{
+		"Robert Downey Jr",
+		"Mel Gibson",
+		"Mark Rufallo",
+		"Franchella",
+		"Julia Roberts",
+		"Chris Evans",
+		"Chris Pratt",
+		"Angelina Jolie",
+		"The Rock",
+		"Ryan Reynolds",
+		"Hugh Jackman",
+		"Hugh Grant",
+		"Gina Carano",
+		"Morena Baccarin",
+		"Charlie Cox",
+		"Vincent D'Onofrio",
+		"Rosario Dawson",
+		"Morena Baccarin",
+		"Charlie Cox",
+		"Vincent D'Onofrio",
+		"Rosario Dawson",
+		"Mel Gibson",
+		"Mark Rufallo",
+	}
+	actorsCount := []int64{1, 3, 1, 5, 4, 3, 1, 2, 1, 3, 1, 5, 4, 3, 1, 2, 3, 3, 1, 2, 3, 2, 13}
+	for index := range len(actorsName) {
+		actorsData.UpdateCount(&protopb.Actor{
+			Name:        proto.String(actorsName[index]),
+			ProfilePath: proto.String(fmt.Sprintf("%v.jpeg", actorsName[index])),
+			CountMovies: proto.Int64(actorsCount[index]),
+		})
+	}
+	toCheck := "Mark Rufallo(14) Rosario Dawson(6) Morena Baccarin(6) Hugh Grant(5) Mel Gibson(5) Franchella(5) Gina Carano(4) Vincent D'Onofrio(4) Julia Roberts(4) Ryan Reynolds(3)"
+	if !strings.Contains(Top10ToString(actorsData.GetTop10()), toCheck) {
+		t.Fatal("Error on reduce top10")
 	}
 }
