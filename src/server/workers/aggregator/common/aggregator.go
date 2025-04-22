@@ -128,6 +128,7 @@ func NewAggregator(log *logging.Logger) (*Aggregator, error) {
 	}, nil
 }
 
+// Init aggregator loop
 func (aggregator *Aggregator) Start() {
 	aggregator.Log.Infof("[%s] %s: %d", aggregator.Config.AggregatorType, MSG_START, aggregator.Config.ID)
 	switch aggregator.Config.AggregatorType {
@@ -145,6 +146,7 @@ func (aggregator *Aggregator) Start() {
 	aggregator.Log.Infof("[%s] %s", aggregator.Config.AggregatorType, MSG_JOB_FINISHED)
 }
 
+// Check EOF condition
 func (aggregator *Aggregator) checkEofSingleQueue(amountEOF int) bool {
 	if amountEOF == int(aggregator.Config.AmountSources) {
 		aggregator.Log.Infof("[%s] %s", aggregator.Config.AggregatorType, MSG_RECEIVED_EOF_MARKER)
@@ -153,6 +155,7 @@ func (aggregator *Aggregator) checkEofSingleQueue(amountEOF int) bool {
 	return false
 }
 
+// Check EOF condition
 func (aggregator *Aggregator) checkEofQueues(amountEOF int, amountQueesPerSource int) bool {
 	if amountEOF == amountQueesPerSource*int(aggregator.Config.AmountSources) {
 		aggregator.Log.Infof("[%s] %s", aggregator.Config.AggregatorType, MSG_RECEIVED_EOF_MARKER)
@@ -161,8 +164,8 @@ func (aggregator *Aggregator) checkEofQueues(amountEOF int, amountQueesPerSource
 	return false
 }
 
+// Send to report
 func (aggregator *Aggregator) publishData(data []byte) {
-	// send to report
 	err := aggregator.Channel.Publish("", aggregator.Config.OutputQueue.Name, false, false, amqp.Publishing{
 		ContentType: "application/protobuf",
 		Body:        data,
@@ -236,16 +239,44 @@ func (aggregator *Aggregator) aggregateTop10() {
 }
 
 func (aggregator *Aggregator) aggregateTopAndBottom() {
-
+	msgs, err := aggregator.consumeQueue(aggregator.Config.InputQueue)
+	if err == nil {
+		amountEOF := 0
+		globalTopAndBottom := utils.CreateEmptyTopAndBottom()
+		for msg := range msgs {
+			var topAndBottom protopb.TopAndBottomRatingAvg
+			if err := proto.Unmarshal(msg.Body, &topAndBottom); err != nil {
+				aggregator.Log.Errorf("[%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_UNMARSHAL, err)
+				continue
+			}
+			// EOF
+			if topAndBottom.Eof != nil && *topAndBottom.Eof {
+				amountEOF += 1
+				// If all sources sent EOF, send top and Bottom and submit the EOF to report
+				if aggregator.checkEofSingleQueue(amountEOF) {
+					aggregator.Log.Debugf("[%s] %s: %s", aggregator.Config.AggregatorType, MSG_AGGREGATED, utils.TopAndBottomToString(&globalTopAndBottom))
+					data, err := proto.Marshal(&globalTopAndBottom)
+					if err != nil {
+						aggregator.Log.Fatalf("[%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_MARSHAL, err)
+						break
+					}
+					// send topAndBottom to report
+					aggregator.publishData(data)
+					// submit the EOF to report
+					aggregator.publishData(msg.Body)
+					break
+				}
+			}
+			globalTopAndBottom = *utils.ReduceTopAndBottom(&globalTopAndBottom, &topAndBottom)
+		}
+	}
 }
 
 func (aggregator *Aggregator) aggregateMetrics() {
 
 }
 
-func (aggregator *Aggregator) consumeQueue(
-	config QueueConfig,
-) (<-chan amqp.Delivery, error) {
+func (aggregator *Aggregator) consumeQueue(config QueueConfig) (<-chan amqp.Delivery, error) {
 	msgs, err := aggregator.Channel.Consume(
 		config.Name,      // name
 		"",               // consumerTag: "" lets rabbitmq generate a tag for this consumer

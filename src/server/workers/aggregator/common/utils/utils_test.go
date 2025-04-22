@@ -3,6 +3,8 @@ package utils
 import (
 	"testing"
 	"tp1/protobuf/protopb"
+
+	"google.golang.org/protobuf/proto"
 )
 
 func TestTop5(t *testing.T) {
@@ -18,6 +20,42 @@ func TestTop5(t *testing.T) {
 	}
 	globalTop := ReduceTop5(&top1, &top2)
 	if Top5ToString(globalTop) != Top5ToString(&sorted) {
-		t.Fatal("Error on sort")
+		t.Fatal("Error on reduce top 5")
+	}
+}
+
+func TestTopAndBottom(t *testing.T) {
+	topAndBottom1 := CreateEmptyTopAndBottom()
+	topAndBottom2 := protopb.TopAndBottomRatingAvg{
+		TitleTop:        proto.String("Rocky"),
+		RatingAvgTop:    proto.Float64(8.3),
+		TitleBottom:     proto.String("Attack of the killer tomatoes"),
+		RatingAvgBottom: proto.Float64(3.2),
+	}
+	newTop := ReduceTopAndBottom(&topAndBottom1, &topAndBottom2)
+	if *newTop.TitleTop != *topAndBottom2.TitleTop || *newTop.RatingAvgTop != *topAndBottom2.RatingAvgTop ||
+		*newTop.TitleBottom != *topAndBottom2.TitleBottom || *newTop.RatingAvgBottom != *topAndBottom2.RatingAvgBottom {
+		t.Fatal("Error on reduce bottom and top")
+	}
+	newTop = ReduceTopAndBottom(&topAndBottom2, &topAndBottom1)
+	if *newTop.TitleTop != *topAndBottom2.TitleTop || *newTop.RatingAvgTop != *topAndBottom2.RatingAvgTop ||
+		*newTop.TitleBottom != *topAndBottom2.TitleBottom || *newTop.RatingAvgBottom != *topAndBottom2.RatingAvgBottom {
+		t.Fatal("Error on reduce bottom and top")
+	}
+	topAndBottom1 = protopb.TopAndBottomRatingAvg{
+		TitleTop:        proto.String("Iron Man"),
+		RatingAvgTop:    proto.Float64(7.2),
+		TitleBottom:     proto.String("Mars Attack"),
+		RatingAvgBottom: proto.Float64(1.2),
+	}
+	newTop = ReduceTopAndBottom(&topAndBottom2, &topAndBottom1)
+	if *newTop.TitleTop != *topAndBottom2.TitleTop || *newTop.RatingAvgTop != *topAndBottom2.RatingAvgTop ||
+		*newTop.TitleBottom != *topAndBottom1.TitleBottom || *newTop.RatingAvgBottom != *topAndBottom1.RatingAvgBottom {
+		t.Fatal("Error on reduce bottom and top")
+	}
+	newTop = ReduceTopAndBottom(&topAndBottom1, &topAndBottom2)
+	if *newTop.TitleTop != *topAndBottom2.TitleTop || *newTop.RatingAvgTop != *topAndBottom2.RatingAvgTop ||
+		*newTop.TitleBottom != *topAndBottom1.TitleBottom || *newTop.RatingAvgBottom != *topAndBottom1.RatingAvgBottom {
+		t.Fatal("Error on reduce bottom and top")
 	}
 }
