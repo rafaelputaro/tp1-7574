@@ -4,6 +4,8 @@ import (
 	"tp1/protobuf/protopb"
 	rabbitUtils "tp1/rabbitmq"
 
+	"tp1/server/workers/aggregator/common/utils"
+
 	"github.com/op/go-logging"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"google.golang.org/protobuf/proto"
@@ -190,13 +192,6 @@ func (aggregator *Aggregator) aggregateMovies() {
 				}
 			}
 			aggregator.Log.Debugf("[%s] %s: %s (%d)", aggregator.Config.AggregatorType, MSG_AGGREGATED, movie.Title, movie.ReleaseYear)
-			/*
-				data, err := proto.Marshal(&movie)
-				if err != nil {
-					aggregator.Log.Errorf("[%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_MARSHAL, err)
-					continue
-				}*/
-			// send to report
 			aggregator.publishData(msg.Body)
 		}
 	}
@@ -206,29 +201,32 @@ func (aggregator *Aggregator) aggregateTop5() {
 	msgs, err := aggregator.consumeQueue(aggregator.Config.InputQueue)
 	if err == nil {
 		amountEOF := 0
+		globalTop5 := utils.CreateEmptyTop5()
 		for msg := range msgs {
-			var movie protopb.MovieSanit
-			if err := proto.Unmarshal(msg.Body, &movie); err != nil {
+			var top5 protopb.Top5Country
+			if err := proto.Unmarshal(msg.Body, &top5); err != nil {
 				aggregator.Log.Errorf("[%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_UNMARSHAL, err)
 				continue
 			}
 			// EOF
-			if movie.Eof != nil && *movie.Eof {
+			if top5.Eof != nil && *top5.Eof {
 				amountEOF += 1
-				// If all sources sent EOF, submit the EOF to report
+				// If all sources sent EOF, send top 5 and submit the EOF to report
 				if aggregator.checkEofSingleQueue(amountEOF) {
+					aggregator.Log.Debugf("[%s] %s: %s", aggregator.Config.AggregatorType, MSG_AGGREGATED, utils.Top5ToString(&globalTop5))
+					data, err := proto.Marshal(&globalTop5)
+					if err != nil {
+						aggregator.Log.Fatalf("[%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_MARSHAL, err)
+						break
+					}
+					// send top5 to report
+					aggregator.publishData(data)
+					// submit the EOF to report
 					aggregator.publishData(msg.Body)
 					break
 				}
 			}
-			aggregator.Log.Debugf("[%s] %s: %s (%d)", aggregator.Config.AggregatorType, MSG_AGGREGATED, movie.Title, movie.ReleaseYear)
-			data, err := proto.Marshal(&movie)
-			if err != nil {
-				aggregator.Log.Errorf("[%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_MARSHAL, err)
-				continue
-			}
-			// send to report
-			aggregator.publishData(data)
+			globalTop5 = *utils.ReduceTop5(&globalTop5, &top5)
 		}
 	}
 }
