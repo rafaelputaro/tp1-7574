@@ -112,6 +112,26 @@ docker_compose_txt += f"""
         links: 
             - rabbitmq
 """
+'''
+docker_compose_txt += f"""
+    aggregator_top_5:
+        container_name: aggregator_top_5
+        image: aggregator:latest
+        environment:
+            - AGGREGATOR_TYPE=top_5
+            - AGGREGATOR_ID=2
+            - AGGREGATOR_AMOUNT_SOURCES=1
+            - AGGREGATOR_INPUT_QUEUE_NAME=movies_top_5_investors
+            - AGGREGATOR_OUTPUT_QUEUE_NAME=top_5_report
+        networks:
+            - tp1_net
+        depends_on:
+            - rabbitmq
+        links: 
+            - rabbitmq
+"""
+'''
+
 
 # NLP
 for i in range(1, top_5_investors_filter_nodes + 1):
