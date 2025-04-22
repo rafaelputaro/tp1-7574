@@ -170,8 +170,39 @@ func (aggregator *Aggregator) publishData(data []byte) {
 	}
 }
 
-// TODO acá se vuelven a convertir los datos de más para testear rabbit, quitar luego
 func (aggregator *Aggregator) aggregateMovies() {
+	msgs, err := aggregator.consumeQueue(aggregator.Config.InputQueue)
+	if err == nil {
+		amountEOF := 0
+		for msg := range msgs {
+			var movie protopb.MovieSanit
+			if err := proto.Unmarshal(msg.Body, &movie); err != nil {
+				aggregator.Log.Errorf("[%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_UNMARSHAL, err)
+				continue
+			}
+			// EOF
+			if movie.Eof != nil && *movie.Eof {
+				amountEOF += 1
+				// If all sources sent EOF, submit the EOF to report
+				if aggregator.checkEofSingleQueue(amountEOF) {
+					aggregator.publishData(msg.Body)
+					break
+				}
+			}
+			aggregator.Log.Debugf("[%s] %s: %s (%d)", aggregator.Config.AggregatorType, MSG_AGGREGATED, movie.Title, movie.ReleaseYear)
+			/*
+				data, err := proto.Marshal(&movie)
+				if err != nil {
+					aggregator.Log.Errorf("[%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_MARSHAL, err)
+					continue
+				}*/
+			// send to report
+			aggregator.publishData(msg.Body)
+		}
+	}
+}
+
+func (aggregator *Aggregator) aggregateTop5() {
 	msgs, err := aggregator.consumeQueue(aggregator.Config.InputQueue)
 	if err == nil {
 		amountEOF := 0
@@ -200,10 +231,6 @@ func (aggregator *Aggregator) aggregateMovies() {
 			aggregator.publishData(data)
 		}
 	}
-}
-
-func (aggregator *Aggregator) aggregateTop5() {
-
 }
 
 func (aggregator *Aggregator) aggregateTop10() {
