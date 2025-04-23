@@ -3,17 +3,13 @@ package internal
 import (
 	"context"
 	"github.com/op/go-logging"
-	"time"
 	pb "tp1/protobuf/protopb"
 )
 
 var logger = logging.MustGetLogger("client")
 
-func SendMovies(client pb.MovieServiceClient, parser Parser[pb.Movie]) {
+func SendMovies(ctx context.Context, client pb.MovieServiceClient, parser Parser[pb.Movie]) {
 	count := 0
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-	defer cancel()
 
 	stream, err := RetryWithBackoff(
 		func() (pb.MovieService_StreamMoviesClient, error) {
@@ -24,6 +20,14 @@ func SendMovies(client pb.MovieServiceClient, parser Parser[pb.Movie]) {
 	}
 
 	for {
+		select {
+		case <-ctx.Done():
+			logger.Infof("Context canceled, stopping movies stream")
+			stream.CloseSend()
+			return
+		default:
+		}
+
 		batch, err := parser.NextBatch()
 		if err != nil {
 			logger.Errorf("Failed get next batch: %v", err)
@@ -44,11 +48,8 @@ func SendMovies(client pb.MovieServiceClient, parser Parser[pb.Movie]) {
 	logger.Infof("Sent %d movies", count)
 }
 
-func SendRatings(client pb.RatingServiceClient, parser Parser[pb.Rating]) {
+func SendRatings(ctx context.Context, client pb.RatingServiceClient, parser Parser[pb.Rating]) {
 	count := 0
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-	defer cancel()
 
 	stream, err := RetryWithBackoff(
 		func() (pb.RatingService_StreamRatingsClient, error) {
@@ -59,6 +60,14 @@ func SendRatings(client pb.RatingServiceClient, parser Parser[pb.Rating]) {
 	}
 
 	for {
+		select {
+		case <-ctx.Done():
+			logger.Infof("Context canceled, stopping ratings stream")
+			stream.CloseSend()
+			return
+		default:
+		}
+
 		batch, err := parser.NextBatch()
 		if err != nil {
 			break
@@ -78,11 +87,8 @@ func SendRatings(client pb.RatingServiceClient, parser Parser[pb.Rating]) {
 	logger.Infof("Sent %d ratings", count)
 }
 
-func SendCredits(client pb.CreditServiceClient, parser Parser[pb.Credit]) {
+func SendCredits(ctx context.Context, client pb.CreditServiceClient, parser Parser[pb.Credit]) {
 	count := 0
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-	defer cancel()
 
 	stream, err := RetryWithBackoff(
 		func() (pb.CreditService_StreamCreditsClient, error) {
@@ -93,6 +99,14 @@ func SendCredits(client pb.CreditServiceClient, parser Parser[pb.Credit]) {
 	}
 
 	for {
+		select {
+		case <-ctx.Done():
+			logger.Infof("Context canceled, stopping credits stream")
+			stream.CloseSend()
+			return
+		default:
+		}
+
 		batch, err := parser.NextBatch()
 		if err != nil {
 			break

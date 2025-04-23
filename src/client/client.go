@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/op/go-logging"
 	"os"
+	"os/signal"
+	"syscall"
 	"tp1/client/internal"
 	pb "tp1/protobuf/protopb"
 
@@ -17,6 +20,9 @@ const (
 )
 
 func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	if len(os.Args) != 4 {
 		fmt.Println("Usage: client <movies> <ratings> <credits>")
 		os.Exit(1)
@@ -66,7 +72,9 @@ func main() {
 	creditsClient := pb.NewCreditServiceClient(conn)
 	ratingsClient := pb.NewRatingServiceClient(conn)
 
-	internal.SendMovies(moviesClient, moviesParser)
-	internal.SendCredits(creditsClient, creditsParser)
-	internal.SendRatings(ratingsClient, ratingsParser)
+	internal.SendMovies(ctx, moviesClient, moviesParser)
+	internal.SendCredits(ctx, creditsClient, creditsParser)
+	internal.SendRatings(ctx, ratingsClient, ratingsParser)
+
+	os.Exit(0)
 }

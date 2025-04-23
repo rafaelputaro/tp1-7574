@@ -123,7 +123,6 @@ services:
             - /app/datasets/movies.csv
             - /app/datasets/ratings.csv
             - /app/datasets/credits.csv
-        restart: on-failure
 
 networks:
   tp1_net:
