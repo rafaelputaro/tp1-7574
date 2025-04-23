@@ -2,6 +2,7 @@ package filter
 
 import (
 	"fmt"
+	"sync"
 	"tp1/protobuf/protopb"
 	"tp1/rabbitmq"
 
@@ -267,24 +268,121 @@ func (f *Filter) processYearFilters() {
 
 func (f *Filter) processArFilter() {
 	inputQueues := [2]string{"movies_2000_and_later", "movies_after_2000"}
-	outputQueuePrefixes := [2]string{"ar_movies_2000_and_later_shard", "ar_movies_after_2000_shard"}
+	outputExchanges := [2]string{"ar_movies_2000_and_later_exchange", "ar_movies_after_2000_exchange"}
+	filterName := "ar_filter"
 
-	for _, inputQueue := range inputQueues {
-		err := rabbitmq.DeclareDirectQueue(f.channel, inputQueue)
+	filterFunc := func(movie *protopb.MovieSanit) bool {
+		productionCountries := movie.GetProductionCountries()
+
+		return slices.Contains(productionCountries, "Argentina")
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		f.runShardedFilter(inputQueues[0], outputExchanges[0], filterName, filterFunc)
+	}()
+
+	go func() {
+		defer wg.Done()
+		f.runShardedFilter(inputQueues[1], outputExchanges[1], filterName, filterFunc)
+	}()
+
+	wg.Wait()
+}
+
+// Creates a direct exchange using sharding with routing keys
+func (f *Filter) runShardedFilter(
+	inputQueue string,
+	outputExchange string,
+	filterName string,
+	filterFunc func(movie *protopb.MovieSanit) bool,
+) {
+	err := rabbitmq.DeclareDirectQueue(f.channel, inputQueue)
+	if err != nil {
+		f.log.Fatalf("Failed to declare queue '%s': %v", inputQueue, err)
+	}
+
+	// Create a direct exchange (that uses sharding)
+	err = f.channel.ExchangeDeclare(
+		outputExchange, // name
+		"direct",       // type
+		true,           // durable
+		false,          // auto-deleted
+		false,          // internal
+		false,          // no-wait
+		nil,            // arguments
+	)
+	if err != nil {
+		f.log.Fatalf("Failed to declare exchange: %v", err)
+	}
+
+	// Declare and bind sharded queues to the exchange
+	for i := range f.config.Shards {
+		queueName := fmt.Sprintf("%s_shard_%d", outputExchange, i)
+		routingKey := fmt.Sprintf("%d", i)
+
+		err := rabbitmq.DeclareDirectQueue(f.channel, queueName)
 		if err != nil {
-			f.log.Fatalf("Failed to declare queue '%s': %v", inputQueue, err)
+			f.log.Fatalf("Failed to declare queue '%s': %v", queueName, err)
+		}
+
+		err = f.channel.QueueBind(
+			queueName,      // queue name
+			routingKey,     // routing key
+			outputExchange, // exchange name
+			false,          // no-wait
+			nil,            // args
+		)
+		if err != nil {
+			f.log.Fatalf("Failed to bind queue '%s' to exchange '%s': %v", queueName, outputExchange, err)
 		}
 	}
 
-	// Sharded output queues
-	for _, prefix := range outputQueuePrefixes {
-		// TODO: usar una sola queue pero con routing_key
-		for i := 0; i < f.config.Shards; i++ {
-			outputQueue := fmt.Sprintf("%s_%d", prefix, i)
+	msgs, err := rabbitmq.ConsumeFromQueue(f.channel, inputQueue)
+	if err != nil {
+		f.log.Fatalf("[%s] Failed to consume messages from '%s': %v", filterName, inputQueue, err)
+	}
 
-			err := rabbitmq.DeclareDirectQueue(f.channel, outputQueue)
+	f.log.Infof("[%s] Waiting for messages...", filterName)
+
+	for msg := range msgs {
+		var movie protopb.MovieSanit
+		if err := proto.Unmarshal(msg.Body, &movie); err != nil {
+			f.log.Errorf("[%s] Failed to unmarshal message: %v", filterName, err)
+			continue
+		}
+
+		if movie.Eof != nil && *movie.Eof {
+			f.log.Infof("[%s] Received EOF marker", filterName)
+			break
+		}
+
+		if filterFunc(&movie) {
+			f.log.Debugf("[%s] Accepted: %s - %s (%d)", filterName, movie.GetTitle(), movie.GetProductionCountries(), movie.GetReleaseYear())
+
+			data, err := proto.Marshal(&movie)
 			if err != nil {
-				f.log.Fatalf("Failed to declare queue '%s': %v", outputQueue, err)
+				f.log.Errorf("[%s] Failed to marshal message: %v", filterName, err)
+				continue
+			}
+
+			shard := movie.GetId() % int32(f.config.Shards)
+			routingKey := fmt.Sprintf("%d", shard)
+
+			err = f.channel.Publish(
+				outputExchange, // exchange
+				routingKey,     // routing key
+				false,          // mandatory
+				false,          // inmediate
+				amqp.Publishing{
+					ContentType: "application/protobuf",
+					Body:        data,
+				})
+			if err != nil {
+				f.log.Errorf("[%s] Failed to publish filtered message: %v", filterName, err)
 			}
 		}
 	}
