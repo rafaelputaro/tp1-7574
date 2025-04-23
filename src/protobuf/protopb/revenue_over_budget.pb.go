@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.6
 // 	protoc        v6.30.1
-// source: shard_sum_revenue_over_budget.proto
+// source: revenue_over_budget.proto
 
 package protopb
 
@@ -32,7 +32,7 @@ type RevenueOverBudget struct {
 
 func (x *RevenueOverBudget) Reset() {
 	*x = RevenueOverBudget{}
-	mi := &file_shard_sum_revenue_over_budget_proto_msgTypes[0]
+	mi := &file_revenue_over_budget_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44,7 +44,7 @@ func (x *RevenueOverBudget) String() string {
 func (*RevenueOverBudget) ProtoMessage() {}
 
 func (x *RevenueOverBudget) ProtoReflect() protoreflect.Message {
-	mi := &file_shard_sum_revenue_over_budget_proto_msgTypes[0]
+	mi := &file_revenue_over_budget_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -57,7 +57,7 @@ func (x *RevenueOverBudget) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevenueOverBudget.ProtoReflect.Descriptor instead.
 func (*RevenueOverBudget) Descriptor() ([]byte, []int) {
-	return file_shard_sum_revenue_over_budget_proto_rawDescGZIP(), []int{0}
+	return file_revenue_over_budget_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *RevenueOverBudget) GetSumRevenueOverBudget() float64 {
@@ -81,33 +81,33 @@ func (x *RevenueOverBudget) GetEof() bool {
 	return false
 }
 
-var File_shard_sum_revenue_over_budget_proto protoreflect.FileDescriptor
+var File_revenue_over_budget_proto protoreflect.FileDescriptor
 
-const file_shard_sum_revenue_over_budget_proto_rawDesc = "" +
+const file_revenue_over_budget_proto_rawDesc = "" +
 	"\n" +
-	"#shard_sum_revenue_over_budget.proto\"\x7f\n" +
+	"\x19revenue_over_budget.proto\"\x7f\n" +
 	"\x11RevenueOverBudget\x122\n" +
 	"\x14sumRevenueOverBudget\x18\x01 \x02(\x01R\x14sumRevenueOverBudget\x12$\n" +
 	"\ramountReviews\x18\x02 \x02(\x03R\ramountReviews\x12\x10\n" +
 	"\x03eof\x18\x03 \x01(\bR\x03eofB\vZ\t./protopb"
 
 var (
-	file_shard_sum_revenue_over_budget_proto_rawDescOnce sync.Once
-	file_shard_sum_revenue_over_budget_proto_rawDescData []byte
+	file_revenue_over_budget_proto_rawDescOnce sync.Once
+	file_revenue_over_budget_proto_rawDescData []byte
 )
 
-func file_shard_sum_revenue_over_budget_proto_rawDescGZIP() []byte {
-	file_shard_sum_revenue_over_budget_proto_rawDescOnce.Do(func() {
-		file_shard_sum_revenue_over_budget_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_shard_sum_revenue_over_budget_proto_rawDesc), len(file_shard_sum_revenue_over_budget_proto_rawDesc)))
+func file_revenue_over_budget_proto_rawDescGZIP() []byte {
+	file_revenue_over_budget_proto_rawDescOnce.Do(func() {
+		file_revenue_over_budget_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_revenue_over_budget_proto_rawDesc), len(file_revenue_over_budget_proto_rawDesc)))
 	})
-	return file_shard_sum_revenue_over_budget_proto_rawDescData
+	return file_revenue_over_budget_proto_rawDescData
 }
 
-var file_shard_sum_revenue_over_budget_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
-var file_shard_sum_revenue_over_budget_proto_goTypes = []any{
+var file_revenue_over_budget_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_revenue_over_budget_proto_goTypes = []any{
 	(*RevenueOverBudget)(nil), // 0: RevenueOverBudget
 }
-var file_shard_sum_revenue_over_budget_proto_depIdxs = []int32{
+var file_revenue_over_budget_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
 	0, // [0:0] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
@@ -115,26 +115,26 @@ var file_shard_sum_revenue_over_budget_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for field type_name
 }
 
-func init() { file_shard_sum_revenue_over_budget_proto_init() }
-func file_shard_sum_revenue_over_budget_proto_init() {
-	if File_shard_sum_revenue_over_budget_proto != nil {
+func init() { file_revenue_over_budget_proto_init() }
+func file_revenue_over_budget_proto_init() {
+	if File_revenue_over_budget_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_shard_sum_revenue_over_budget_proto_rawDesc), len(file_shard_sum_revenue_over_budget_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_revenue_over_budget_proto_rawDesc), len(file_revenue_over_budget_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   1,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_shard_sum_revenue_over_budget_proto_goTypes,
-		DependencyIndexes: file_shard_sum_revenue_over_budget_proto_depIdxs,
-		MessageInfos:      file_shard_sum_revenue_over_budget_proto_msgTypes,
+		GoTypes:           file_revenue_over_budget_proto_goTypes,
+		DependencyIndexes: file_revenue_over_budget_proto_depIdxs,
+		MessageInfos:      file_revenue_over_budget_proto_msgTypes,
 	}.Build()
-	File_shard_sum_revenue_over_budget_proto = out.File
-	file_shard_sum_revenue_over_budget_proto_goTypes = nil
-	file_shard_sum_revenue_over_budget_proto_depIdxs = nil
+	File_revenue_over_budget_proto = out.File
+	file_revenue_over_budget_proto_goTypes = nil
+	file_revenue_over_budget_proto_depIdxs = nil
 }
