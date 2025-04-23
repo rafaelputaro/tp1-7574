@@ -15,13 +15,19 @@ func LoadConfig() (*f.FilterConfig, error) {
 		return nil, errors.New("missing FILTER_TYPE environment variable")
 	}
 
+	filterShards := viper.GetInt("SHARDS")
+	if filterShards == 0 {
+		return nil, errors.New("missing SHARDS environment variable")
+	}
+
 	filterNum := viper.GetInt("FILTER_NUM")
 	if filterNum == 0 {
 		return nil, errors.New("missing or invalid FILTER_NUM environment variable")
 	}
 
 	return &f.FilterConfig{
-		Type: filterType,
-		ID:   filterNum,
+		Type:   filterType,
+		Shards: filterShards,
+		ID:     filterNum,
 	}, nil
 }

@@ -10,6 +10,7 @@ ar_es_filter_nodes = int(config["DEFAULT"]["AR_ES_FILTER_NODES"])
 ar_filter_nodes = int(config["DEFAULT"]["AR_FILTER_NODES"])
 top_5_investors_filter_nodes = int(config["DEFAULT"]["TOP_5_INVESTORS_FILTER_NODES"])
 nlp_nodes = int(config["DEFAULT"]["NLP_NODES"])
+shards = int(config["DEFAULT"]["SHARDS"])
 
 
 # Create compose file
@@ -45,6 +46,7 @@ for i in range(1, filter_nodes_2000s + 1):
         environment:
             - FILTER_TYPE=2000s_filter
             - FILTER_NUM={i}
+            - SHARDS={shards}
         networks:
             - tp1_net
         depends_on:
@@ -60,6 +62,7 @@ for i in range(1, ar_es_filter_nodes + 1):
         environment:
             - FILTER_TYPE=ar_es_filter
             - FILTER_NUM={i}
+            - SHARDS={shards}
         networks:
             - tp1_net
         depends_on:
@@ -74,6 +77,7 @@ for i in range(1, ar_filter_nodes + 1):
         environment:
             - FILTER_TYPE=ar_filter
             - FILTER_NUM={i}
+            - SHARDS={shards}
         networks:
             - tp1_net
         depends_on:
@@ -88,6 +92,8 @@ for i in range(1, top_5_investors_filter_nodes + 1):
         environment:
             - FILTER_TYPE=top-5-investors-filter
             - FILTER_NUM={i}
+            - SHARDS={shards}
+
         networks:
             - tp1_net
         depends_on:

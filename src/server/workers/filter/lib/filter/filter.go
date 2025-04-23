@@ -1,6 +1,7 @@
 package filter
 
 import (
+	"fmt"
 	"tp1/protobuf/protopb"
 	"tp1/rabbitmq"
 
@@ -13,8 +14,9 @@ import (
 )
 
 type FilterConfig struct {
-	Type string
-	ID   int
+	Type   string
+	Shards int
+	ID     int
 }
 
 type Filter struct {
@@ -79,6 +81,8 @@ func (f *Filter) Close() {
 type MovieFilterFunc func(movie *protopb.MovieSanit) bool
 
 // Reads result from 2000s filter and returns the movies produced by both Spain and Argentina
+// until an EOF is received.
+// Used for query 1: "Peliculas y sus géneros de los años 00' con producción Argentina y Española"
 func (f *Filter) processArEsFilter() {
 	inputQueue := "movies_2000s"
 	outputQueue := "movies_ar_es_2000s"
@@ -90,65 +94,17 @@ func (f *Filter) processArEsFilter() {
 		return slices.Contains(productionCountries, "Argentina") && slices.Contains(productionCountries, "Spain")
 	}
 
-	f.runFilterJob(inputQueue, outputQueue, filterName, filterFunc)
-}
-
-func (f *Filter) processArFilter() {
-	inputQueue := "movies_2000_and_later"
-	outputQueue := "movies_ar"
-	filterName := "ar_filter"
-
-	filterFunc := func(movie *protopb.MovieSanit) bool {
-		productionCountries := movie.GetProductionCountries()
-		return slices.Contains(productionCountries, "Argentina")
-	}
-
-	f.runFilterJob(inputQueue, outputQueue, filterName, filterFunc)
-}
-
-func (f *Filter) processTop5InvestorsFilter() {
-	// inputQueue := "movies"
-	// outputQueue := "movies_top_5_investors"
-	// filterName := "top_5_investors_filter"
-
-	// TODO: hay que guardar un estado interno del top 5 actual y si la nueva entrada no entra en el
-	// top 5 entonces se descarta. Al recibir el eof se envía el top 5 al aggregator
-}
-
-// Reads messages from input queue until an EOF is received. Filters based on the filterFunc and
-// sends the resultas through the output queue
-func (f *Filter) runFilterJob(
-	inputQueue string,
-	outputQueue string,
-	filterName string,
-	filterFunc MovieFilterFunc,
-) {
 	f.log.Infof("[%s] Starting job for ID: %d", filterName, f.config.ID)
 
 	// Declare queues (if rabbitmq doesn't have them, it creates them)
 	for _, queue := range []string{inputQueue, outputQueue} {
-		_, err := f.channel.QueueDeclare(
-			queue, // name
-			true,  // durable: the queue is maintained event after the broker is resetted
-			false, // autoDelete: the queue is not automatically deleted when there are no more consumers
-			false, // exclusive: the queue can be accessed by multiple connections
-			false, // no-wait: wait for the broker's confirmation to know if the queue was succesfully created
-			nil,   // args
-		)
+		err := rabbitmq.DeclareDirectQueue(f.channel, queue)
 		if err != nil {
 			f.log.Fatalf("Failed to declare queue '%s': %v", queue, err)
 		}
 	}
 
-	msgs, err := f.channel.Consume(
-		inputQueue, // name
-		"",         // consumerTag: "" lets rabbitmq generate a tag for this consumer
-		true,       // autoAck: when a msg arrives, the consumers acks the msg
-		false,      // exclusive: allow others to consume from the queue
-		false,      // no-local: ignored field
-		false,      // no-wait: wait for confirmation of the consumers correct registration
-		nil,        // args
-	)
+	msgs, err := rabbitmq.ConsumeFromQueue(f.channel, inputQueue)
 	if err != nil {
 		f.log.Fatalf("Failed to consume messages from '%s': %v", inputQueue, err)
 	}
@@ -190,12 +146,27 @@ func (f *Filter) runFilterJob(
 	f.log.Infof("[%s] Job finished", filterName)
 }
 
+func (f *Filter) processTop5InvestorsFilter() {
+	// inputQueue := "movies"
+	// outputQueue := "movies_top_5_investors"
+	// filterName := "top_5_investors_filter"
+
+	// TODO: hay que guardar un estado interno del top 5 actual y si la nueva entrada no entra en el
+	// top 5 entonces se descarta. Al recibir el eof se envía el top 5 al aggregator
+}
+
 // Filter that reads from `movies` queue and writes to 3 different queues with the following conditions:
 // * Year between 2000 and 2009
 // * Year greater than 2000
 // * Year greater or equal to 2000
+// Used in the following queries:
+// * 1: "Peliculas y sus géneros de los años 00' con producción Argentina y Española"
+// * 3: "Películas de Producción Argentina estrenadas a partir del 2000, con mayor y menor promedio de rating"
+// * 4: "Top 10 de actores con mayor participación en películas de producción Argentina posterior al 2000"
 func (f *Filter) processYearFilters() {
-	inputQueue := "movies"
+	exchangeName := "movies_exchange"
+	exchangeType := "fanout"
+
 	outputQueues := map[string]func(uint32) bool{
 		"movies_2000_to_2009":   func(year uint32) bool { return year >= 2000 && year <= 2009 },
 		"movies_after_2000":     func(year uint32) bool { return year > 2000 },
@@ -205,22 +176,54 @@ func (f *Filter) processYearFilters() {
 
 	f.log.Infof("[%s] Starting job for ID: %d", filterName, f.config.ID)
 
-	// Declare queues (input and output)
-	queues := []string{"movies", "movies_2000_to_2009", "movies_after_2000", "movies_2000_and_later"}
-	for _, queue := range queues {
-		// TODO: func declareDirectQueue
-		_, err := f.channel.QueueDeclare(
-			queue, true, false, false, false, nil,
-		)
+	err := f.channel.ExchangeDeclare(
+		exchangeName,
+		exchangeType,
+		true,  // durable
+		false, // auto-deleted
+		false, // internal
+		false, // no-wait
+		nil,   // args
+	)
+	if err != nil {
+		f.log.Fatalf("[%s] Failed to declare exchange: %v", filterName, err)
+	}
+
+	// Declare temporal queue used to read from the exchange
+	inputQueue, err := f.channel.QueueDeclare(
+		"",    // empty = temporal queue with generated name
+		false, // durable
+		true,  // auto-delete when unused
+		true,  // exclusive
+		false, // no-wait
+		nil,
+	)
+	if err != nil {
+		f.log.Fatalf("[%s] Failed to declare temporary queue: %v", filterName, err)
+	}
+
+	// Bind the queue to the exchange
+	err = f.channel.QueueBind(
+		inputQueue.Name, // queue name
+		"",              // routing key (empty on a fanout)
+		exchangeName,    // exchange
+		false,
+		nil,
+	)
+	if err != nil {
+		f.log.Fatalf("[%s] Failed to bind queue to exchange: %v", filterName, err)
+	}
+
+	for outputQueue := range outputQueues {
+		err := rabbitmq.DeclareDirectQueue(f.channel, outputQueue)
 		if err != nil {
-			f.log.Fatalf("[%s] Failed to declare queue '%s': %v", filterName, queue, err)
+			f.log.Fatalf("[%s] Failed to declare queue '%s': %v", filterName, outputQueue, err)
 		}
 	}
 
-	msgs, err := f.channel.Consume(inputQueue, "", true, false, false, false, nil)
-
+	msgs, err := rabbitmq.ConsumeFromQueue(f.channel, inputQueue.Name)
 	if err != nil {
-		f.log.Fatalf("[%s] Failed to consume messages from '%s': %v", filterName, inputQueue, err)
+		f.log.Fatalf("[%s] Failed to consume messages from '%s': %v", filterName, inputQueue.Name, err)
 	}
 
 	f.log.Infof("[%s] Waiting for messages...", filterName)
@@ -260,4 +263,29 @@ func (f *Filter) processYearFilters() {
 	}
 
 	f.log.Infof("[%s] Job finished", filterName)
+}
+
+func (f *Filter) processArFilter() {
+	inputQueues := [2]string{"movies_2000_and_later", "movies_after_2000"}
+	outputQueuePrefixes := [2]string{"ar_movies_2000_and_later_shard", "ar_movies_after_2000_shard"}
+
+	for _, inputQueue := range inputQueues {
+		err := rabbitmq.DeclareDirectQueue(f.channel, inputQueue)
+		if err != nil {
+			f.log.Fatalf("Failed to declare queue '%s': %v", inputQueue, err)
+		}
+	}
+
+	// Sharded output queues
+	for _, prefix := range outputQueuePrefixes {
+		// TODO: usar una sola queue pero con routing_key
+		for i := 0; i < f.config.Shards; i++ {
+			outputQueue := fmt.Sprintf("%s_%d", prefix, i)
+
+			err := rabbitmq.DeclareDirectQueue(f.channel, outputQueue)
+			if err != nil {
+				f.log.Fatalf("Failed to declare queue '%s': %v", outputQueue, err)
+			}
+		}
+	}
 }

@@ -20,6 +20,7 @@ services:
         environment:
             - FILTER_TYPE=2000s_filter
             - FILTER_NUM=1
+            - SHARDS=1
         networks:
             - tp1_net
         depends_on:
@@ -32,6 +33,7 @@ services:
         environment:
             - FILTER_TYPE=ar_es_filter
             - FILTER_NUM=1
+            - SHARDS=1
         networks:
             - tp1_net
         depends_on:
@@ -43,6 +45,7 @@ services:
         environment:
             - FILTER_TYPE=ar_filter
             - FILTER_NUM=1
+            - SHARDS=1
         networks:
             - tp1_net
         depends_on:
@@ -54,6 +57,8 @@ services:
         environment:
             - FILTER_TYPE=top-5-investors-filter
             - FILTER_NUM=1
+            - SHARDS=1
+
         networks:
             - tp1_net
         depends_on:
