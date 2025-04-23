@@ -84,7 +84,7 @@ type MovieFilterFunc func(movie *protopb.MovieSanit) bool
 // until an EOF is received.
 // Used for query 1: "Peliculas y sus géneros de los años 00' con producción Argentina y Española"
 func (f *Filter) processArEsFilter() {
-	inputQueue := "movies_2000s"
+	inputQueue := "movies_2000_to_2009"
 	outputQueue := "movies_ar_es_2000s"
 	filterName := "ar_es_filter"
 
