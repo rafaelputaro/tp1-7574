@@ -15,9 +15,12 @@ func SendMovies(client pb.MovieServiceClient, parser Parser[pb.Movie]) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
-	stream, err := client.StreamMovies(ctx)
+	stream, err := RetryWithBackoff(
+		func() (pb.MovieService_StreamMoviesClient, error) {
+			return client.StreamMovies(ctx)
+		})
 	if err != nil {
-		logger.Fatalf("failed to open movie stream: %v", err)
+		logger.Fatalf("Failed to open movies stream after retries: %v", err)
 	}
 
 	for {
@@ -46,9 +49,12 @@ func SendRatings(client pb.RatingServiceClient, parser Parser[pb.Rating]) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
-	stream, err := client.StreamRatings(ctx)
+	stream, err := RetryWithBackoff(
+		func() (pb.RatingService_StreamRatingsClient, error) {
+			return client.StreamRatings(ctx)
+		})
 	if err != nil {
-		logger.Fatalf("failed to open ratings stream: %v", err)
+		logger.Fatalf("Failed to open ratings stream after retries: %v", err)
 	}
 
 	for {
@@ -77,10 +83,14 @@ func SendCredits(client pb.CreditServiceClient, parser Parser[pb.Credit]) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
-	stream, err := client.StreamCredits(ctx)
+	stream, err := RetryWithBackoff(
+		func() (pb.CreditService_StreamCreditsClient, error) {
+			return client.StreamCredits(ctx)
+		})
 	if err != nil {
-		logger.Fatalf("failed to open credits stream: %v", err)
+		logger.Fatalf("Failed to open credits stream after retries: %v", err)
 	}
+
 	for {
 		batch, err := parser.NextBatch()
 		if err != nil {

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/op/go-logging"
 	"os"
-	"time"
 	"tp1/client/internal"
 	pb "tp1/protobuf/protopb"
 
@@ -54,14 +53,10 @@ func main() {
 
 	// Senders
 	var conn *grpc.ClientConn
-	for i := 0; i < 5; i++ {
-		conn, err = grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-		if err == nil {
-			break
-		}
-		logger.Infof("Attempt %d: failed to connect to controller: %v", i+1, err)
-		time.Sleep(3 * time.Second)
-	}
+	conn, err = internal.RetryWithBackoff(
+		func() (*grpc.ClientConn, error) {
+			return grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		})
 	if err != nil {
 		logger.Fatalf("Failed to connect to controller after retries: %v", err)
 	}
