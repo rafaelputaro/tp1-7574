@@ -3,9 +3,9 @@ package internal
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/op/go-logging"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"io"
-	"log"
 	"strconv"
 	"strings"
 	pb "tp1/protobuf/protopb"
@@ -13,6 +13,8 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
+
+var logger = logging.MustGetLogger("controller")
 
 type Controller struct {
 	pb.UnimplementedMovieServiceServer
@@ -26,9 +28,12 @@ func NewController(ch *amqp.Channel) *Controller {
 }
 
 func (c *Controller) StreamMovies(stream pb.MovieService_StreamMoviesServer) error {
+	count := 0
+
 	for {
 		msg, err := stream.Recv()
 		if err == io.EOF {
+			logger.Infof("StreamMovies: published %d movies to 'movies_exchange'", count)
 			return stream.SendAndClose(&emptypb.Empty{})
 		}
 		if err != nil {
@@ -37,7 +42,7 @@ func (c *Controller) StreamMovies(stream pb.MovieService_StreamMoviesServer) err
 
 		sanitized, err := sanitizeMovie(msg)
 		if err != nil {
-			log.Printf("skipping invalid movie (id %d): %v", msg.GetId(), err)
+			logger.Infof("skipping invalid movie (id %d): %v", msg.GetId(), err)
 			continue
 		}
 
@@ -47,7 +52,7 @@ func (c *Controller) StreamMovies(stream pb.MovieService_StreamMoviesServer) err
 		}
 
 		err = c.ch.Publish(
-			"", "movies_exchange", false, false,
+			"movies_exchange", "", false, false,
 			amqp.Publishing{
 				ContentType: "application/protobuf",
 				Body:        data,
@@ -56,13 +61,18 @@ func (c *Controller) StreamMovies(stream pb.MovieService_StreamMoviesServer) err
 		if err != nil {
 			return err
 		}
+
+		count++
 	}
 }
 
 func (c *Controller) StreamRatings(stream pb.RatingService_StreamRatingsServer) error {
+	count := 0
+
 	for {
 		rating, err := stream.Recv()
 		if err == io.EOF {
+			logger.Infof("StreamRatings: published %d ratings to 'ratings_exchange'", count)
 			return stream.SendAndClose(&emptypb.Empty{})
 		}
 		if err != nil {
@@ -71,7 +81,7 @@ func (c *Controller) StreamRatings(stream pb.RatingService_StreamRatingsServer) 
 
 		sanitized, err := sanitizeRating(rating)
 		if err != nil {
-			log.Printf("skipping invalid rating (movie id %d): %v", rating.GetMovieId(), err)
+			logger.Infof("skipping invalid rating (movie id %d): %v", rating.GetMovieId(), err)
 			continue
 		}
 
@@ -81,7 +91,7 @@ func (c *Controller) StreamRatings(stream pb.RatingService_StreamRatingsServer) 
 		}
 
 		err = c.ch.Publish(
-			"", "ratings_exchange", false, false,
+			"ratings_exchange", "", false, false,
 			amqp.Publishing{
 				ContentType: "application/protobuf",
 				Body:        data,
@@ -90,13 +100,18 @@ func (c *Controller) StreamRatings(stream pb.RatingService_StreamRatingsServer) 
 		if err != nil {
 			return err
 		}
+
+		count++
 	}
 }
 
 func (c *Controller) StreamCredits(stream pb.CreditService_StreamCreditsServer) error {
+	count := 0
+
 	for {
 		credit, err := stream.Recv()
 		if err == io.EOF {
+			logger.Infof("StreamCredits: published %d credits to 'credits_exchange'", count)
 			return stream.SendAndClose(&emptypb.Empty{})
 		}
 		if err != nil {
@@ -105,7 +120,7 @@ func (c *Controller) StreamCredits(stream pb.CreditService_StreamCreditsServer) 
 
 		sanitized, err := sanitizeCredit(credit)
 		if err != nil {
-			log.Printf("skipping invalid credit (id %d): %v", credit.GetId(), err)
+			logger.Infof("skipping invalid credit (id %d): %v", credit.GetId(), err)
 			continue
 		}
 
@@ -115,7 +130,7 @@ func (c *Controller) StreamCredits(stream pb.CreditService_StreamCreditsServer) 
 		}
 
 		err = c.ch.Publish(
-			"", "credits_exchange", false, false,
+			"credits_exchange", "", false, false,
 			amqp.Publishing{
 				ContentType: "application/protobuf",
 				Body:        data,
@@ -124,6 +139,8 @@ func (c *Controller) StreamCredits(stream pb.CreditService_StreamCreditsServer) 
 		if err != nil {
 			return err
 		}
+
+		count++
 	}
 }
 

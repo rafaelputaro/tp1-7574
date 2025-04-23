@@ -39,12 +39,12 @@ func main() {
 	for _, name := range exchanges {
 		err := ch.ExchangeDeclare(
 			name,
-			"fanout", // exchange type
-			true,     // durable
-			false,    // auto-deleted
-			false,    // internal
-			false,    // no-wait
-			nil,      // arguments
+			"fanout",
+			true,
+			false,
+			false,
+			false,
+			nil,
 		)
 		if err != nil {
 			logger.Fatalf("Failed to declare exchange '%s': %v", name, err)
