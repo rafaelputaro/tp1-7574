@@ -1,6 +1,7 @@
 package common
 
 import (
+	"sync"
 	"tp1/protobuf/protopb"
 	rabbitUtils "tp1/rabbitmq"
 
@@ -31,6 +32,7 @@ const MSG_RECEIVED_EOF_MARKER = "Received EOF marker"
 const MSG_AGGREGATED = "Accepted"
 const MSG_FAILED_TO_MARSHAL = "Failed to marshal message"
 const MSG_FAILED_TO_PUBLISH_ON_OUTPUT_QUEUE = "Failed to publish on outputqueue"
+const MSG_FAILED_TO_GENERATE_A_METRIC = "Failure to generate a metric"
 
 // Aggregator which can be of types "movies", "top_5", "top_10", "top_and_bottom" and "metrices".
 // In the case of type "metrics" works with two queues:
@@ -149,15 +151,6 @@ func (aggregator *Aggregator) Start() {
 // Check EOF condition
 func (aggregator *Aggregator) checkEofSingleQueue(amountEOF int) bool {
 	if amountEOF == int(aggregator.Config.AmountSources) {
-		aggregator.Log.Infof("[%s] %s", aggregator.Config.AggregatorType, MSG_RECEIVED_EOF_MARKER)
-		return true
-	}
-	return false
-}
-
-// Check EOF condition
-func (aggregator *Aggregator) checkEofQueues(amountEOF int, amountQueesPerSource int) bool {
-	if amountEOF == amountQueesPerSource*int(aggregator.Config.AmountSources) {
 		aggregator.Log.Infof("[%s] %s", aggregator.Config.AggregatorType, MSG_RECEIVED_EOF_MARKER)
 		return true
 	}
@@ -304,7 +297,80 @@ func (aggregator *Aggregator) aggregateTopAndBottom() {
 }
 
 func (aggregator *Aggregator) aggregateMetrics() {
+	// declare results
+	var avgRevenueOverBudgetNegative, avgRevenueOverBudgetPositive float64
+	// wait group
+	var wg sync.WaitGroup
+	wg.Add(1)
+	// negative queue
+	var errNeg, errPos error
+	go func() {
+		defer wg.Done()
+		avgRevenueOverBudgetNegative, errNeg = aggregator.aggregateMetric(aggregator.Config.InputQueue)
+	}()
+	// prositive queue
+	avgRevenueOverBudgetPositive, errPos = aggregator.aggregateMetric(aggregator.Config.InputQueueSec)
+	// wait for negative result
+	wg.Wait()
+	if errNeg != nil || errPos != nil {
+		aggregator.Log.Fatalf("[%s] %s: Neg error: %v | Pos error: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_GENERATE_A_METRIC, errNeg, errPos)
+		return
+	}
+	// prepare report
+	report := utils.CreateMetricsReport(avgRevenueOverBudgetNegative, avgRevenueOverBudgetPositive)
+	aggregator.Log.Debugf("[%s] %s: %s", aggregator.Config.AggregatorType, MSG_AGGREGATED, utils.MetricsToString(&report))
+	data, err := proto.Marshal(&report)
+	if err != nil {
+		aggregator.Log.Fatalf("[%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_MARSHAL, err)
+		return
+	}
+	// send report
+	aggregator.publishData(data)
+	// prepare eof
+	eof := utils.CreateMetricsEof()
+	data, err = proto.Marshal(&eof)
+	if err != nil {
+		aggregator.Log.Fatalf("[%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_MARSHAL, err)
+		return
+	}
+	// submit the EOF to report
+	aggregator.publishData(data)
+}
 
+func (aggregator *Aggregator) aggregateMetric(config QueueConfig) (float64, error) {
+	msgs, err := aggregator.consumeQueue(aggregator.Config.InputQueue)
+	if err == nil {
+		amountEOF := 0
+		var avgRevenueOverBudget float64
+		var count int64 = 0
+		var sum float64 = 0.0
+		for msg := range msgs {
+			var shardSum protopb.RevenueOverBudget
+			if err := proto.Unmarshal(msg.Body, &shardSum); err != nil {
+				aggregator.Log.Errorf("[%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_UNMARSHAL, err)
+				continue
+			}
+			// EOF
+			if shardSum.Eof != nil && *shardSum.Eof {
+				amountEOF += 1
+				// If all sources sent EOF calculate avg and break loop
+				if aggregator.checkEofSingleQueue(amountEOF) {
+					if count != 0 {
+						avgRevenueOverBudget = sum / float64(count)
+					}
+					aggregator.Log.Debugf("[%s] %s: AvgRevenueOverBudget: %v", aggregator.Config.AggregatorType, MSG_AGGREGATED, avgRevenueOverBudget)
+					break
+				}
+				continue
+			}
+			// update sum and count
+			count += *shardSum.AmountReviews
+			sum += float64(*shardSum.AmountReviews)
+		}
+		return avgRevenueOverBudget, nil
+	} else {
+		return 0.0, err
+	}
 }
 
 func (aggregator *Aggregator) consumeQueue(config QueueConfig) (<-chan amqp.Delivery, error) {
