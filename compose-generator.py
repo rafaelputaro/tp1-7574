@@ -102,7 +102,7 @@ docker_compose_txt += f"""
         environment:
             - AGGREGATOR_TYPE=movies
             - AGGREGATOR_ID=1
-            - AGGREGATOR_AMOUNT_SOURCES=1
+            - AGGREGATOR_AMOUNT_SOURCES={ar_es_filter_nodes}
             - AGGREGATOR_INPUT_QUEUE_NAME=movies_ar_es_2000s
             - AGGREGATOR_OUTPUT_QUEUE_NAME=movies_report
         networks:
@@ -120,9 +120,67 @@ docker_compose_txt += f"""
         environment:
             - AGGREGATOR_TYPE=top_5
             - AGGREGATOR_ID=2
-            - AGGREGATOR_AMOUNT_SOURCES=1
+            - AGGREGATOR_AMOUNT_SOURCES={top_5_investors_filter_nodes}
             - AGGREGATOR_INPUT_QUEUE_NAME=movies_top_5_investors
             - AGGREGATOR_OUTPUT_QUEUE_NAME=top_5_report
+        networks:
+            - tp1_net
+        depends_on:
+            - rabbitmq
+        links: 
+            - rabbitmq
+"""
+'''
+'''
+docker_compose_txt += f"""
+    aggregator_top_10:
+        container_name: aggregator_top_10
+        image: aggregator:latest
+        environment:
+            - AGGREGATOR_TYPE=top_10
+            - AGGREGATOR_ID=3
+            - AGGREGATOR_AMOUNT_SOURCES=1
+            - AGGREGATOR_INPUT_QUEUE_NAME=movies_top_10
+            - AGGREGATOR_OUTPUT_QUEUE_NAME=top_10_report
+        networks:
+            - tp1_net
+        depends_on:
+            - rabbitmq
+        links: 
+            - rabbitmq
+"""
+'''
+'''
+docker_compose_txt += f"""
+    aggregator_top_and_bottom:
+        container_name: aggregator_top_and_bottom
+        image: aggregator:latest
+        environment:
+            - AGGREGATOR_TYPE=top_and_bottom
+            - AGGREGATOR_ID=4
+            - AGGREGATOR_AMOUNT_SOURCES=1
+            - AGGREGATOR_INPUT_QUEUE_NAME=movies_top_and_bottom
+            - AGGREGATOR_OUTPUT_QUEUE_NAME=top_and_bottom_report
+        networks:
+            - tp1_net
+        depends_on:
+            - rabbitmq
+        links: 
+            - rabbitmq
+"""
+'''
+'''
+docker_compose_txt += f"""
+    aggregator_metrics:
+        container_name: aggregator_metrics
+        image: aggregator:latest
+        environment:
+            - AGGREGATOR_TYPE=metrics
+            - AGGREGATOR_ID=5
+            - AGGREGATOR_AMOUNT_SOURCES=1
+            - AGGREGATOR_INPUT_QUEUE_NAME=revenue_over_budget_negative
+            - AGGREGATOR_INPUT_QUEUE_SEC_NAME=revenue_over_budget_positive
+            - AGGREGATOR_OUTPUT_QUEUE_NAME=metrics_report
         networks:
             - tp1_net
         depends_on:
