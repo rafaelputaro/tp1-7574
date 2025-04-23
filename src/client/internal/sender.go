@@ -26,6 +26,7 @@ func SendMovies(client pb.MovieServiceClient, parser Parser[pb.Movie]) {
 	for {
 		batch, err := parser.NextBatch()
 		if err != nil {
+			logger.Errorf("Failed get next batch: %v", err)
 			break
 		}
 		for _, item := range batch {

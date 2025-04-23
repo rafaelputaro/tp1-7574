@@ -31,7 +31,8 @@ func (p *parser[T]) NextBatch() ([]*T, error) {
 			break
 		}
 		if err != nil {
-			return nil, err
+			logger.Errorf("skipping line due to error: %v", err)
+			continue
 		}
 
 		item, err := p.fn(record)
