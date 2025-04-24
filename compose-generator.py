@@ -124,8 +124,8 @@ docker_compose_txt += f"""
             - JOINER_TYPE=group_by_movie_id_ratings
             - JOINER_ID=1
             - JOINER_INPUT_QUEUE_BASE_NAME=ar_movies_2000_and_later
-            - JOINER_INPUT_QUEUE_SEC_BASE_NAME=ratings
-            - JOINER_OUTPUT_QUEUE_BASE_NAME=movies_top_and_bottom
+            - JOINER_INPUT_QUEUE_SEC_NAME=ratings
+            - JOINER_OUTPUT_QUEUE_NAME=movies_top_and_bottom
         networks:
             - tp1_net
         depends_on:
@@ -143,8 +143,8 @@ docker_compose_txt += f"""
             - JOINER_TYPE=group_by_movie_id_credits
             - JOINER_ID=1
             - JOINER_INPUT_QUEUE_BASE_NAME=ar_movies_2000_and_later
-            - JOINER_INPUT_QUEUE_SEC_BASE_NAME=credits
-            - JOINER_OUTPUT_QUEUE_BASE_NAME=actor_movies_count
+            - JOINER_INPUT_QUEUE_SEC_NAME=credits
+            - JOINER_OUTPUT_QUEUE_NAME=actor_movies_count
         networks:
             - tp1_net
         depends_on:
