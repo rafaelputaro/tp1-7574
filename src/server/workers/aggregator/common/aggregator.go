@@ -282,6 +282,8 @@ func (aggregator *Aggregator) aggregateTop10() {
 				aggregator.Log.Errorf("[%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_UNMARSHAL, err)
 				continue
 			}
+			aggregator.Log.Debugf("got message %s", actorCount.GetName())
+
 			// EOF
 			if actorCount.Eof != nil && *actorCount.Eof {
 				amountEOF += 1
