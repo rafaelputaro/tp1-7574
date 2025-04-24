@@ -42,12 +42,12 @@ func (r *ReportGenerator) GetReport(_ context.Context, _ *emptypb.Empty) (*pb.Re
 			IsEOF:   isTopAndBottomEOF,
 			Process: processTopAndBottom,
 		},
-		/*{
-			Name:    "top_10_report",
-			IsEOF:   isTopAndBottomEOF,
-			Process: processTopAndBottom,
-		},
 		{
+			Name:    "top_10_report",
+			IsEOF:   isTop10EOF,
+			Process: processTop10,
+		},
+		/*{
 			Name:    "",
 			IsEOF:   isTopAndBottomEOF,
 			Process: processTopAndBottom,
@@ -88,11 +88,7 @@ func (r *ReportGenerator) GetReport(_ context.Context, _ *emptypb.Empty) (*pb.Re
 		Answer1: response.Answer1,
 		Answer2: response.Answer2,
 		Answer3: response.Answer3,
-		Answer4: &pb.Answer4{
-			Actors: []*pb.ActorEntry{
-				{Id: proto.Int64(123), Name: proto.String("Keanu Reeves"), Count: proto.Int32(3)},
-			},
-		},
+		Answer4: response.Answer4,
 		Answer5: &pb.Answer5{
 			Positive: &pb.SentimentScore{Type: proto.String("positive"), Score: proto.Float32(0.82)},
 			Negative: &pb.SentimentScore{Type: proto.String("negative"), Score: proto.Float32(0.13)},
@@ -190,6 +186,33 @@ func processTopAndBottom(data [][]byte, response *pb.ReportResponse) {
 	}
 
 	response.Answer3 = &answer3
+}
+
+func isTop10EOF(data []byte) bool {
+	var d pb.Top10
+	_ = proto.Unmarshal(data, &d)
+	return d.GetEof()
+}
+
+func processTop10(data [][]byte, response *pb.ReportResponse) {
+	answer4 := pb.Answer4{}
+
+	for _, d := range data {
+		var top10 pb.Top10
+		_ = proto.Unmarshal(d, &top10)
+
+		for i := 0; i < len(top10.GetNames()); i++ {
+			entry := pb.ActorEntry{
+				Id:    proto.Int64(int64(i)),
+				Name:  proto.String(top10.Names[i]),
+				Count: proto.Int64(top10.CountMovies[i]),
+			}
+
+			answer4.Actors = append(answer4.Actors, &entry)
+		}
+	}
+
+	response.Answer4 = &answer4
 }
 
 func main() {

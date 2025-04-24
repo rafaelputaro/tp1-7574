@@ -458,7 +458,7 @@ type ActorEntry struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            *int64                 `protobuf:"varint,1,req,name=id" json:"id,omitempty"`
 	Name          *string                `protobuf:"bytes,2,req,name=name" json:"name,omitempty"`
-	Count         *int32                 `protobuf:"varint,3,req,name=count" json:"count,omitempty"`
+	Count         *int64                 `protobuf:"varint,3,req,name=count" json:"count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -507,7 +507,7 @@ func (x *ActorEntry) GetName() string {
 	return ""
 }
 
-func (x *ActorEntry) GetCount() int32 {
+func (x *ActorEntry) GetCount() int64 {
 	if x != nil && x.Count != nil {
 		return *x.Count
 	}
@@ -654,7 +654,7 @@ const file_report_proto_rawDesc = "" +
 	"ActorEntry\x12\x0e\n" +
 	"\x02id\x18\x01 \x02(\x03R\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x02(\tR\x04name\x12\x14\n" +
-	"\x05count\x18\x03 \x02(\x05R\x05count\"c\n" +
+	"\x05count\x18\x03 \x02(\x03R\x05count\"c\n" +
 	"\aAnswer5\x12+\n" +
 	"\bpositive\x18\x01 \x02(\v2\x0f.SentimentScoreR\bpositive\x12+\n" +
 	"\bnegative\x18\x02 \x02(\v2\x0f.SentimentScoreR\bnegative\":\n" +
