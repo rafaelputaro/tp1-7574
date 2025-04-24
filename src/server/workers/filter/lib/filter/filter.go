@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"sort"
+	"strings"
 	"sync"
 	"tp1/protobuf/protopb"
 	"tp1/rabbitmq"
@@ -174,7 +175,7 @@ func (f *Filter) processTop5InvestorsFilter() {
 
 	filterName := fmt.Sprintf("top_5_investors_filter_shard_%d", shardID)
 
-	inputQueue := fmt.Sprintf("%s_shard_%d", inputExchange, shardID)
+	inputQueue := strings.Replace(inputExchange, "exchange", fmt.Sprintf("shard_%d", shardID), 1)
 
 	err := f.channel.ExchangeDeclare(
 		inputExchange,
@@ -570,7 +571,8 @@ func (f *Filter) runShardedFilter(
 
 	// Declare and bind sharded queues to the exchange
 	for i := 1; i <= f.config.Shards; i++ {
-		queueName := fmt.Sprintf("%s_shard_%d", outputExchange, i)
+		queueName := strings.Replace(outputExchange, "exchange", fmt.Sprintf("shard_%d", i), 1)
+
 		routingKey := fmt.Sprintf("%d", i)
 
 		err := rabbitmq.DeclareDirectQueue(f.channel, queueName)

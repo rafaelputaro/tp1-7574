@@ -115,7 +115,7 @@ for i in range(1, top_5_investors_filter_nodes + 1):
             - rabbitmq 
 """
 # JOINER --------------------------------------------------------------------------------------------
-'''
+
 docker_compose_txt += f"""
     joiner_group_by_movie_id_ratings:
         container_name: joiner_group_by_movie_id_ratings
@@ -133,8 +133,8 @@ docker_compose_txt += f"""
         links: 
             - rabbitmq
 """
-'''
-'''
+
+
 docker_compose_txt += f"""
     joiner_group_by_movie_id_credits:
         container_name: joiner_group_by_movie_id_credits
@@ -152,7 +152,7 @@ docker_compose_txt += f"""
         links: 
             - rabbitmq
 """
-'''
+
 
 
 
@@ -193,7 +193,7 @@ docker_compose_txt += f"""
             - rabbitmq
 """
 
-'''
+
 docker_compose_txt += f"""
     aggregator_top_10:
         container_name: aggregator_top_10
@@ -211,8 +211,8 @@ docker_compose_txt += f"""
         links: 
             - rabbitmq
 """
-'''
-'''
+
+
 docker_compose_txt += f"""
     aggregator_top_and_bottom:
         container_name: aggregator_top_and_bottom
@@ -230,8 +230,8 @@ docker_compose_txt += f"""
         links: 
             - rabbitmq
 """
-'''
-'''
+
+
 docker_compose_txt += f"""
     aggregator_metrics:
         container_name: aggregator_metrics
@@ -250,7 +250,7 @@ docker_compose_txt += f"""
         links: 
             - rabbitmq
 """
-'''
+
 
 # NLP
 for i in range(1, nlp_nodes + 1):

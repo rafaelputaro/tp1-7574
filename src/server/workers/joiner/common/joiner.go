@@ -272,7 +272,7 @@ func (joiner *Joiner) consumeQueue(name string) (<-chan amqp.Delivery, error) {
 	if err != nil {
 		joiner.Log.Fatalf("%s '%s': %v", MSG_FAILED_CONSUME, name, err)
 	}
-	joiner.Log.Infof("[%s] Waiting for messages...", joiner.Config.JoinerType)
+	joiner.Log.Infof("[%s] Waiting for messages from %s...", joiner.Config.JoinerType, name)
 	return msgs, err
 }
 
