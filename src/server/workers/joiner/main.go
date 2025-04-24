@@ -15,8 +15,8 @@ Environment variables:
 JOINER_ID;
 JOINER_TYPE: "group_by_movie_id_ratings" "group_by_movie_id_credits";
 JOINER_INPUT_QUEUE_BASE_NAME: movies queue name. Example: ar_movies_2000_and_later;
-JOINER_INPUT_QUEUE_SEC_BASE_NAME: ratings or credits;
-JOINER_OUTPUT_QUEUE_BASE_NAME: "actor_movies_count" or "movies_top_and_bottom" ;
+JOINER_INPUT_QUEUE_SEC_NAME: ratings or credits;
+JOINER_OUTPUT_QUEUE_NAME: "actor_movies_count" or "movies_top_and_bottom" ;
 */
 func main() {
 	common.Log.Info("Starting joiner...")
