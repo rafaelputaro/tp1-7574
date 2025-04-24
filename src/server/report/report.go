@@ -47,11 +47,11 @@ func (r *ReportGenerator) GetReport(_ context.Context, _ *emptypb.Empty) (*pb.Re
 			IsEOF:   isTop10EOF,
 			Process: processTop10,
 		},
-		/*{
-			Name:    "",
-			IsEOF:   isTopAndBottomEOF,
-			Process: processTopAndBottom,
-		},*/
+		{
+			Name:    "metrics_report",
+			IsEOF:   isMetricsEOF,
+			Process: processMetrics,
+		},
 	}
 
 	response := pb.ReportResponse{}
@@ -213,6 +213,35 @@ func processTop10(data [][]byte, response *pb.ReportResponse) {
 	}
 
 	response.Answer4 = &answer4
+}
+
+func isMetricsEOF(data []byte) bool {
+	var d pb.Metrics
+	_ = proto.Unmarshal(data, &d)
+	return d.GetEof()
+}
+
+func processMetrics(data [][]byte, response *pb.ReportResponse) {
+	answer5 := pb.Answer5{}
+
+	for _, d := range data {
+		var metrics pb.Metrics
+		_ = proto.Unmarshal(d, &metrics)
+
+		positive := pb.SentimentScore{
+			Type:  proto.String("positive"),
+			Score: proto.Float32(float32(metrics.GetAvgRevenueOverBudgetPositive())),
+		}
+		answer5.Positive = &positive
+
+		negative := pb.SentimentScore{
+			Type:  proto.String("negative"),
+			Score: proto.Float32(float32(metrics.GetAvgRevenueOverBudgetNegative())),
+		}
+		answer5.Positive = &negative
+	}
+
+	response.Answer5 = &answer5
 }
 
 func main() {

@@ -69,7 +69,6 @@ def main():
     channel.exchange_declare(exchange=FANOUT_EXCHANGE, exchange_type='fanout', durable=True)
 
     # Declare a unique, temporary queue
-    queue_name = f"sentiment_temp_queue_{NODE_NUM}"
     result = channel.queue_declare(queue='', exclusive=True, durable=True)
     queue_name = result.method.queue
 
