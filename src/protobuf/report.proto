@@ -1,0 +1,67 @@
+syntax = "proto2";
+
+option go_package = "./protopb";
+
+import "google/protobuf/empty.proto";
+
+message ReportResponse {
+  required Answer1 top_10 = 1;
+  required Answer2 top_5 = 2;
+  required Answer3 top_bottom = 3;
+  required Answer4 actors = 4;
+  required Answer5 sentiment = 5;
+}
+
+message Answer1 {
+  repeated MovieEntry movies = 1;
+}
+
+message MovieEntry {
+  required int32 id = 1;
+  required string title = 2;
+  repeated string genres = 3;
+}
+
+message Answer2 {
+  repeated CountryEntry countries = 1;
+}
+
+message CountryEntry {
+  required string name = 1;
+  required int64 budget = 2;
+}
+
+message Answer3 {
+  required MovieRating min = 1;
+  required MovieRating max = 2;
+}
+
+message MovieRating {
+  required int32 id = 1;
+  required string title = 2;
+  required double rating = 3;
+}
+
+message Answer4 {
+  repeated ActorEntry actors = 1;
+}
+
+message ActorEntry {
+  required int64 id = 1;
+  required string name = 2;
+  required int32 count = 3;
+}
+
+message Answer5 {
+  required SentimentScore positive = 1;
+  required SentimentScore negative = 2;
+}
+
+message SentimentScore {
+  required string type = 1;
+  required float score = 2;
+}
+
+service ReportService {
+  rpc GetReport(google.protobuf.Empty) returns (ReportResponse);
+}
