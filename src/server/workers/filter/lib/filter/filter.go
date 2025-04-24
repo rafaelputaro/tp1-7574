@@ -3,6 +3,7 @@ package filter
 import (
 	"fmt"
 	"hash/fnv"
+	"sort"
 	"sync"
 	"tp1/protobuf/protopb"
 	"tp1/rabbitmq"
@@ -151,12 +152,131 @@ func (f *Filter) processArEsFilter() {
 }
 
 func (f *Filter) processTop5InvestorsFilter() {
-	// inputQueue := "movies"
-	// outputQueue := "movies_top_5_investors"
-	// filterName := "top_5_investors_filter"
+	inputExchange := "single_country_origin_exchange"
+	shardID := f.config.ID
 
-	// TODO: hay que guardar un estado interno del top 5 actual y si la nueva entrada no entra en el
-	// top 5 entonces se descarta. Al recibir el eof se envía el top 5 al aggregator
+	filterName := fmt.Sprintf("top_5_investors_filter_shard_%d", shardID)
+
+	inputQueue := fmt.Sprintf("%s_shard_%d", inputExchange, shardID)
+	f.log.Debugf("Declaring %v", inputQueue)
+
+	err := f.channel.ExchangeDeclare(
+		inputExchange,
+		"direct",
+		true,  // durable
+		false, // auto-deleted
+		false, // internal
+		false, // no-wait
+		nil,   // args
+	)
+	if err != nil {
+		f.log.Fatalf("[%s] Failed to declare exchange: %v", filterName, err)
+	}
+
+	// Declare temporal queue used to read from the exchange
+	_, err = f.channel.QueueDeclare(
+		inputQueue, // empty = temporal queue with generated name
+		true,       // durable
+		false,      // auto-delete when unused
+		false,      // exclusive
+		false,      // no-wait
+		nil,
+	)
+	if err != nil {
+		f.log.Fatalf("[%s] Failed to declare temporary queue: %v", filterName, err)
+	}
+
+	// Bind the queue to the exchange
+	err = f.channel.QueueBind(
+		inputQueue,                     // queue name
+		fmt.Sprintf("%d", f.config.ID), // routing key (empty on a fanout)
+		inputExchange,                  // exchange
+		false,
+		nil,
+	)
+	if err != nil {
+		f.log.Fatalf("[%s] Failed to bind queue to exchange: %v", filterName, err)
+	}
+
+	msgs, err := rabbitmq.ConsumeFromQueue(f.channel, inputQueue)
+	if err != nil {
+		f.log.Fatalf("[%s] Failed to consume messages from '%s': %v", filterName, inputQueue, err)
+	}
+
+	f.log.Infof("[%s] Waiting for messages...", filterName)
+
+	countryBudget := make(map[string]int32)
+
+	for msg := range msgs {
+		var movie protopb.MovieSanit
+		if err := proto.Unmarshal(msg.Body, &movie); err != nil {
+			f.log.Errorf("[%s] Failed to unmarshal message: %v", filterName, err)
+			continue
+		}
+
+		if movie.Eof != nil && *movie.Eof {
+			f.log.Infof("[%s] Received EOF marker", filterName)
+
+			type entry struct {
+				Country string
+				Budget  int32
+			}
+
+			var sorted []entry
+			for country, total := range countryBudget {
+				sorted = append(sorted, entry{country, total})
+			}
+
+			sort.Slice(sorted, func(i, j int) bool {
+				return sorted[i].Budget > sorted[j].Budget
+			})
+
+			// Crear mensaje de respuesta
+			top5 := &protopb.Top5Country{
+				Budget:              []int32{},
+				ProductionCountries: []string{},
+			}
+			eof := true
+			top5.Eof = &eof
+
+			for i := 0; i < len(sorted) && i < 5; i++ {
+				top5.ProductionCountries = append(top5.ProductionCountries, sorted[i].Country)
+				top5.Budget = append(top5.Budget, sorted[i].Budget)
+			}
+
+			data, err := proto.Marshal(top5)
+			if err != nil {
+				f.log.Errorf("[%s] Failed to marshal Top5Country: %v", filterName, err)
+				continue
+			}
+
+			f.log.Debugf("[%s] Sending Top5Country: %+v", filterName, top5)
+
+			err = f.channel.Publish(
+				"movies_top_5_investors",
+				"",
+				false,
+				false,
+				amqp.Publishing{
+					ContentType: "application/protobuf",
+					Body:        data,
+				},
+			)
+			if err != nil {
+				f.log.Errorf("[%s] Failed to publish Top5Country: %v", filterName, err)
+			}
+
+			break
+		}
+
+		budget := movie.GetBudget()
+		for _, country := range movie.GetProductionCountries() {
+			countryBudget[country] += budget
+		}
+
+		f.log.Infof("[%s] Received: %v - %v", filterName, movie.GetProductionCountries(), budget)
+		f.log.Infof("[%s] Budget per country: %+v", filterName, countryBudget)
+	}
 }
 
 // Filter that reads from `movies` queue and writes to 3 different queues with the following conditions:
@@ -401,11 +521,12 @@ func (f *Filter) runShardedFilter(
 	}
 
 	// Declare and bind sharded queues to the exchange
-	for i := range f.config.Shards {
+	for i := 1; i <= f.config.Shards; i++ {
 		queueName := fmt.Sprintf("%s_shard_%d", outputExchange, i)
 		routingKey := fmt.Sprintf("%d", i)
 
 		err := rabbitmq.DeclareDirectQueue(f.channel, queueName)
+		f.log.Debugf("Declaring %v", queueName)
 		if err != nil {
 			f.log.Fatalf("Failed to declare queue '%s': %v", queueName, err)
 		}
