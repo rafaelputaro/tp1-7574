@@ -170,6 +170,46 @@ func (joiner *Joiner) publishData(data []byte) {
 }
 
 func (joiner *Joiner) joiner_g_b_m_id_credits() {
+	inputExchange := "ar_movies_after_2000_exchange"
+
+	err := joiner.Channel.ExchangeDeclare(
+		inputExchange,
+		"direct",
+		true,  // durable
+		false, // auto-deleted
+		false, // internal
+		false, // no-wait
+		nil,   // args
+	)
+	if err != nil {
+		joiner.Log.Fatalf("[%s] Failed to declare exchange %s: %v", joiner.Config.JoinerType, inputExchange, err)
+	}
+
+	// Declare temporal queue used to read from the exchange
+	_, err = joiner.Channel.QueueDeclare(
+		joiner.Config.InputQueueName, // empty = temporal queue with generated name
+		true,                         // durable
+		false,                        // auto-delete when unused
+		false,                        // exclusive
+		false,                        // no-wait
+		nil,
+	)
+	if err != nil {
+		joiner.Log.Fatalf("[%s] Failed to declare temporary queue: %v", joiner.Config.JoinerType, err)
+	}
+
+	// Bind the queue to the exchange
+	err = joiner.Channel.QueueBind(
+		joiner.Config.InputQueueName, // queue name
+		joiner.Config.ID,             // routing key (empty on a fanout)
+		inputExchange,                // exchange
+		false,
+		nil,
+	)
+	if err != nil {
+		joiner.Log.Fatalf("[%s] Failed to bind queue to exchange: %v", joiner.Config.JoinerType, err)
+	}
+
 	msgs, err := joiner.consumeQueue(joiner.Config.InputQueueName)
 	if err == nil {
 		counter := utils.NewActorCounter()
@@ -230,6 +270,46 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 }
 
 func (joiner *Joiner) joiner_g_b_m_id_ratings() {
+	inputExchange := "ar_movies_2000_and_later_exchange"
+
+	err := joiner.Channel.ExchangeDeclare(
+		inputExchange,
+		"direct",
+		true,  // durable
+		false, // auto-deleted
+		false, // internal
+		false, // no-wait
+		nil,   // args
+	)
+	if err != nil {
+		joiner.Log.Fatalf("[%s] Failed to declare exchange %s: %v", joiner.Config.JoinerType, inputExchange, err)
+	}
+
+	// Declare temporal queue used to read from the exchange
+	_, err = joiner.Channel.QueueDeclare(
+		joiner.Config.InputQueueName, // empty = temporal queue with generated name
+		true,                         // durable
+		false,                        // auto-delete when unused
+		false,                        // exclusive
+		false,                        // no-wait
+		nil,
+	)
+	if err != nil {
+		joiner.Log.Fatalf("[%s] Failed to declare temporary queue: %v", joiner.Config.JoinerType, err)
+	}
+
+	// Bind the queue to the exchange
+	err = joiner.Channel.QueueBind(
+		joiner.Config.InputQueueName, // queue name
+		joiner.Config.ID,             // routing key (empty on a fanout)
+		inputExchange,                // exchange
+		false,
+		nil,
+	)
+	if err != nil {
+		joiner.Log.Fatalf("[%s] Failed to bind queue to exchange: %v", joiner.Config.JoinerType, err)
+	}
+
 	msgs, err := joiner.consumeQueue(joiner.Config.InputQueueName)
 	if err == nil {
 		totalizer := utils.NewRatingTotalizer()
