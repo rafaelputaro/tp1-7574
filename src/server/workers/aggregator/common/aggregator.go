@@ -67,6 +67,44 @@ func NewAggregator(log *logging.Logger) (*Aggregator, error) {
 		connection.Close()
 		return nil, err
 	}
+	// Exchange config and bind for metrics case
+	if config.AggregatorType == METRICS {
+		// declare exchange
+		err = channel.ExchangeDeclare(
+			"",
+			"direct",
+			true,  // durable
+			false, // auto-deleted
+			false, // internal
+			false, // no-wait
+			nil,   // args
+		)
+		if err != nil {
+			log.Fatalf("[%s] Failed to declare exchange %s: %v", config.AggregatorType, "", err)
+		}
+		// Bind the queue to the exchange
+		err = channel.QueueBind(
+			config.InputQueue.Name, // queue name
+			"",                     // routing key (empty on a fanout)
+			"",                     // exchange
+			false,
+			nil,
+		)
+		if err != nil {
+			log.Fatalf("[%s] Failed on bind %s: %v", config.AggregatorType, "", err)
+		}
+		// Bind the queue to the exchange
+		err = channel.QueueBind(
+			config.InputQueueSec.Name, // queue name
+			"",                        // routing key (empty on a fanout)
+			"",                        // exchange
+			false,
+			nil,
+		)
+		if err != nil {
+			log.Fatalf("[%s] Failed on bind %s: %v", config.AggregatorType, "", err)
+		}
+	}
 	inputQueue, err := channel.QueueDeclare(
 		config.InputQueue.Name,
 		config.InputQueue.Durable,
