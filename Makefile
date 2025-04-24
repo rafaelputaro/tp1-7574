@@ -18,6 +18,7 @@ deps:
 docker-image: deps
 	docker build -f ./src/server/workers/filter/Dockerfile -t "filter:latest" .
 	docker build -f ./src/server/workers/nlp/Dockerfile -t "nlp:latest" .
+	docker build -f ./src/server/workers/joiner/Dockerfile -t "joiner:latest" .
 	docker build -f ./src/server/workers/aggregator/Dockerfile -t "aggregator:latest" .
 	docker build -f ./src/server/gateway/Dockerfile -t "controller:latest" .
 	docker build -f ./src/server/report/Dockerfile -t "report:latest" .
