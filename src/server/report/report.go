@@ -37,6 +37,21 @@ func (r *ReportGenerator) GetReport(_ context.Context, _ *emptypb.Empty) (*pb.Re
 			IsEOF:   isTop5EOF,
 			Process: processTop5,
 		},
+		{
+			Name:    "top_and_bottom_report",
+			IsEOF:   isTopAndBottomEOF,
+			Process: processTopAndBottom,
+		},
+		/*{
+			Name:    "top_10_report",
+			IsEOF:   isTopAndBottomEOF,
+			Process: processTopAndBottom,
+		},
+		{
+			Name:    "",
+			IsEOF:   isTopAndBottomEOF,
+			Process: processTopAndBottom,
+		},*/
 	}
 
 	response := pb.ReportResponse{}
@@ -72,10 +87,7 @@ func (r *ReportGenerator) GetReport(_ context.Context, _ *emptypb.Empty) (*pb.Re
 	return &pb.ReportResponse{
 		Answer1: response.Answer1,
 		Answer2: response.Answer2,
-		Answer3: &pb.Answer3{
-			Min: &pb.MovieRating{Id: proto.Int32(2), Title: proto.String("Movie X"), Rating: proto.Float64(1.0)},
-			Max: &pb.MovieRating{Id: proto.Int32(3), Title: proto.String("Movie Y"), Rating: proto.Float64(9.5)},
-		},
+		Answer3: response.Answer3,
 		Answer4: &pb.Answer4{
 			Actors: []*pb.ActorEntry{
 				{Id: proto.Int64(123), Name: proto.String("Keanu Reeves"), Count: proto.Int32(3)},
@@ -134,8 +146,6 @@ func processTop5(data [][]byte, response *pb.ReportResponse) {
 		var country pb.Top5Country
 		_ = proto.Unmarshal(d, &country)
 
-		logger.Infof("Top 5 results: %v %v", country.ProductionCountries, country.Budget)
-
 		for i := 0; i < len(country.ProductionCountries); i++ {
 			entry := pb.CountryEntry{
 				Name:   &country.ProductionCountries[i],
@@ -147,6 +157,39 @@ func processTop5(data [][]byte, response *pb.ReportResponse) {
 	}
 
 	response.Answer2 = &answer2
+}
+
+func isTopAndBottomEOF(data []byte) bool {
+	var d pb.TopAndBottomRatingAvg
+	_ = proto.Unmarshal(data, &d)
+	return d.GetEof()
+}
+
+func processTopAndBottom(data [][]byte, response *pb.ReportResponse) {
+	answer3 := pb.Answer3{}
+
+	for _, d := range data {
+		var ratingAvg pb.TopAndBottomRatingAvg
+		_ = proto.Unmarshal(d, &ratingAvg)
+
+		minRating := pb.MovieRating{
+			Id:     proto.Int32(0),
+			Title:  ratingAvg.TitleTop,
+			Rating: ratingAvg.RatingAvgTop,
+		}
+
+		answer3.Min = &minRating
+
+		maxRating := pb.MovieRating{
+			Id:     proto.Int32(1),
+			Title:  ratingAvg.TitleBottom,
+			Rating: ratingAvg.RatingAvgBottom,
+		}
+
+		answer3.Max = &maxRating
+	}
+
+	response.Answer3 = &answer3
 }
 
 func main() {

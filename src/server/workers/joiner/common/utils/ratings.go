@@ -54,7 +54,7 @@ func (totalizer *RatingTotalizer) Sum(rating *protopb.RatingSanit) {
 			founded.Count+1,
 			0.0,
 		)
-		totalizer.Movies[*rating.MovieId] = newData
+		totalizer.Movies[index] = newData
 	}
 }
 
