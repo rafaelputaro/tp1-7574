@@ -115,14 +115,14 @@ for i in range(1, top_5_investors_filter_nodes + 1):
             - rabbitmq 
 """
 # JOINER --------------------------------------------------------------------------------------------
-for i in range(1, shards + 1):
-    docker_compose_txt += f"""
-    joiner_group_by_movie_id_ratings_{i}:
-        container_name: joiner_group_by_movie_id_ratings_{i}
+
+docker_compose_txt += f"""
+    joiner_group_by_movie_id_ratings:
+        container_name: joiner_group_by_movie_id_ratings
         image: joiner:latest
         environment:
             - JOINER_TYPE=group_by_movie_id_ratings
-            - JOINER_ID={i}
+            - JOINER_ID=1
             - JOINER_INPUT_QUEUE_BASE_NAME=ar_movies_2000_and_later
             - JOINER_INPUT_QUEUE_SEC_NAME=ratings
             - JOINER_OUTPUT_QUEUE_NAME=movies_top_and_bottom
@@ -134,14 +134,14 @@ for i in range(1, shards + 1):
             - rabbitmq
 """
 
-for i in range(1, shards + 1):
-    docker_compose_txt += f"""
-    joiner_group_by_movie_id_credits_{i}:
-        container_name: joiner_group_by_movie_id_credits_{i}
+
+docker_compose_txt += f"""
+    joiner_group_by_movie_id_credits:
+        container_name: joiner_group_by_movie_id_credits
         image: joiner:latest
         environment:
             - JOINER_TYPE=group_by_movie_id_credits
-            - JOINER_ID={i+1}
+            - JOINER_ID=1
             - JOINER_INPUT_QUEUE_BASE_NAME=ar_movies_2000_and_later
             - JOINER_INPUT_QUEUE_SEC_NAME=credits
             - JOINER_OUTPUT_QUEUE_NAME=actor_movies_count
@@ -201,7 +201,7 @@ docker_compose_txt += f"""
         environment:
             - AGGREGATOR_TYPE=top_10
             - AGGREGATOR_ID=3
-            - AGGREGATOR_AMOUNT_SOURCES={shards}
+            - AGGREGATOR_AMOUNT_SOURCES=1
             - AGGREGATOR_INPUT_QUEUE_NAME=actor_movies_count
             - AGGREGATOR_OUTPUT_QUEUE_NAME=top_10_report
         networks:
@@ -220,7 +220,7 @@ docker_compose_txt += f"""
         environment:
             - AGGREGATOR_TYPE=top_and_bottom
             - AGGREGATOR_ID=4
-            - AGGREGATOR_AMOUNT_SOURCES={shards}
+            - AGGREGATOR_AMOUNT_SOURCES=1
             - AGGREGATOR_INPUT_QUEUE_NAME=movies_top_and_bottom
             - AGGREGATOR_OUTPUT_QUEUE_NAME=top_and_bottom_report
         networks:
