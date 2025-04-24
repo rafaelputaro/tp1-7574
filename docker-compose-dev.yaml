@@ -190,16 +190,16 @@ services:
         links: 
             - rabbitmq
 
-    # nlp-1:
-    #     container_name: nlp-1
-    #     image: nlp:latest
-    #     environment:
-    #         - NODE_NUM=1
-    #         - SHARDS=1
-    #     networks:
-    #         - tp1_net
-    #     depends_on:
-    #         - rabbitmq 
+    nlp-1:
+        container_name: nlp-1
+        image: nlp:latest
+        environment:
+            - NODE_NUM=1
+            - SHARDS=1
+        networks:
+            - tp1_net
+        depends_on:
+            - rabbitmq 
 
     controller:
         container_name: controller
@@ -215,7 +215,7 @@ services:
             - ar-es-filter-1
             - ar-filter-1
             - top-5-investors-filter-1
-            # - nlp-1
+            - nlp-1
             - aggregator_metrics
             - aggregator_top_and_bottom
             - aggregator_top_10
