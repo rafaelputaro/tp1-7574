@@ -17,6 +17,8 @@ const G_B_M_ID_CREDITS string = "group_by_movie_id_credits"
 
 // Messages to log:
 const MSG_ERROR_CONFIG = "Configuration could not be read from config file. Using env variables instead"
+const MSG_FAILED_TO_DECLARE_EXCHANGE = "Failed to declare exchange"
+const MSG_FAILED_TO_BIND_QUEUE = "Failed to bin queue"
 const MSG_ERROR_DIAL = "Error on dial rabbitmq"
 const MSG_ERROR_ON_CREATE_CHANNEL = "Error on create rabbitmq channel"
 const MSG_ERROR_ON_DECLARE_QUEUE = "Error on declare queue"
@@ -28,8 +30,6 @@ const MSG_RECEIVED_EOF_MARKER = "Received EOF marker"
 const MSG_JOINED = "Joined"
 const MSG_FAILED_TO_MARSHAL = "Failed to marshal message"
 const MSG_FAILED_TO_PUBLISH_ON_OUTPUT_QUEUE = "Failed to publish on outputqueue"
-
-//const MSG_FAILED_TO_GENERATE_A_METRIC = "Failure to generate a metric"
 
 // Joiner which can be of types "group_by_movie_id_ratings" or "group_by_movie_id_credits".
 // InputQueue: movies
@@ -57,6 +57,21 @@ func NewJoiner(log *logging.Logger) (*Joiner, error) {
 	if err != nil {
 		log.Fatalf("%v: %v", MSG_ERROR_ON_CREATE_CHANNEL, err)
 		connection.Close()
+		return nil, err
+	}
+	err = channel.ExchangeDeclare(
+		config.InputQueuesExchange,
+		"direct",
+		true,  // durable
+		false, // auto-deleted
+		false, // internal
+		false, // no-wait
+		nil,   // args
+	)
+	if err != nil {
+		connection.Close()
+		channel.Close()
+		log.Fatalf("%v: %v", MSG_FAILED_TO_DECLARE_EXCHANGE, err)
 		return nil, err
 	}
 	inputQueue, err := channel.QueueDeclare(
@@ -99,6 +114,20 @@ func NewJoiner(log *logging.Logger) (*Joiner, error) {
 		connection.Close()
 		channel.Close()
 		log.Fatalf("%v: %v", MSG_ERROR_ON_DECLARE_QUEUE, err)
+		return nil, err
+	}
+	// Bind the queue to the exchange
+	err = channel.QueueBind(
+		config.InputQueueSecName,   // queue name
+		"",                         // routing key (empty on a fanout)
+		config.InputQueuesExchange, // exchange
+		false,
+		nil,
+	)
+	if err != nil {
+		connection.Close()
+		channel.Close()
+		log.Fatalf("%v: %v", MSG_FAILED_TO_BIND_QUEUE, err)
 		return nil, err
 	}
 	return &Joiner{

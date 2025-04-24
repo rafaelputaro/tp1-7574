@@ -8,12 +8,15 @@ import (
 	"github.com/spf13/viper"
 )
 
+const INPUT_EXCHANGE_BASE_NAME = "joiner_input_exchange"
+
 type JoinerConfig struct {
-	ID                string
-	JoinerType        string
-	InputQueueName    string
-	InputQueueSecName string
-	OutputQueueName   string
+	ID                  string
+	JoinerType          string
+	InputQueueName      string
+	InputQueueSecName   string
+	OutputQueueName     string
+	InputQueuesExchange string
 }
 
 // Returns new joiner config
@@ -22,13 +25,15 @@ func NewJoinerConfig(
 	joiner_type string,
 	inputQueueName string,
 	inputQueueSecName string,
-	outputQueueName string) *JoinerConfig {
+	outputQueueName string,
+	inputQueuesExchange string) *JoinerConfig {
 	config := &JoinerConfig{
-		ID:                id,
-		JoinerType:        joiner_type,
-		InputQueueName:    inputQueueName,
-		InputQueueSecName: inputQueueSecName,
-		OutputQueueName:   outputQueueName,
+		ID:                  id,
+		JoinerType:          joiner_type,
+		InputQueueName:      inputQueueName,
+		InputQueueSecName:   inputQueueSecName,
+		OutputQueueName:     outputQueueName,
+		InputQueuesExchange: inputQueuesExchange,
 	}
 	return config
 }
@@ -44,26 +49,32 @@ func LoadJoinerConfig() *JoinerConfig {
 	// input queue
 	v.BindEnv("input_queue", "base_name")
 	// input queue secondary
-	v.BindEnv("input_queue_sec", "base_name")
+	v.BindEnv("input_queue_sec", "name")
 	// output queue
-	v.BindEnv("output_queue", "base_name")
+	v.BindEnv("output_queue", "name")
 	// get values
 	id := v.GetString("id")
 	joinerType := v.GetString("type")
-	inputQueue := getQueueName(v.GetString("input_queue.base_name"), id)
-	inputQueueSec := getQueueName(v.GetString("input_queue_sec.base_name"), id)
-	outputQueue := getQueueName(v.GetString("output_queue.base_name"), id)
+	inputQueue := getShardQueueName(v.GetString("input_queue.base_name"), id)
+	inputQueueSec := v.GetString("input_queue_sec.name")
+	outputQueue := v.GetString("output_queue.name")
+	inputQueuesExchange := getExchangeName(id)
 	var config *JoinerConfig = NewJoinerConfig(
 		id,
 		joinerType,
 		inputQueue,
 		inputQueueSec,
 		outputQueue,
+		inputQueuesExchange,
 	)
 	return config
 }
 
-func getQueueName(baseName string, id string) string {
+func getExchangeName(id string) string {
+	return fmt.Sprintf("%s_%s", INPUT_EXCHANGE_BASE_NAME, id)
+}
+
+func getShardQueueName(baseName string, id string) string {
 	return fmt.Sprintf("%s_shard_%s", baseName, id)
 }
 
@@ -75,4 +86,5 @@ func (config *JoinerConfig) LogConfig(log *logging.Logger) {
 	log.Debugf("InputQueue: %v", config.InputQueueName)
 	log.Debugf("InputQueueSec: %v", config.InputQueueSecName)
 	log.Debugf("OutputQueue: %v", config.OutputQueueName)
+	log.Debugf("InputQueuesExchange: %v", config.InputQueuesExchange)
 }
