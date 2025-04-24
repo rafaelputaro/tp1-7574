@@ -25,7 +25,7 @@ services:
             - tp1_net
         depends_on:
             # TODO: esto solo asegura que el container de rabbitmq se levante primero, no que esté funcionando
-            - rabbitmq
+            - rabbitmq 
 
     ar-es-filter-1:
         container_name: ar-es-filter-1
@@ -37,7 +37,7 @@ services:
         networks:
             - tp1_net
         depends_on:
-            - rabbitmq
+            - rabbitmq 
 
     ar-filter-1:
         container_name: ar-filter-1
@@ -49,7 +49,7 @@ services:
         networks:
             - tp1_net
         depends_on:
-            - rabbitmq
+            - rabbitmq 
 
     single-country-origin-filter-1:
         container_name: single-country-origin-filter-1
@@ -62,7 +62,7 @@ services:
         networks:
             - tp1_net
         depends_on:
-            - rabbitmq
+            - rabbitmq 
 
     top-5-investors-filter-1:
         container_name: top-5-investors-filter-1
@@ -75,7 +75,7 @@ services:
         networks:
             - tp1_net
         depends_on:
-            - rabbitmq
+            - rabbitmq 
 
     joiner_group_by_movie_id_ratings:
         container_name: joiner_group_by_movie_id_ratings
@@ -90,7 +90,7 @@ services:
             - tp1_net
         depends_on:
             - rabbitmq
-        links:
+        links: 
             - rabbitmq
 
     joiner_group_by_movie_id_credits:
@@ -106,7 +106,7 @@ services:
             - tp1_net
         depends_on:
             - rabbitmq
-        links:
+        links: 
             - rabbitmq
 
     aggregator_movies:
@@ -122,7 +122,7 @@ services:
             - tp1_net
         depends_on:
             - rabbitmq
-        links:
+        links: 
             - rabbitmq
 
     aggregator_top_5:
@@ -138,7 +138,7 @@ services:
             - tp1_net
         depends_on:
             - rabbitmq
-        links:
+        links: 
             - rabbitmq
 
     aggregator_top_10:
@@ -154,7 +154,7 @@ services:
             - tp1_net
         depends_on:
             - rabbitmq
-        links:
+        links: 
             - rabbitmq
 
     aggregator_top_and_bottom:
@@ -170,7 +170,7 @@ services:
             - tp1_net
         depends_on:
             - rabbitmq
-        links:
+        links: 
             - rabbitmq
 
     aggregator_metrics:
@@ -187,7 +187,7 @@ services:
             - tp1_net
         depends_on:
             - rabbitmq
-        links:
+        links: 
             - rabbitmq
 
     nlp-1:
@@ -199,8 +199,7 @@ services:
         networks:
             - tp1_net
         depends_on:
-            - rabbitmq
-            - aggregator_metrics
+            - rabbitmq 
 
     controller:
         container_name: controller
@@ -222,8 +221,8 @@ services:
             - aggregator_top_10
             - aggregator_top_5
             - aggregator_movies
-            - joiner_group_by_movie_id_credits_1
-            - joiner_group_by_movie_id_ratings_1
+            - joiner_group_by_movie_id_credits
+            - joiner_group_by_movie_id_ratings
             - report
 
 
