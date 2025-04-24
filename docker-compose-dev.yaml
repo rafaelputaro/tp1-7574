@@ -221,8 +221,8 @@ services:
             - aggregator_top_10
             - aggregator_top_5
             - aggregator_movies
-            - joiner_group_by_movie_id_credits
-            - joiner_group_by_movie_id_ratings
+            - joiner_group_by_movie_id_credits_1
+            - joiner_group_by_movie_id_ratings_1
             - report
 
 
