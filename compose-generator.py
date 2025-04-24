@@ -213,13 +213,14 @@ docker_compose_txt += f"""
 
 
 # NLP
-for i in range(1, top_5_investors_filter_nodes + 1):
+for i in range(1, nlp_nodes + 1):
     docker_compose_txt += f"""
     nlp-{i}:
         container_name: nlp-{i}
         image: nlp:latest
         environment:
             - NODE_NUM={i}
+            - SHARDS={shards}
         networks:
             - tp1_net
         depends_on:
