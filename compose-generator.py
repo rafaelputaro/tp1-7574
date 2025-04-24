@@ -114,6 +114,47 @@ for i in range(1, top_5_investors_filter_nodes + 1):
         depends_on:
             - rabbitmq 
 """
+# JOINER --------------------------------------------------------------------------------------------
+'''
+docker_compose_txt += f"""
+    joiner_group_by_movie_id_ratings:
+        container_name: joiner_group_by_movie_id_ratings
+        image: joiner:latest
+        environment:
+            - JOINER_TYPE=group_by_movie_id_ratings
+            - JOINER_ID=1
+            - JOINER_INPUT_QUEUE_BASE_NAME=ar_movies_2000_and_later
+            - JOINER_INPUT_QUEUE_SEC_BASE_NAME=ratings
+            - JOINER_OUTPUT_QUEUE_BASE_NAME=movies_top_and_bottom
+        networks:
+            - tp1_net
+        depends_on:
+            - rabbitmq
+        links: 
+            - rabbitmq
+"""
+'''
+'''
+docker_compose_txt += f"""
+    joiner_group_by_movie_id_credits:
+        container_name: joiner_group_by_movie_id_credits
+        image: joiner:latest
+        environment:
+            - JOINER_TYPE=group_by_movie_id_credits
+            - JOINER_ID=1
+            - JOINER_INPUT_QUEUE_BASE_NAME=ar_movies_2000_and_later
+            - JOINER_INPUT_QUEUE_SEC_BASE_NAME=credits
+            - JOINER_OUTPUT_QUEUE_BASE_NAME=actor_movies_count
+        networks:
+            - tp1_net
+        depends_on:
+            - rabbitmq
+        links: 
+            - rabbitmq
+"""
+'''
+
+
 
 # AGGREGATOR --------------------------------------------------------------------------------------------
 docker_compose_txt += f"""
@@ -210,7 +251,6 @@ docker_compose_txt += f"""
             - rabbitmq
 """
 '''
-
 
 # NLP
 for i in range(1, nlp_nodes + 1):
