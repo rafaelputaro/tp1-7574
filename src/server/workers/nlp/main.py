@@ -36,8 +36,8 @@ def callback(ch, method, properties, body):
         logger.info("Received EOF. Sending EOF message to all output queues...")
 
         eof_message = movie.SerializeToString()
-        channel.basic_publish(exchange='', routing_key=POSITIVE_QUEUE, body=eof_message)
-        channel.basic_publish(exchange='', routing_key=NEGATIVE_QUEUE, body=eof_message)
+        channel.basic_publish(exchange='sentiment_exchange', routing_key=POSITIVE_QUEUE, body=eof_message)
+        channel.basic_publish(exchange='sentiment_exchange', routing_key=NEGATIVE_QUEUE, body=eof_message)
 
         logger.info("EOF messages sent to all output queues. Stopping consumption.")
         ch.stop_consuming()

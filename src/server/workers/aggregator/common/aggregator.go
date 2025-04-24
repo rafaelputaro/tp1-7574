@@ -394,6 +394,8 @@ func (aggregator *Aggregator) aggregateMetric(config QueueConfig) (float64, erro
 				aggregator.Log.Errorf("[%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_UNMARSHAL, err)
 				continue
 			}
+			aggregator.Log.Debugf("aggregateMetric - got message %s", movie.GetTitle())
+
 			// EOF
 			if movie.Eof != nil && *movie.Eof {
 				amountEOF += 1
