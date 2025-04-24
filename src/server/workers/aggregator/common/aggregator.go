@@ -71,7 +71,7 @@ func NewAggregator(log *logging.Logger) (*Aggregator, error) {
 	if config.AggregatorType == METRICS {
 		// declare exchange
 		err = channel.ExchangeDeclare(
-			"",
+			"sentiment_exchange",
 			"direct",
 			true,  // durable
 			false, // auto-deleted
@@ -81,28 +81,6 @@ func NewAggregator(log *logging.Logger) (*Aggregator, error) {
 		)
 		if err != nil {
 			log.Fatalf("[%s] Failed to declare exchange %s: %v", config.AggregatorType, "", err)
-		}
-		// Bind the queue to the exchange
-		err = channel.QueueBind(
-			config.InputQueue.Name, // queue name
-			"",                     // routing key (empty on a fanout)
-			"",                     // exchange
-			false,
-			nil,
-		)
-		if err != nil {
-			log.Fatalf("[%s] Failed on bind %s: %v", config.AggregatorType, "", err)
-		}
-		// Bind the queue to the exchange
-		err = channel.QueueBind(
-			config.InputQueueSec.Name, // queue name
-			"",                        // routing key (empty on a fanout)
-			"",                        // exchange
-			false,
-			nil,
-		)
-		if err != nil {
-			log.Fatalf("[%s] Failed on bind %s: %v", config.AggregatorType, "", err)
 		}
 	}
 	inputQueue, err := channel.QueueDeclare(
@@ -147,6 +125,28 @@ func NewAggregator(log *logging.Logger) (*Aggregator, error) {
 			channel.Close()
 			log.Fatalf("%v: %v", MSG_ERROR_ON_DECLARE_QUEUE, err)
 			return nil, err
+		}
+		// Bind the queue to the exchange
+		err = channel.QueueBind(
+			config.InputQueue.Name, // queue name
+			config.InputQueue.Name, // routing key (empty on a fanout)
+			"sentiment_exchange",   // exchange
+			false,
+			nil,
+		)
+		if err != nil {
+			log.Fatalf("[%s] Failed on bind %s: %v", config.AggregatorType, "", err)
+		}
+		// Bind the queue to the exchange
+		err = channel.QueueBind(
+			config.InputQueueSec.Name, // queue name
+			config.InputQueueSec.Name, // routing key (empty on a fanout)
+			"sentiment_exchange",      // exchange
+			false,
+			nil,
+		)
+		if err != nil {
+			log.Fatalf("[%s] Failed on bind %s: %v", config.AggregatorType, "", err)
 		}
 		return &Aggregator{
 			Channel:       channel,

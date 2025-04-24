@@ -13,7 +13,6 @@ RABBITMQ_URL = "amqp://admin:admin@rabbitmq:5672/"
 FANOUT_EXCHANGE = "movies_exchange"
 POSITIVE_QUEUE = "positive_movies"
 NEGATIVE_QUEUE = "negative_movies"
-NODE_NUM = int(os.getenv("NODE_NUM"))
 
 def connect_rabbitmq_with_retries(logger: logging.Logger, retries=20, delay=3):
     """Attempt to connect to RabbitMQ with retries."""
@@ -51,7 +50,7 @@ def callback(ch, method, properties, body):
     target_queue = POSITIVE_QUEUE if label == "POSITIVE" else NEGATIVE_QUEUE
 
     channel.basic_publish(
-        exchange='',
+        exchange='sentiment_exchange',
         routing_key=target_queue,
         body=movie.SerializeToString()
     )
@@ -76,8 +75,11 @@ def main():
     channel.queue_bind(exchange=FANOUT_EXCHANGE, queue=queue_name)
 
     # Ensure target queues exist
+    channel.exchange_declare(exchange='sentiment_exchange', exchange_type='direct', durable=True)
     channel.queue_declare(queue=POSITIVE_QUEUE, durable=True)
     channel.queue_declare(queue=NEGATIVE_QUEUE, durable=True)
+    channel.queue_bind(exchange='sentiment_exchange', queue=POSITIVE_QUEUE, routing_key=POSITIVE_QUEUE)
+    channel.queue_bind(exchange='sentiment_exchange', queue=NEGATIVE_QUEUE, routing_key=NEGATIVE_QUEUE)
 
     logger.info("Loading sentiment analysis model...")
     sentiment_analyzer = pipeline('sentiment-analysis', model='distilbert-base-uncased-finetuned-sst-2-english')
