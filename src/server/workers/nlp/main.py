@@ -28,13 +28,19 @@ def connect_rabbitmq_with_retries(logger: logging.Logger, retries=20, delay=3):
     logger.error("Failed to connect to RabbitMQ after multiple attempts.")
     sys.exit(1)
 
+# Add this global counter and max limit at the top of the file
+MESSAGE_LIMIT = 100
+message_count = 0
+
 def callback(ch, method, properties, body):
+    global message_count
     movie = movie_sanit_pb2.MovieSanit()
     movie.ParseFromString(body)
 
-    if movie.HasField("eof") and movie.eof:
+    if (movie.HasField("eof") and movie.eof) or message_count >= MESSAGE_LIMIT:
         logger.info("Received EOF. Sending EOF message to all output queues...")
 
+        movie.eof = True
         eof_message = movie.SerializeToString()
         channel.basic_publish(exchange='sentiment_exchange', routing_key=POSITIVE_QUEUE, body=eof_message)
         channel.basic_publish(exchange='sentiment_exchange', routing_key=NEGATIVE_QUEUE, body=eof_message)
@@ -56,6 +62,7 @@ def callback(ch, method, properties, body):
     )
 
     logger.info(f"Message published to {target_queue}")
+    message_count += 1
 
 def main():
     global sentiment_analyzer, channel
