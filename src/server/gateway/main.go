@@ -11,7 +11,6 @@ import (
 )
 
 func main() {
-	// Connect to RabbitMQ
 	logger := logging.MustGetLogger("controller")
 	conn, err := rabbitmq.ConnectRabbitMQ(logger)
 	if err != nil {

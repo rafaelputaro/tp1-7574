@@ -24,11 +24,11 @@ const (
 
 type ReportResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Top_10        *Answer1               `protobuf:"bytes,1,req,name=top_10,json=top10" json:"top_10,omitempty"`
-	Top_5         *Answer2               `protobuf:"bytes,2,req,name=top_5,json=top5" json:"top_5,omitempty"`
-	TopBottom     *Answer3               `protobuf:"bytes,3,req,name=top_bottom,json=topBottom" json:"top_bottom,omitempty"`
-	Actors        *Answer4               `protobuf:"bytes,4,req,name=actors" json:"actors,omitempty"`
-	Sentiment     *Answer5               `protobuf:"bytes,5,req,name=sentiment" json:"sentiment,omitempty"`
+	Answer1       *Answer1               `protobuf:"bytes,1,req,name=answer1" json:"answer1,omitempty"`
+	Answer2       *Answer2               `protobuf:"bytes,2,req,name=answer2" json:"answer2,omitempty"`
+	Answer3       *Answer3               `protobuf:"bytes,3,req,name=answer3" json:"answer3,omitempty"`
+	Answer4       *Answer4               `protobuf:"bytes,4,req,name=answer4" json:"answer4,omitempty"`
+	Answer5       *Answer5               `protobuf:"bytes,5,req,name=answer5" json:"answer5,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -63,37 +63,37 @@ func (*ReportResponse) Descriptor() ([]byte, []int) {
 	return file_report_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *ReportResponse) GetTop_10() *Answer1 {
+func (x *ReportResponse) GetAnswer1() *Answer1 {
 	if x != nil {
-		return x.Top_10
+		return x.Answer1
 	}
 	return nil
 }
 
-func (x *ReportResponse) GetTop_5() *Answer2 {
+func (x *ReportResponse) GetAnswer2() *Answer2 {
 	if x != nil {
-		return x.Top_5
+		return x.Answer2
 	}
 	return nil
 }
 
-func (x *ReportResponse) GetTopBottom() *Answer3 {
+func (x *ReportResponse) GetAnswer3() *Answer3 {
 	if x != nil {
-		return x.TopBottom
+		return x.Answer3
 	}
 	return nil
 }
 
-func (x *ReportResponse) GetActors() *Answer4 {
+func (x *ReportResponse) GetAnswer4() *Answer4 {
 	if x != nil {
-		return x.Actors
+		return x.Answer4
 	}
 	return nil
 }
 
-func (x *ReportResponse) GetSentiment() *Answer5 {
+func (x *ReportResponse) GetAnswer5() *Answer5 {
 	if x != nil {
-		return x.Sentiment
+		return x.Answer5
 	}
 	return nil
 }
@@ -622,14 +622,13 @@ var File_report_proto protoreflect.FileDescriptor
 
 const file_report_proto_rawDesc = "" +
 	"\n" +
-	"\freport.proto\x1a\x1bgoogle/protobuf/empty.proto\"\xc3\x01\n" +
-	"\x0eReportResponse\x12\x1f\n" +
-	"\x06top_10\x18\x01 \x02(\v2\b.Answer1R\x05top10\x12\x1d\n" +
-	"\x05top_5\x18\x02 \x02(\v2\b.Answer2R\x04top5\x12'\n" +
-	"\n" +
-	"top_bottom\x18\x03 \x02(\v2\b.Answer3R\ttopBottom\x12 \n" +
-	"\x06actors\x18\x04 \x02(\v2\b.Answer4R\x06actors\x12&\n" +
-	"\tsentiment\x18\x05 \x02(\v2\b.Answer5R\tsentiment\".\n" +
+	"\freport.proto\x1a\x1bgoogle/protobuf/empty.proto\"\xc4\x01\n" +
+	"\x0eReportResponse\x12\"\n" +
+	"\aanswer1\x18\x01 \x02(\v2\b.Answer1R\aanswer1\x12\"\n" +
+	"\aanswer2\x18\x02 \x02(\v2\b.Answer2R\aanswer2\x12\"\n" +
+	"\aanswer3\x18\x03 \x02(\v2\b.Answer3R\aanswer3\x12\"\n" +
+	"\aanswer4\x18\x04 \x02(\v2\b.Answer4R\aanswer4\x12\"\n" +
+	"\aanswer5\x18\x05 \x02(\v2\b.Answer5R\aanswer5\".\n" +
 	"\aAnswer1\x12#\n" +
 	"\x06movies\x18\x01 \x03(\v2\v.MovieEntryR\x06movies\"J\n" +
 	"\n" +
@@ -693,11 +692,11 @@ var file_report_proto_goTypes = []any{
 	(*emptypb.Empty)(nil),  // 11: google.protobuf.Empty
 }
 var file_report_proto_depIdxs = []int32{
-	1,  // 0: ReportResponse.top_10:type_name -> Answer1
-	3,  // 1: ReportResponse.top_5:type_name -> Answer2
-	5,  // 2: ReportResponse.top_bottom:type_name -> Answer3
-	7,  // 3: ReportResponse.actors:type_name -> Answer4
-	9,  // 4: ReportResponse.sentiment:type_name -> Answer5
+	1,  // 0: ReportResponse.answer1:type_name -> Answer1
+	3,  // 1: ReportResponse.answer2:type_name -> Answer2
+	5,  // 2: ReportResponse.answer3:type_name -> Answer3
+	7,  // 3: ReportResponse.answer4:type_name -> Answer4
+	9,  // 4: ReportResponse.answer5:type_name -> Answer5
 	2,  // 5: Answer1.movies:type_name -> MovieEntry
 	4,  // 6: Answer2.countries:type_name -> CountryEntry
 	6,  // 7: Answer3.min:type_name -> MovieRating

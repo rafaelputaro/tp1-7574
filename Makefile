@@ -20,6 +20,7 @@ docker-image: deps
 	docker build -f ./src/server/workers/nlp/Dockerfile -t "nlp:latest" .
 	docker build -f ./src/server/workers/aggregator/Dockerfile -t "aggregator:latest" .
 	docker build -f ./src/server/gateway/Dockerfile -t "controller:latest" .
+	docker build -f ./src/server/report/Dockerfile -t "report:latest" .
 	docker build -f ./src/client/Dockerfile -t "client:latest" .
 .PHONY: docker-image
 

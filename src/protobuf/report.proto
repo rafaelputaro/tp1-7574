@@ -5,11 +5,11 @@ option go_package = "./protopb";
 import "google/protobuf/empty.proto";
 
 message ReportResponse {
-  required Answer1 top_10 = 1;
-  required Answer2 top_5 = 2;
-  required Answer3 top_bottom = 3;
-  required Answer4 actors = 4;
-  required Answer5 sentiment = 5;
+  required Answer1 answer1 = 1;
+  required Answer2 answer2 = 2;
+  required Answer3 answer3 = 3;
+  required Answer4 answer4 = 4;
+  required Answer5 answer5 = 5;
 }
 
 message Answer1 {
