@@ -70,5 +70,6 @@ func Top5ToString(top *protopb.Top5Country) string {
 	for index := range len(top.ProductionCountries) {
 		toReturn += fmt.Sprintf("%v(US$ %v) ", top.ProductionCountries[index], top.Budget[index])
 	}
+	toReturn += "EOF:" + fmt.Sprintf("%t", top.GetEof())
 	return toReturn
 }

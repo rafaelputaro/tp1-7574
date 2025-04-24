@@ -195,34 +195,40 @@ func (aggregator *Aggregator) aggregateMovies() {
 
 func (aggregator *Aggregator) aggregateTop5() {
 	msgs, err := aggregator.consumeQueue(aggregator.Config.InputQueue)
-	if err == nil {
-		amountEOF := 0
-		globalTop5 := utils.CreateEmptyTop5()
-		for msg := range msgs {
-			var top5 protopb.Top5Country
-			if err := proto.Unmarshal(msg.Body, &top5); err != nil {
-				aggregator.Log.Errorf("[%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_UNMARSHAL, err)
-				continue
-			}
-			// EOF
-			if top5.Eof != nil && *top5.Eof {
-				amountEOF += 1
-				// If all sources sent EOF, send top 5 and submit the EOF to report
-				if aggregator.checkEofSingleQueue(amountEOF) {
-					aggregator.Log.Debugf("[%s] %s: %s", aggregator.Config.AggregatorType, MSG_AGGREGATED, utils.Top5ToString(&globalTop5))
-					data, err := proto.Marshal(&globalTop5)
-					if err != nil {
-						aggregator.Log.Fatalf("[%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_MARSHAL, err)
-						break
-					}
-					// send top5 to report
-					aggregator.publishData(data)
-					// submit the EOF to report
-					aggregator.publishData(msg.Body)
+	if err != nil {
+		aggregator.Log.Fatalf("%s '%s': %v", MSG_FAILED_CONSUME, aggregator.Config.InputQueue.Name, err)
+	}
+
+	amountEOF := 0
+	globalTop5 := utils.CreateEmptyTop5()
+
+	for msg := range msgs {
+		var top5 protopb.Top5Country
+		if err := proto.Unmarshal(msg.Body, &top5); err != nil {
+			aggregator.Log.Errorf("[%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_UNMARSHAL, err)
+			continue
+		}
+		aggregator.Log.Debugf("[%s] %s: %s", aggregator.Config.AggregatorType, MSG_AGGREGATED, utils.Top5ToString(&top5))
+		globalTop5 = *utils.ReduceTop5(&globalTop5, &top5)
+		aggregator.Log.Debugf("[%s] %s: %s", aggregator.Config.AggregatorType, "Top After Reduce", utils.Top5ToString(&globalTop5))
+
+		// EOF
+		if top5.Eof != nil && *top5.Eof {
+			amountEOF += 1
+			// If all sources sent EOF, send top 5 and submit the EOF to report
+			if aggregator.checkEofSingleQueue(amountEOF) {
+				aggregator.Log.Debugf("[%s] %s: %s", aggregator.Config.AggregatorType, MSG_AGGREGATED, utils.Top5ToString(&globalTop5))
+				data, err := proto.Marshal(&globalTop5)
+				if err != nil {
+					aggregator.Log.Fatalf("[%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_MARSHAL, err)
 					break
 				}
+				// send top5 to report
+				aggregator.publishData(data)
+				// submit the EOF to report
+				aggregator.publishData(msg.Body)
+				break
 			}
-			globalTop5 = *utils.ReduceTop5(&globalTop5, &top5)
 		}
 	}
 }
