@@ -190,16 +190,16 @@ services:
         links: 
             - rabbitmq
 
-    nlp-1:
-        container_name: nlp-1
-        image: nlp:latest
-        environment:
-            - NODE_NUM=1
-            - SHARDS=1
-        networks:
-            - tp1_net
-        depends_on:
-            - rabbitmq 
+    # nlp-1:
+    #     container_name: nlp-1
+    #     image: nlp:latest
+    #     environment:
+    #         - NODE_NUM=1
+    #         - SHARDS=1
+    #     networks:
+    #         - tp1_net
+    #     depends_on:
+    #         - rabbitmq 
 
     controller:
         container_name: controller
@@ -215,7 +215,15 @@ services:
             - ar-es-filter-1
             - ar-filter-1
             - top-5-investors-filter-1
-            - nlp-1
+            # - nlp-1
+            - aggregator_metrics
+            - aggregator_top_and_bottom
+            - aggregator_top_10
+            - aggregator_top_5
+            - aggregator_movies
+            - joiner_group_by_movie_id_credits
+            - joiner_group_by_movie_id_ratings
+
 
     client:
         container_name: client
@@ -234,6 +242,16 @@ services:
             - /app/datasets/movies.csv
             - /app/datasets/ratings.csv
             - /app/datasets/credits.csv
+
+    report:
+        build:
+            context: .
+            dockerfile: src/server/report/Dockerfile
+        container_name: report
+        depends_on:
+            - rabbitmq
+        networks:
+            - tp1_net
 
 networks:
   tp1_net:

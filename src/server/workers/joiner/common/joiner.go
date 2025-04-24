@@ -210,6 +210,48 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 		joiner.Log.Fatalf("[%s] Failed to bind queue to exchange: %v", joiner.Config.JoinerType, err)
 	}
 
+	// Read from credits fanout
+	exchangeName := "credits_exchange"
+	exchangeType := "fanout"
+
+	err = joiner.Channel.ExchangeDeclare(
+		exchangeName,
+		exchangeType,
+		true,  // durable
+		false, // auto-deleted
+		false, // internal
+		false, // no-wait
+		nil,   // args
+	)
+	if err != nil {
+		joiner.Log.Fatalf("[%s] Failed to declare exchange: %v", joiner.Config.JoinerType, err)
+	}
+
+	// Declare temporal queue used to read from the exchange
+	inputQueue, err := joiner.Channel.QueueDeclare(
+		"",    // empty = temporal queue with generated name
+		false, // durable
+		true,  // auto-delete when unused
+		true,  // exclusive
+		false, // no-wait
+		nil,
+	)
+	if err != nil {
+		joiner.Log.Fatalf("[%s] Failed to declare temporary queue: %v", joiner.Config.JoinerType, err)
+	}
+
+	// Bind the queue to the exchange
+	err = joiner.Channel.QueueBind(
+		inputQueue.Name, // queue name
+		"",              // routing key (empty on a fanout)
+		exchangeName,    // exchange
+		false,
+		nil,
+	)
+	if err != nil {
+		joiner.Log.Fatalf("[%s] Failed to bind queue to exchange: %v", joiner.Config.JoinerType, err)
+	}
+
 	msgs, err := joiner.consumeQueue(joiner.Config.InputQueueName)
 	if err == nil {
 		counter := utils.NewActorCounter()
@@ -228,7 +270,8 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 			// append movie
 			counter.AppendMovie(&movie)
 		}
-		msgs, err = joiner.consumeQueue(joiner.Config.InputQueueSecName)
+
+		msgs, err = joiner.consumeQueue(inputQueue.Name)
 		if err == nil {
 			// read all credits
 			for msg := range msgs {
@@ -310,6 +353,48 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 		joiner.Log.Fatalf("[%s] Failed to bind queue to exchange: %v", joiner.Config.JoinerType, err)
 	}
 
+	// Read from rating fanout
+	exchangeName := "ratings_exchange"
+	exchangeType := "fanout"
+
+	err = joiner.Channel.ExchangeDeclare(
+		exchangeName,
+		exchangeType,
+		true,  // durable
+		false, // auto-deleted
+		false, // internal
+		false, // no-wait
+		nil,   // args
+	)
+	if err != nil {
+		joiner.Log.Fatalf("[%s] Failed to declare exchange: %v", joiner.Config.JoinerType, err)
+	}
+
+	// Declare temporal queue used to read from the exchange
+	inputQueue, err := joiner.Channel.QueueDeclare(
+		"",    // empty = temporal queue with generated name
+		false, // durable
+		true,  // auto-delete when unused
+		true,  // exclusive
+		false, // no-wait
+		nil,
+	)
+	if err != nil {
+		joiner.Log.Fatalf("[%s] Failed to declare temporary queue: %v", joiner.Config.JoinerType, err)
+	}
+
+	// Bind the queue to the exchange
+	err = joiner.Channel.QueueBind(
+		inputQueue.Name, // queue name
+		"",              // routing key (empty on a fanout)
+		exchangeName,    // exchange
+		false,
+		nil,
+	)
+	if err != nil {
+		joiner.Log.Fatalf("[%s] Failed to bind queue to exchange: %v", joiner.Config.JoinerType, err)
+	}
+
 	msgs, err := joiner.consumeQueue(joiner.Config.InputQueueName)
 	if err == nil {
 		totalizer := utils.NewRatingTotalizer()
@@ -328,7 +413,8 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 			// append movie
 			totalizer.AppendMovie(&movie)
 		}
-		msgs, err = joiner.consumeQueue(joiner.Config.InputQueueSecName)
+
+		msgs, err = joiner.consumeQueue(inputQueue.Name)
 		if err == nil {
 			// read all ratings
 			for msg := range msgs {

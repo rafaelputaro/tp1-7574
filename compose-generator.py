@@ -293,6 +293,14 @@ docker_compose_txt += f"""
             - tp1_net
         depends_on:
 {controller_depends_on}
+            - aggregator_metrics
+            - aggregator_top_and_bottom
+            - aggregator_top_10
+            - aggregator_top_5
+            - aggregator_movies
+            - joiner_group_by_movie_id_credits
+            - joiner_group_by_movie_id_ratings
+
 """
 
 # CLIENT --------------------------------------------------------------------------------------------
@@ -315,7 +323,19 @@ docker_compose_txt += f"""
             - /app/datasets/ratings.csv
             - /app/datasets/credits.csv
 """
-    
+
+# REPORT -------------------------------------------------------------------------------------------
+docker_compose_txt += f"""
+    report:
+        build:
+            context: .
+            dockerfile: src/server/report/Dockerfile
+        container_name: report
+        depends_on:
+            - rabbitmq
+        networks:
+            - tp1_net
+"""
 # tp1_net: Isolated network that allow containers to communicate
 # ipam: IP Address Management settings, used to configure the network
 # driver: default. Use default IPAM driver to manage IP addresses
