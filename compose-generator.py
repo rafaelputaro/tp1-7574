@@ -240,8 +240,8 @@ docker_compose_txt += f"""
             - AGGREGATOR_TYPE=metrics
             - AGGREGATOR_ID=5
             - AGGREGATOR_AMOUNT_SOURCES=1
-            - AGGREGATOR_INPUT_QUEUE_NAME=revenue_over_budget_negative
-            - AGGREGATOR_INPUT_QUEUE_SEC_NAME=revenue_over_budget_positive
+            - AGGREGATOR_INPUT_QUEUE_NAME=negative_movies
+            - AGGREGATOR_INPUT_QUEUE_SEC_NAME=positive_movies
             - AGGREGATOR_OUTPUT_QUEUE_NAME=metrics_report
         networks:
             - tp1_net

@@ -36,8 +36,8 @@ const MSG_FAILED_TO_GENERATE_A_METRIC = "Failure to generate a metric"
 
 // Aggregator which can be of types "movies", "top_5", "top_10", "top_and_bottom" and "metrices".
 // In the case of type "metrics" works with two queues:
-// InputQueue: negative_movie_reviews_1
-// InputQueueSec: positive_movie_reviews_1
+// InputQueue: negative_movies
+// InputQueueSec: positive_movies
 type Aggregator struct {
 	Channel       *amqp.Channel
 	Connection    *amqp.Connection

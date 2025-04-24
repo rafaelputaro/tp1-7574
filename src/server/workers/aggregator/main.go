@@ -13,8 +13,8 @@ Environment variables:
 AGGREGATOR_ID;
 AGGREGATOR_TYPE: "movies" "top_5" "top_10" "top_and_bottom" "metrics";
 AGGREGATOR_AMOUNT_SOURCES: 2 filters, 2 sources. 2 shards 2 sources (Even in the case of metrics);
-AGGREGATOR_INPUT_QUEUE_NAME: "negative_movie_reviews_1" in the case of metrics;
-AGGREGATOR_INPUT_QUEUE_SEC_NAME: "positive_movie_reviews_1" in the case of metrics;
+AGGREGATOR_INPUT_QUEUE_NAME: "negative_movies" in the case of metrics;
+AGGREGATOR_INPUT_QUEUE_SEC_NAME: "positive_movies" in the case of metrics;
 AGGREGATOR_OUTPUT_QUEUE_NAME;
 */
 func main() {
