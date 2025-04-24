@@ -28,7 +28,7 @@ message Answer2 {
 
 message CountryEntry {
   required string name = 1;
-  required int64 budget = 2;
+  required int32 budget = 2;
 }
 
 message Answer3 {

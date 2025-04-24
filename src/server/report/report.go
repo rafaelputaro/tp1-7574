@@ -26,56 +26,52 @@ func NewReportGenerator(ch *amqp.Channel) *ReportGenerator {
 }
 
 func (r *ReportGenerator) GetReport(_ context.Context, _ *emptypb.Empty) (*pb.ReportResponse, error) {
-	queues := []string{"movies_report"}
-
-	type message struct {
-		name string
-		data []byte
+	queues := []queueConfig{
+		{
+			Name:    "movies_report",
+			IsEOF:   isMoviesEOF,
+			Process: processMovies,
+		},
+		{
+			Name:    "top_5_report",
+			IsEOF:   isTop5EOF,
+			Process: processTop5,
+		},
 	}
-	msgs := make(chan message)
+
+	response := pb.ReportResponse{}
 	wg := sync.WaitGroup{}
 
 	for _, q := range queues {
 		wg.Add(1)
-		go func(queueName string) {
+		go func(config queueConfig) {
 			defer wg.Done()
 
-			msgsCh, err := r.ch.Consume(queueName, "", true, false, false, false, nil)
+			msgsCh, err := r.ch.Consume(config.Name, "", true, false, false, false, nil)
 			if err != nil {
-				logger.Errorf("failed to consume from %s: %v", queueName, err)
+				logger.Errorf("failed to consume from %s: %v", config.Name, err)
 				return
 			}
 
+			var allMsgs [][]byte
+
 			for d := range msgsCh {
-				if isEOF(d.Body) {
-					logger.Infof("received EOF for %s", queueName)
+				if config.IsEOF(d.Body) {
+					logger.Infof("received EOF for %s", config.Name)
 					break
 				}
-				msgs <- message{name: queueName, data: d.Body}
+				allMsgs = append(allMsgs, d.Body)
 			}
+
+			config.Process(allMsgs, &response)
 		}(q)
 	}
 
-	go func() {
-		wg.Wait()
-		close(msgs)
-	}()
-
-	for msg := range msgs {
-		logger.Infof("received from %s: %d bytes", msg.name, len(msg.data))
-	}
+	wg.Wait()
 
 	return &pb.ReportResponse{
-		Answer1: &pb.Answer1{
-			Movies: []*pb.MovieEntry{
-				{Id: proto.Int32(1), Title: proto.String("Matrix"), Genres: []string{"Sci-Fi", "Action"}},
-			},
-		},
-		Answer2: &pb.Answer2{
-			Countries: []*pb.CountryEntry{
-				{Name: proto.String("USA"), Budget: proto.Int64(100000000)},
-			},
-		},
+		Answer1: response.Answer1,
+		Answer2: response.Answer2,
 		Answer3: &pb.Answer3{
 			Min: &pb.MovieRating{Id: proto.Int32(2), Title: proto.String("Movie X"), Rating: proto.Float64(1.0)},
 			Max: &pb.MovieRating{Id: proto.Int32(3), Title: proto.String("Movie Y"), Rating: proto.Float64(9.5)},
@@ -93,10 +89,64 @@ func (r *ReportGenerator) GetReport(_ context.Context, _ *emptypb.Empty) (*pb.Re
 
 }
 
-func isEOF(data []byte) bool {
+type queueConfig struct {
+	Name    string
+	IsEOF   func([]byte) bool
+	Process func([][]byte, *pb.ReportResponse)
+}
+
+func isMoviesEOF(data []byte) bool {
 	var movie pb.MovieSanit
 	_ = proto.Unmarshal(data, &movie)
 	return movie.GetEof()
+}
+
+func processMovies(data [][]byte, response *pb.ReportResponse) {
+
+	answer1 := pb.Answer1{}
+
+	for _, d := range data {
+		var movie pb.MovieSanit
+		_ = proto.Unmarshal(d, &movie)
+
+		entry := pb.MovieEntry{
+			Id:     movie.Id,
+			Title:  movie.Title,
+			Genres: movie.Genres,
+		}
+
+		answer1.Movies = append(answer1.Movies, &entry)
+	}
+
+	response.Answer1 = &answer1
+}
+
+func isTop5EOF(data []byte) bool {
+	var country pb.Top5Country
+	_ = proto.Unmarshal(data, &country)
+	return country.GetEof()
+}
+
+func processTop5(data [][]byte, response *pb.ReportResponse) {
+	answer2 := pb.Answer2{}
+
+	for _, d := range data {
+		var country pb.Top5Country
+		_ = proto.Unmarshal(d, &country)
+
+		logger.Infof("Top 5 results: %v %v", country.ProductionCountries, country.Budget)
+
+		for i := 0; i < len(country.ProductionCountries); i++ {
+			entry := pb.CountryEntry{
+				Name:   &country.ProductionCountries[i],
+				Budget: &country.Budget[i],
+			}
+
+			answer2.Countries = append(answer2.Countries, &entry)
+		}
+	}
+
+	response.Answer2 = &answer2
 }
 
 func main() {
