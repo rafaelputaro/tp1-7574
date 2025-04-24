@@ -347,7 +347,7 @@ func (aggregator *Aggregator) aggregateMetric(config QueueConfig) (float64, erro
 	msgs, err := aggregator.consumeQueue(config)
 	if err == nil {
 		amountEOF := 0
-		var avgRevenueOverBudget float64
+		var avgRevenueOverBudget float64 = 0.0
 		var count int64 = 0
 		var sumAvg float64 = 0.0
 		for msg := range msgs {
