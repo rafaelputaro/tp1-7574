@@ -175,7 +175,6 @@ func (f *Filter) processTop5InvestorsFilter() {
 	filterName := fmt.Sprintf("top_5_investors_filter_shard_%d", shardID)
 
 	inputQueue := fmt.Sprintf("%s_shard_%d", inputExchange, shardID)
-	f.log.Debugf("Declaring %v", inputQueue)
 
 	err := f.channel.ExchangeDeclare(
 		inputExchange,
@@ -213,6 +212,19 @@ func (f *Filter) processTop5InvestorsFilter() {
 	)
 	if err != nil {
 		f.log.Fatalf("[%s] Failed to bind queue to exchange: %v", filterName, err)
+	}
+
+	outputQueue := "movies_top_5_investors"
+	_, err = f.channel.QueueDeclare(
+		outputQueue,
+		true,  // durable
+		false, // auto-delete
+		false, // exclusive
+		false, // no-wait
+		nil,   // args
+	)
+	if err != nil {
+		f.log.Fatalf("[%s] Failed to declare queue 'movies_top_5_investors': %v", filterName, err)
 	}
 
 	msgs, err := rabbitmq.ConsumeFromQueue(f.channel, inputQueue)
@@ -270,8 +282,8 @@ func (f *Filter) processTop5InvestorsFilter() {
 			f.log.Debugf("[%s] Sending Top5Country: %+v", filterName, top5)
 
 			err = f.channel.Publish(
-				"movies_top_5_investors",
 				"",
+				outputQueue,
 				false,
 				false,
 				amqp.Publishing{
