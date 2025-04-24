@@ -300,6 +300,7 @@ docker_compose_txt += f"""
             - aggregator_movies
             - joiner_group_by_movie_id_credits
             - joiner_group_by_movie_id_ratings
+            - report
 
 """
 
