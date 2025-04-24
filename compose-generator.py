@@ -133,7 +133,7 @@ docker_compose_txt += f"""
         links: 
             - rabbitmq
 """
-'''
+
 docker_compose_txt += f"""
     aggregator_top_5:
         container_name: aggregator_top_5
@@ -151,7 +151,7 @@ docker_compose_txt += f"""
         links: 
             - rabbitmq
 """
-'''
+
 '''
 docker_compose_txt += f"""
     aggregator_top_10:
