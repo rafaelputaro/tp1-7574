@@ -161,7 +161,7 @@ docker_compose_txt += f"""
             - AGGREGATOR_TYPE=top_10
             - AGGREGATOR_ID=3
             - AGGREGATOR_AMOUNT_SOURCES=1
-            - AGGREGATOR_INPUT_QUEUE_NAME=movies_top_10
+            - AGGREGATOR_INPUT_QUEUE_NAME=actor_movies_count
             - AGGREGATOR_OUTPUT_QUEUE_NAME=top_10_report
         networks:
             - tp1_net
