@@ -2,6 +2,7 @@ package filter
 
 import (
 	"fmt"
+	"hash/fnv"
 	"sync"
 	"tp1/protobuf/protopb"
 	"tp1/rabbitmq"
@@ -60,7 +61,9 @@ func (f *Filter) StartFilterLoop() {
 		f.processArEsFilter()
 	case "ar_filter":
 		f.processArFilter()
-	case "top-5-investors-filter":
+	case "single_country_origin_filter":
+		f.processSingleCountryOriginFilter()
+	case "top_5_investors_filter":
 		f.processTop5InvestorsFilter()
 	default:
 		f.log.Errorf("Unknown filter type: %s", f.config.Type)
@@ -277,36 +280,114 @@ func (f *Filter) processArFilter() {
 		return slices.Contains(productionCountries, "Argentina")
 	}
 
+	shardingFunc := func(movie *protopb.MovieSanit) int {
+		return (int(movie.GetId()) % f.config.Shards) + 1
+	}
+
 	var wg sync.WaitGroup
 	wg.Add(2)
 
 	go func() {
 		defer wg.Done()
-		f.runShardedFilter(inputQueues[0], outputExchanges[0], filterName, filterFunc)
+		f.runShardedFilter(inputQueues[0], true, outputExchanges[0], filterName, filterFunc, shardingFunc)
 	}()
 
 	go func() {
 		defer wg.Done()
-		f.runShardedFilter(inputQueues[1], outputExchanges[1], filterName, filterFunc)
+		f.runShardedFilter(inputQueues[1], true, outputExchanges[1], filterName, filterFunc, shardingFunc)
 	}()
 
 	wg.Wait()
 }
 
+func (f *Filter) processSingleCountryOriginFilter() {
+	inputExchange := "movies_exchange"
+	exchangeType := "fanout"
+	outputExchange := "single_country_origin_exchange"
+
+	filterName := "single_country_origin_filter"
+
+	err := f.channel.ExchangeDeclare(
+		inputExchange,
+		exchangeType,
+		true,  // durable
+		false, // auto-deleted
+		false, // internal
+		false, // no-wait
+		nil,   // args
+	)
+	if err != nil {
+		f.log.Fatalf("[%s] Failed to declare exchange: %v", filterName, err)
+	}
+
+	// Declare temporal queue used to read from the exchange
+	inputQueue, err := f.channel.QueueDeclare(
+		"movies_for_single_country_origin", // empty = temporal queue with generated name
+		false,                              // durable
+		true,                               // auto-delete when unused
+		true,                               // exclusive
+		false,                              // no-wait
+		nil,
+	)
+	if err != nil {
+		f.log.Fatalf("[%s] Failed to declare temporary queue: %v", filterName, err)
+	}
+
+	// Bind the queue to the exchange
+	err = f.channel.QueueBind(
+		inputQueue.Name, // queue name
+		"",              // routing key (empty on a fanout)
+		inputExchange,   // exchange
+		false,
+		nil,
+	)
+	if err != nil {
+		f.log.Fatalf("[%s] Failed to bind queue to exchange: %v", filterName, err)
+	}
+
+	filterFunc := func(movie *protopb.MovieSanit) bool {
+		productionCountries := movie.GetProductionCountries()
+		return len(productionCountries) == 1
+	}
+
+	shardingFunc := func(movie *protopb.MovieSanit) int {
+		countries := movie.GetProductionCountries()
+		if len(countries) != 1 {
+			return -1 // Shouldn't happen
+		}
+
+		hasher := fnv.New32a()
+		_, err := hasher.Write([]byte(countries[0]))
+		if err != nil {
+			return -1
+		}
+
+		return (int(hasher.Sum32()) % f.config.Shards) + 1
+	}
+
+	declareInput := false
+	f.runShardedFilter(inputQueue.Name, declareInput, outputExchange, filterName, filterFunc, shardingFunc)
+}
+
 // Creates a direct exchange using sharding with routing keys
 func (f *Filter) runShardedFilter(
 	inputQueue string,
+	declareInput bool,
 	outputExchange string,
 	filterName string,
 	filterFunc func(movie *protopb.MovieSanit) bool,
+	shardingFunc func(movie *protopb.MovieSanit) int,
 ) {
-	err := rabbitmq.DeclareDirectQueue(f.channel, inputQueue)
-	if err != nil {
-		f.log.Fatalf("Failed to declare queue '%s': %v", inputQueue, err)
+	// TODO: sacar esta lógica de acá
+	if declareInput {
+		err := rabbitmq.DeclareDirectQueue(f.channel, inputQueue)
+		if err != nil {
+			f.log.Fatalf("Failed to declare queue '%s': %v", inputQueue, err)
+		}
 	}
 
 	// Create a direct exchange (that uses sharding)
-	err = f.channel.ExchangeDeclare(
+	err := f.channel.ExchangeDeclare(
 		outputExchange, // name
 		"direct",       // type
 		true,           // durable
@@ -369,7 +450,7 @@ func (f *Filter) runShardedFilter(
 				continue
 			}
 
-			shard := movie.GetId() % int32(f.config.Shards)
+			shard := shardingFunc(&movie)
 			routingKey := fmt.Sprintf("%d", shard)
 
 			err = f.channel.Publish(
@@ -384,6 +465,9 @@ func (f *Filter) runShardedFilter(
 			if err != nil {
 				f.log.Errorf("[%s] Failed to publish filtered message: %v", filterName, err)
 			}
+
+			queueName := fmt.Sprintf("%s_shard_%d", outputExchange, shard)
+			f.log.Debugf("[%s] Message published to queue: %s (routing key: %s)", filterName, queueName, routingKey)
 		}
 	}
 }

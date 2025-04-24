@@ -51,11 +51,24 @@ services:
         depends_on:
             - rabbitmq 
 
+    single-country-origin-filter-1:
+        container_name: single-country-origin-filter-1
+        image: filter:latest
+        environment:
+            - FILTER_TYPE=single_country_origin_filter
+            - FILTER_NUM=1
+            - SHARDS=1
+
+        networks:
+            - tp1_net
+        depends_on:
+            - rabbitmq 
+
     top-5-investors-filter-1:
         container_name: top-5-investors-filter-1
         image: filter:latest
         environment:
-            - FILTER_TYPE=top-5-investors-filter
+            - FILTER_TYPE=top_5_investors_filter
             - FILTER_NUM=1
             - SHARDS=1
 

@@ -1,5 +1,4 @@
 import configparser
-import sys
 
 config = configparser.ConfigParser()
 config.read("config.ini")
@@ -8,10 +7,10 @@ config.read("config.ini")
 filter_nodes_2000s = int(config["DEFAULT"]["2000s_FILTER_NODES"])
 ar_es_filter_nodes = int(config["DEFAULT"]["AR_ES_FILTER_NODES"])
 ar_filter_nodes = int(config["DEFAULT"]["AR_FILTER_NODES"])
-top_5_investors_filter_nodes = int(config["DEFAULT"]["TOP_5_INVESTORS_FILTER_NODES"])
+single_country_origin_filter_nodes = int(config["DEFAULT"]["SINGLE_COUNTRY_ORIGIN_FILTER_NODES"])
 nlp_nodes = int(config["DEFAULT"]["NLP_NODES"])
 shards = int(config["DEFAULT"]["SHARDS"])
-
+top_5_investors_filter_nodes = shards
 
 # Create compose file
 output_file = "docker-compose-dev.yaml"
@@ -83,14 +82,30 @@ for i in range(1, ar_filter_nodes + 1):
         depends_on:
             - rabbitmq 
 """
-    
+
+for i in range(1, single_country_origin_filter_nodes + 1):
+    docker_compose_txt += f"""
+    single-country-origin-filter-{i}:
+        container_name: single-country-origin-filter-{i}
+        image: filter:latest
+        environment:
+            - FILTER_TYPE=single_country_origin_filter
+            - FILTER_NUM={i}
+            - SHARDS={shards}
+
+        networks:
+            - tp1_net
+        depends_on:
+            - rabbitmq 
+"""
+
 for i in range(1, top_5_investors_filter_nodes + 1):
     docker_compose_txt += f"""
     top-5-investors-filter-{i}:
         container_name: top-5-investors-filter-{i}
         image: filter:latest
         environment:
-            - FILTER_TYPE=top-5-investors-filter
+            - FILTER_TYPE=top_5_investors_filter
             - FILTER_NUM={i}
             - SHARDS={shards}
 
