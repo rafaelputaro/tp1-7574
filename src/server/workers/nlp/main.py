@@ -11,14 +11,9 @@ logger = logging.getLogger("sentiment")
 
 RABBITMQ_URL = "amqp://admin:admin@rabbitmq:5672/"
 FANOUT_EXCHANGE = "movies_exchange"
-POSITIVE_QUEUE_PREFIX = "positive_movie_reviews_"
-NEGATIVE_QUEUE_PREFIX = "negative_movie_reviews_"
-NUM_SHARDS = int(os.getenv("NUM_SHARDS", 1))
+POSITIVE_QUEUE = "positive_movies"
+NEGATIVE_QUEUE = "negative_movies"
 NODE_NUM = int(os.getenv("NODE_NUM"))
-
-def calculate_shard(movie_id: int, num_shards: int) -> int:
-    """Calculate the shard index based on the movie ID."""
-    return (movie_id % num_shards) + 1
 
 def connect_rabbitmq_with_retries(logger: logging.Logger, retries=20, delay=3):
     """Attempt to connect to RabbitMQ with retries."""
@@ -42,12 +37,8 @@ def callback(ch, method, properties, body):
         logger.info("Received EOF. Sending EOF message to all output queues...")
 
         eof_message = movie.SerializeToString()
-        for shard in range(1, NUM_SHARDS + 1):
-            pos_queue = f"{POSITIVE_QUEUE_PREFIX}{shard}"
-            neg_queue = f"{NEGATIVE_QUEUE_PREFIX}{shard}"
-
-            channel.basic_publish(exchange='', routing_key=pos_queue, body=eof_message)
-            channel.basic_publish(exchange='', routing_key=neg_queue, body=eof_message)
+        channel.basic_publish(exchange='', routing_key=POSITIVE_QUEUE, body=eof_message)
+        channel.basic_publish(exchange='', routing_key=NEGATIVE_QUEUE, body=eof_message)
 
         logger.info("EOF messages sent to all output queues. Stopping consumption.")
         ch.stop_consuming()
@@ -57,10 +48,7 @@ def callback(ch, method, properties, body):
 
     result = sentiment_analyzer(text)
     label = result[0]["label"]
-
-    shard = calculate_shard(movie.id, NUM_SHARDS)
-    queue_prefix = POSITIVE_QUEUE_PREFIX if label == "POSITIVE" else NEGATIVE_QUEUE_PREFIX
-    target_queue = f"{queue_prefix}{shard}"
+    target_queue = POSITIVE_QUEUE if label == "POSITIVE" else NEGATIVE_QUEUE
 
     channel.basic_publish(
         exchange='',
@@ -68,7 +56,7 @@ def callback(ch, method, properties, body):
         body=movie.SerializeToString()
     )
 
-    logger.info(f"Message published to {target_queue} (shard {shard})")
+    logger.info(f"Message published to {target_queue}")
 
 def main():
     global sentiment_analyzer, channel
@@ -89,9 +77,8 @@ def main():
     channel.queue_bind(exchange=FANOUT_EXCHANGE, queue=queue_name)
 
     # Ensure target queues exist
-    for shard in range(1, NUM_SHARDS + 1):
-        channel.queue_declare(queue=f"{POSITIVE_QUEUE_PREFIX}{shard}", durable=True)
-        channel.queue_declare(queue=f"{NEGATIVE_QUEUE_PREFIX}{shard}", durable=True)
+    channel.queue_declare(queue=POSITIVE_QUEUE, durable=True)
+    channel.queue_declare(queue=NEGATIVE_QUEUE, durable=True)
 
     logger.info("Loading sentiment analysis model...")
     sentiment_analyzer = pipeline('sentiment-analysis', model='distilbert-base-uncased-finetuned-sst-2-english')
