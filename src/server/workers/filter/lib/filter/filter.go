@@ -126,6 +126,23 @@ func (f *Filter) processArEsFilter() {
 		// EOF
 		if movie.Eof != nil && *movie.Eof {
 			f.log.Infof("[%s] Received EOF marker", filterName)
+
+			eofBytes, err := proto.Marshal(&movie)
+			if err != nil {
+				f.log.Errorf("[%s] Failed to marshal EOF marker: %v", filterName, err)
+				break
+			}
+
+			// Propagate EOF to output queue
+			err = f.channel.Publish("", outputQueue, false, false, amqp.Publishing{
+				ContentType: "application/protobuf",
+				Body:        eofBytes,
+			})
+			if err != nil {
+				f.log.Errorf("[%s] Failed to publish EOF marker: %v", filterName, err)
+			} else {
+				f.log.Infof("[%s] Propagated EOF marker to %s", filterName, outputQueue)
+			}
 			break
 		}
 
@@ -361,6 +378,25 @@ func (f *Filter) processYearFilters() {
 
 		if movie.Eof != nil && *movie.Eof {
 			f.log.Infof("[%s] Received EOF marker", filterName)
+
+			eofBytes, err := proto.Marshal(&movie)
+			if err != nil {
+				f.log.Errorf("[%s] Failed to marshal EOF marker: %v", filterName, err)
+				break
+			}
+
+			for queueName := range outputQueues {
+				err = f.channel.Publish("", queueName, false, false, amqp.Publishing{
+					ContentType: "application/protobuf",
+					Body:        eofBytes,
+				})
+				if err != nil {
+					f.log.Errorf("[%s] Failed to publish EOF to '%s': %v", filterName, queueName, err)
+				} else {
+					f.log.Infof("[%s] Propagated EOF to '%s'", filterName, queueName)
+				}
+			}
+
 			break
 		}
 
@@ -559,6 +595,31 @@ func (f *Filter) runShardedFilter(
 
 		if movie.Eof != nil && *movie.Eof {
 			f.log.Infof("[%s] Received EOF marker", filterName)
+			eofBytes, err := proto.Marshal(&movie)
+			if err != nil {
+				f.log.Errorf("[%s] Failed to marshal EOF marker: %v", filterName, err)
+				break
+			}
+
+			// Propagate EOF
+			for i := 1; i <= f.config.Shards; i++ {
+				routingKey := fmt.Sprintf("%d", i)
+				err := f.channel.Publish(
+					outputExchange, // exchange
+					routingKey,     // routing key
+					false,          // mandatory
+					false,          // immediate
+					amqp.Publishing{
+						ContentType: "application/protobuf",
+						Body:        eofBytes,
+					},
+				)
+				if err != nil {
+					f.log.Errorf("[%s] Failed to publish EOF to %s shard %d: %v", filterName, outputExchange, i, err)
+				} else {
+					f.log.Infof("[%s] Propagated EOF to %s shard %d", filterName, outputExchange, i)
+				}
+			}
 			break
 		}
 

@@ -39,7 +39,17 @@ def callback(ch, method, properties, body):
     movie.ParseFromString(body)
 
     if movie.HasField("eof") and movie.eof:
-        logger.info("Received EOF. Stopping consumption.")
+        logger.info("Received EOF. Sending EOF message to all output queues...")
+
+        eof_message = movie.SerializeToString()
+        for shard in range(1, NUM_SHARDS + 1):
+            pos_queue = f"{POSITIVE_QUEUE_PREFIX}{shard}"
+            neg_queue = f"{NEGATIVE_QUEUE_PREFIX}{shard}"
+
+            channel.basic_publish(exchange='', routing_key=pos_queue, body=eof_message)
+            channel.basic_publish(exchange='', routing_key=neg_queue, body=eof_message)
+
+        logger.info("EOF messages sent to all output queues. Stopping consumption.")
         ch.stop_consuming()
         return
 
