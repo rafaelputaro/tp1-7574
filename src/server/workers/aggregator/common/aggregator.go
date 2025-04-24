@@ -36,8 +36,8 @@ const MSG_FAILED_TO_GENERATE_A_METRIC = "Failure to generate a metric"
 
 // Aggregator which can be of types "movies", "top_5", "top_10", "top_and_bottom" and "metrices".
 // In the case of type "metrics" works with two queues:
-// InputQueue: Negative
-// InputQueueSec: Possitive
+// InputQueue: negative_movie_reviews_1
+// InputQueueSec: positive_movie_reviews_1
 type Aggregator struct {
 	Channel       *amqp.Channel
 	Connection    *amqp.Connection
@@ -344,25 +344,25 @@ func (aggregator *Aggregator) aggregateMetrics() {
 }
 
 func (aggregator *Aggregator) aggregateMetric(config QueueConfig) (float64, error) {
-	msgs, err := aggregator.consumeQueue(aggregator.Config.InputQueue)
+	msgs, err := aggregator.consumeQueue(config)
 	if err == nil {
 		amountEOF := 0
 		var avgRevenueOverBudget float64
 		var count int64 = 0
-		var sum float64 = 0.0
+		var sumAvg float64 = 0.0
 		for msg := range msgs {
-			var shardSum protopb.RevenueOverBudget
-			if err := proto.Unmarshal(msg.Body, &shardSum); err != nil {
+			var movie protopb.MovieSanit
+			if err := proto.Unmarshal(msg.Body, &movie); err != nil {
 				aggregator.Log.Errorf("[%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_UNMARSHAL, err)
 				continue
 			}
 			// EOF
-			if shardSum.Eof != nil && *shardSum.Eof {
+			if movie.Eof != nil && *movie.Eof {
 				amountEOF += 1
 				// If all sources sent EOF calculate avg and break loop
 				if aggregator.checkEofSingleQueue(amountEOF) {
 					if count != 0 {
-						avgRevenueOverBudget = sum / float64(count)
+						avgRevenueOverBudget = sumAvg / float64(count)
 					}
 					aggregator.Log.Debugf("[%s] %s: AvgRevenueOverBudget: %v", aggregator.Config.AggregatorType, MSG_AGGREGATED, avgRevenueOverBudget)
 					break
@@ -370,8 +370,8 @@ func (aggregator *Aggregator) aggregateMetric(config QueueConfig) (float64, erro
 				continue
 			}
 			// update sum and count
-			count += *shardSum.AmountReviews
-			sum += float64(*shardSum.AmountReviews)
+			count++
+			sumAvg += (*movie.Revenue) / float64(*movie.Budget)
 		}
 		return avgRevenueOverBudget, nil
 	} else {
