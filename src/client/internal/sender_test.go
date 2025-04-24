@@ -74,7 +74,7 @@ func TestSendMoviesBatch(t *testing.T) {
 
 	parser := &mockParser[pb.Movie]{batches: [][]*pb.Movie{testBatch}}
 
-	SendMovies(client, parser)
+	SendMovies(ctx, client, parser)
 
 	if len(mock.Received) != 1 {
 		t.Fatalf("Expected 1 movie received, got %d", len(mock.Received))

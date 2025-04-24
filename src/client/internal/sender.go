@@ -3,6 +3,7 @@ package internal
 import (
 	"context"
 	"github.com/op/go-logging"
+	"io"
 	pb "tp1/protobuf/protopb"
 )
 
@@ -30,9 +31,14 @@ func SendMovies(ctx context.Context, client pb.MovieServiceClient, parser Parser
 
 		batch, err := parser.NextBatch()
 		if err != nil {
-			logger.Errorf("Failed get next batch: %v", err)
+			if err != io.EOF {
+				logger.Errorf("Failed get next batch for movies: %v", err)
+			} else {
+				logger.Infof("End of movies stream")
+			}
 			break
 		}
+
 		for _, item := range batch {
 			if err := stream.Send(item); err != nil {
 				logger.Errorf("failed to send movie: %v", err)
@@ -70,8 +76,14 @@ func SendRatings(ctx context.Context, client pb.RatingServiceClient, parser Pars
 
 		batch, err := parser.NextBatch()
 		if err != nil {
+			if err != io.EOF {
+				logger.Errorf("Failed get next batch for ratings: %v", err)
+			} else {
+				logger.Infof("End of ratings stream")
+			}
 			break
 		}
+
 		for _, item := range batch {
 			if err := stream.Send(item); err != nil {
 				logger.Errorf("failed to send rating: %v", err)
@@ -109,8 +121,14 @@ func SendCredits(ctx context.Context, client pb.CreditServiceClient, parser Pars
 
 		batch, err := parser.NextBatch()
 		if err != nil {
+			if err != io.EOF {
+				logger.Errorf("Failed get next batch for credits: %v", err)
+			} else {
+				logger.Infof("End of credits stream")
+			}
 			break
 		}
+
 		for _, item := range batch {
 			if err := stream.Send(item); err != nil {
 				logger.Errorf("failed to send credit: %v", err)

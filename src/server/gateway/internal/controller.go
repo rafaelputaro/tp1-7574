@@ -33,6 +33,11 @@ func (c *Controller) StreamMovies(stream pb.MovieService_StreamMoviesServer) err
 	for {
 		msg, err := stream.Recv()
 		if err == io.EOF {
+			err := c.publishMovieEof()
+			if err != nil {
+				logger.Errorf("failed to publish movie EOF message: %v", err)
+				return err
+			}
 			logger.Infof("StreamMovies: published %d movies to 'movies_exchange'", count)
 			return stream.SendAndClose(&emptypb.Empty{})
 		}
@@ -42,7 +47,7 @@ func (c *Controller) StreamMovies(stream pb.MovieService_StreamMoviesServer) err
 
 		sanitized, err := sanitizeMovie(msg)
 		if err != nil {
-			logger.Infof("skipping invalid movie (id %d): %v", msg.GetId(), err)
+			// logger.Infof("skipping invalid movie (id %d): %v", msg.GetId(), err)
 			continue
 		}
 
@@ -51,13 +56,7 @@ func (c *Controller) StreamMovies(stream pb.MovieService_StreamMoviesServer) err
 			return err
 		}
 
-		err = c.ch.Publish(
-			"movies_exchange", "", false, false,
-			amqp.Publishing{
-				ContentType: "application/protobuf",
-				Body:        data,
-			},
-		)
+		err = c.publish("movies_exchange", data)
 		if err != nil {
 			return err
 		}
@@ -72,6 +71,11 @@ func (c *Controller) StreamRatings(stream pb.RatingService_StreamRatingsServer) 
 	for {
 		rating, err := stream.Recv()
 		if err == io.EOF {
+			err := c.publishRatingEof()
+			if err != nil {
+				logger.Errorf("failed to publish rating EOF message: %v", err)
+				return err
+			}
 			logger.Infof("StreamRatings: published %d ratings to 'ratings_exchange'", count)
 			return stream.SendAndClose(&emptypb.Empty{})
 		}
@@ -90,13 +94,7 @@ func (c *Controller) StreamRatings(stream pb.RatingService_StreamRatingsServer) 
 			return err
 		}
 
-		err = c.ch.Publish(
-			"ratings_exchange", "", false, false,
-			amqp.Publishing{
-				ContentType: "application/protobuf",
-				Body:        data,
-			},
-		)
+		err = c.publish("ratings_exchange", data)
 		if err != nil {
 			return err
 		}
@@ -111,6 +109,11 @@ func (c *Controller) StreamCredits(stream pb.CreditService_StreamCreditsServer) 
 	for {
 		credit, err := stream.Recv()
 		if err == io.EOF {
+			err := c.publishCreditEof()
+			if err != nil {
+				logger.Errorf("failed to publish credit EOF message: %v", err)
+				return err
+			}
 			logger.Infof("StreamCredits: published %d credits to 'credits_exchange'", count)
 			return stream.SendAndClose(&emptypb.Empty{})
 		}
@@ -120,7 +123,7 @@ func (c *Controller) StreamCredits(stream pb.CreditService_StreamCreditsServer) 
 
 		sanitized, err := sanitizeCredit(credit)
 		if err != nil {
-			logger.Infof("skipping invalid credit (id %d): %v", credit.GetId(), err)
+			// logger.Infof("skipping invalid credit (movie id %d): %v", credit.GetId(), err)
 			continue
 		}
 
@@ -129,19 +132,83 @@ func (c *Controller) StreamCredits(stream pb.CreditService_StreamCreditsServer) 
 			return err
 		}
 
-		err = c.ch.Publish(
-			"credits_exchange", "", false, false,
-			amqp.Publishing{
-				ContentType: "application/protobuf",
-				Body:        data,
-			},
-		)
+		err = c.publish("credits_exchange", data)
 		if err != nil {
 			return err
 		}
 
 		count++
 	}
+}
+
+func (c *Controller) publish(exchange string, data []byte) error {
+	return c.ch.Publish(
+		exchange,
+		"",
+		false,
+		false,
+		amqp.Publishing{
+			ContentType: "application/protobuf",
+			Body:        data,
+		},
+	)
+}
+
+func (c *Controller) publishMovieEof() error {
+	data, err := proto.Marshal(&pb.MovieSanit{
+		Budget:      proto.Int32(0),
+		Id:          proto.Int32(0),
+		Overview:    proto.String(""),
+		ReleaseYear: proto.Uint32(0),
+		Revenue:     proto.Float64(0),
+		Title:       proto.String(""),
+		Eof:         proto.Bool(true),
+	})
+	if err != nil {
+		return err
+	}
+
+	err = c.publish("movies_exchange", data)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Controller) publishCreditEof() error {
+	data, err := proto.Marshal(&pb.CreditSanit{
+		Id:  proto.Int64(0),
+		Eof: proto.Bool(true),
+	})
+	if err != nil {
+		return err
+	}
+
+	err = c.publish("credits_exchange", data)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Controller) publishRatingEof() error {
+	data, err := proto.Marshal(&pb.RatingSanit{
+		MovieId: proto.Int64(0),
+		Rating:  proto.Float32(0),
+		Eof:     proto.Bool(true),
+	})
+	if err != nil {
+		return err
+	}
+
+	err = c.publish("ratings_exchange", data)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func sanitizeMovie(m *pb.Movie) (*pb.MovieSanit, error) {

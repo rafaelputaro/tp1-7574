@@ -25,15 +25,6 @@ func main() {
 	}
 	defer ch.Close()
 
-	// Declare required queues
-	queues := []string{"movies", "ratings", "credits"}
-	for _, name := range queues {
-		_, err := ch.QueueDeclare(name, true, false, false, false, nil)
-		if err != nil {
-			logger.Fatalf("Failed to declare queue '%s': %v", name, err)
-		}
-	}
-
 	// Declare fanout exchanges
 	exchanges := []string{"movies_exchange", "ratings_exchange", "credits_exchange"}
 	for _, name := range exchanges {
