@@ -23,6 +23,7 @@ func TestActor(t *testing.T) {
 		actors = append(actors, counter.GetActor(actorPath))
 	}
 	fmt.Printf("%v", actors)
+	// TODO chequear los resultados sean correctos, al parecer lo son
 	/*
 	   // Expected
 	   actorsCountExpected := []int64{3, 2, 2, 4, 3, 4, 2, 4, 2, 3, 2, 3, 2, 5, 2, 6, 4, 2}
@@ -34,6 +35,35 @@ func TestActor(t *testing.T) {
 	   		}
 	   	}
 	*/
+}
+
+func TestRatings(t *testing.T) {
+	totalizer := NewRatingTotalizer()
+	movies := createMovieSet()
+	for _, movie := range *movies {
+		totalizer.AppendMovie(movie)
+	}
+	ratings := createRatings(movies)
+	for _, rating := range *ratings {
+		totalizer.Sum(rating)
+	}
+	report := totalizer.GetTopAndBottom()
+	fmt.Printf("%v", report)
+	if *report.TitleTop != "Movie 19" || *report.TitleBottom != "Movie 0" {
+		t.Fatal("Error on top and bottom")
+	}
+}
+
+func createRatings(movies *[]*protopb.MovieSanit) *[]*protopb.RatingSanit {
+	toReturn := []*protopb.RatingSanit{}
+	for _, movie := range *movies {
+		rating := (1 + 2*float32(*movie.Id)) / (1 + float32(*movie.Id))
+		toReturn = append(toReturn, &protopb.RatingSanit{
+			MovieId: proto.Int64(int64(*movie.Id)),
+			Rating:  proto.Float32(rating),
+		})
+	}
+	return &toReturn
 }
 
 func createMovieSet() *[]*protopb.MovieSanit {
