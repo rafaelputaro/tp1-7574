@@ -81,5 +81,5 @@ func CreateActorEof() *protopb.Actor {
 
 // Returns string from actor count
 func ActorToString(actor *protopb.Actor) string {
-	return fmt.Sprintf("Name: %v | Path Profile %v (%v) ", actor.Name, actor.ProfilePath, actor.CountMovies)
+	return fmt.Sprintf("Name: %s | Path Profile %s (%v) ", *actor.Name, *actor.ProfilePath, actor.CountMovies)
 }

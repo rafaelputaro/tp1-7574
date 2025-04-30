@@ -98,7 +98,7 @@ services:
         image: joiner:latest
         environment:
             - JOINER_TYPE=group_by_movie_id_credits
-            - JOINER_ID=1
+            - JOINER_ID=2
             - JOINER_INPUT_QUEUE_BASE_NAME=ar_movies_2000_and_later
             - JOINER_INPUT_QUEUE_SEC_NAME=credits
             - JOINER_OUTPUT_QUEUE_NAME=actor_movies_count

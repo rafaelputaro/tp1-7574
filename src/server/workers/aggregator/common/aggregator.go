@@ -80,7 +80,7 @@ func NewAggregator(log *logging.Logger) (*Aggregator, error) {
 			nil,   // args
 		)
 		if err != nil {
-			log.Fatalf("[%s] Failed to declare exchange %s: %v", config.AggregatorType, "", err)
+			log.Fatalf("[aggregator_%s] Failed to declare exchange %s: %v", config.AggregatorType, "", err)
 		}
 	}
 	inputQueue, err := channel.QueueDeclare(
@@ -135,7 +135,7 @@ func NewAggregator(log *logging.Logger) (*Aggregator, error) {
 			nil,
 		)
 		if err != nil {
-			log.Fatalf("[%s] Failed on bind %s: %v", config.AggregatorType, "", err)
+			log.Fatalf("[aggregator_%s] Failed on bind %s: %v", config.AggregatorType, "", err)
 		}
 		// Bind the queue to the exchange
 		err = channel.QueueBind(
@@ -146,7 +146,7 @@ func NewAggregator(log *logging.Logger) (*Aggregator, error) {
 			nil,
 		)
 		if err != nil {
-			log.Fatalf("[%s] Failed on bind %s: %v", config.AggregatorType, "", err)
+			log.Fatalf("[aggregator_%s] Failed on bind %s: %v", config.AggregatorType, "", err)
 		}
 		return &Aggregator{
 			Channel:       channel,
@@ -170,7 +170,7 @@ func NewAggregator(log *logging.Logger) (*Aggregator, error) {
 
 // Init aggregator loop
 func (aggregator *Aggregator) Start() {
-	aggregator.Log.Infof("[%s] %s: %d", aggregator.Config.AggregatorType, MSG_START, aggregator.Config.ID)
+	aggregator.Log.Infof("[aggregator_%s] %s: %d", aggregator.Config.AggregatorType, MSG_START, aggregator.Config.ID)
 	switch aggregator.Config.AggregatorType {
 	case MOVIES:
 		aggregator.aggregateMovies()
@@ -183,13 +183,13 @@ func (aggregator *Aggregator) Start() {
 	case METRICS:
 		aggregator.aggregateMetrics()
 	}
-	aggregator.Log.Infof("[%s] %s", aggregator.Config.AggregatorType, MSG_JOB_FINISHED)
+	aggregator.Log.Infof("[aggregator_%s] %s", aggregator.Config.AggregatorType, MSG_JOB_FINISHED)
 }
 
 // Check EOF condition
 func (aggregator *Aggregator) checkEofSingleQueue(amountEOF int) bool {
 	if amountEOF == int(aggregator.Config.AmountSources) {
-		aggregator.Log.Infof("[%s] %s", aggregator.Config.AggregatorType, MSG_RECEIVED_EOF_MARKER)
+		aggregator.Log.Infof("[aggregator_%s] %s", aggregator.Config.AggregatorType, MSG_RECEIVED_EOF_MARKER)
 		return true
 	}
 	return false
@@ -202,7 +202,7 @@ func (aggregator *Aggregator) publishData(data []byte) {
 		Body:        data,
 	})
 	if err != nil {
-		aggregator.Log.Errorf("[%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_PUBLISH_ON_OUTPUT_QUEUE, err)
+		aggregator.Log.Errorf("[aggregator_%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_PUBLISH_ON_OUTPUT_QUEUE, err)
 	}
 }
 
@@ -213,7 +213,7 @@ func (aggregator *Aggregator) aggregateMovies() {
 		for msg := range msgs {
 			var movie protopb.MovieSanit
 			if err := proto.Unmarshal(msg.Body, &movie); err != nil {
-				aggregator.Log.Errorf("[%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_UNMARSHAL, err)
+				aggregator.Log.Errorf("[aggregator_%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_UNMARSHAL, err)
 				continue
 			}
 			// EOF
@@ -225,7 +225,7 @@ func (aggregator *Aggregator) aggregateMovies() {
 					break
 				}
 			}
-			aggregator.Log.Debugf("[%s] %s: %s (%d)", aggregator.Config.AggregatorType, MSG_AGGREGATED, movie.Title, movie.ReleaseYear)
+			aggregator.Log.Debugf("[aggregator_%s] %s: %s (%d)", aggregator.Config.AggregatorType, MSG_AGGREGATED, movie.Title, movie.ReleaseYear)
 			aggregator.publishData(msg.Body)
 		}
 	}
@@ -243,22 +243,22 @@ func (aggregator *Aggregator) aggregateTop5() {
 	for msg := range msgs {
 		var top5 protopb.Top5Country
 		if err := proto.Unmarshal(msg.Body, &top5); err != nil {
-			aggregator.Log.Errorf("[%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_UNMARSHAL, err)
+			aggregator.Log.Errorf("[aggregator_%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_UNMARSHAL, err)
 			continue
 		}
-		aggregator.Log.Debugf("[%s] %s: %s", aggregator.Config.AggregatorType, MSG_AGGREGATED, utils.Top5ToString(&top5))
+		aggregator.Log.Debugf("[aggregator_%s] %s: %s", aggregator.Config.AggregatorType, MSG_AGGREGATED, utils.Top5ToString(&top5))
 		globalTop5 = *utils.ReduceTop5(&globalTop5, &top5)
-		aggregator.Log.Debugf("[%s] %s: %s", aggregator.Config.AggregatorType, "Top After Reduce", utils.Top5ToString(&globalTop5))
+		aggregator.Log.Debugf("[aggregator_%s] %s: %s", aggregator.Config.AggregatorType, "Top After Reduce", utils.Top5ToString(&globalTop5))
 
 		// EOF
 		if top5.Eof != nil && *top5.Eof {
 			amountEOF += 1
 			// If all sources sent EOF, send top 5 and submit the EOF to report
 			if aggregator.checkEofSingleQueue(amountEOF) {
-				aggregator.Log.Debugf("[%s] %s: %s", aggregator.Config.AggregatorType, MSG_AGGREGATED, utils.Top5ToString(&globalTop5))
+				aggregator.Log.Debugf("[aggregator_%s] %s: %s", aggregator.Config.AggregatorType, MSG_AGGREGATED, utils.Top5ToString(&globalTop5))
 				data, err := proto.Marshal(&globalTop5)
 				if err != nil {
-					aggregator.Log.Fatalf("[%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_MARSHAL, err)
+					aggregator.Log.Fatalf("[aggregator_%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_MARSHAL, err)
 					break
 				}
 				// send top5 to report
@@ -279,7 +279,7 @@ func (aggregator *Aggregator) aggregateTop10() {
 		for msg := range msgs {
 			var actorCount protopb.Actor
 			if err := proto.Unmarshal(msg.Body, &actorCount); err != nil {
-				aggregator.Log.Errorf("[%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_UNMARSHAL, err)
+				aggregator.Log.Errorf("[aggregator_%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_UNMARSHAL, err)
 				continue
 			}
 			aggregator.Log.Debugf("got message %s", actorCount.GetName())
@@ -290,10 +290,10 @@ func (aggregator *Aggregator) aggregateTop10() {
 				// If all sources sent EOF, send top 10 and submit the EOF to report
 				if aggregator.checkEofSingleQueue(amountEOF) {
 					top10 := actorsData.GetTop10()
-					aggregator.Log.Debugf("[%s] %s: %s", aggregator.Config.AggregatorType, MSG_AGGREGATED, utils.Top10ToString(top10))
+					aggregator.Log.Debugf("[aggregator_%s] %s: %s", aggregator.Config.AggregatorType, MSG_AGGREGATED, utils.Top10ToString(top10))
 					data, err := proto.Marshal(top10)
 					if err != nil {
-						aggregator.Log.Fatalf("[%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_MARSHAL, err)
+						aggregator.Log.Fatalf("[aggregator_%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_MARSHAL, err)
 						break
 					}
 					// send top10 to report
@@ -316,7 +316,7 @@ func (aggregator *Aggregator) aggregateTopAndBottom() {
 		for msg := range msgs {
 			var topAndBottom protopb.TopAndBottomRatingAvg
 			if err := proto.Unmarshal(msg.Body, &topAndBottom); err != nil {
-				aggregator.Log.Errorf("[%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_UNMARSHAL, err)
+				aggregator.Log.Errorf("[aggregator_%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_UNMARSHAL, err)
 				continue
 			}
 			// EOF
@@ -324,10 +324,10 @@ func (aggregator *Aggregator) aggregateTopAndBottom() {
 				amountEOF += 1
 				// If all sources sent EOF, send top and Bottom and submit the EOF to report
 				if aggregator.checkEofSingleQueue(amountEOF) {
-					aggregator.Log.Debugf("[%s] %s: %s", aggregator.Config.AggregatorType, MSG_AGGREGATED, utils.TopAndBottomToString(&globalTopAndBottom))
+					aggregator.Log.Debugf("[aggregator_%s] %s: %s", aggregator.Config.AggregatorType, MSG_AGGREGATED, utils.TopAndBottomToString(&globalTopAndBottom))
 					data, err := proto.Marshal(&globalTopAndBottom)
 					if err != nil {
-						aggregator.Log.Fatalf("[%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_MARSHAL, err)
+						aggregator.Log.Fatalf("[aggregator_%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_MARSHAL, err)
 						break
 					}
 					// send topAndBottom to report
@@ -359,15 +359,15 @@ func (aggregator *Aggregator) aggregateMetrics() {
 	// wait for negative result
 	wg.Wait()
 	if errNeg != nil || errPos != nil {
-		aggregator.Log.Fatalf("[%s] %s: Neg error: %v | Pos error: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_GENERATE_A_METRIC, errNeg, errPos)
+		aggregator.Log.Fatalf("[aggregator_%s] %s: Neg error: %v | Pos error: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_GENERATE_A_METRIC, errNeg, errPos)
 		return
 	}
 	// prepare report
 	report := utils.CreateMetricsReport(avgRevenueOverBudgetNegative, avgRevenueOverBudgetPositive)
-	aggregator.Log.Debugf("[%s] %s: %s", aggregator.Config.AggregatorType, MSG_AGGREGATED, utils.MetricsToString(&report))
+	aggregator.Log.Debugf("[aggregator_%s] %s: %s", aggregator.Config.AggregatorType, MSG_AGGREGATED, utils.MetricsToString(&report))
 	data, err := proto.Marshal(&report)
 	if err != nil {
-		aggregator.Log.Fatalf("[%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_MARSHAL, err)
+		aggregator.Log.Fatalf("[aggregator_%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_MARSHAL, err)
 		return
 	}
 	// send report
@@ -376,7 +376,7 @@ func (aggregator *Aggregator) aggregateMetrics() {
 	eof := utils.CreateMetricsEof()
 	data, err = proto.Marshal(&eof)
 	if err != nil {
-		aggregator.Log.Fatalf("[%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_MARSHAL, err)
+		aggregator.Log.Fatalf("[aggregator_%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_MARSHAL, err)
 		return
 	}
 	// submit the EOF to report
@@ -393,7 +393,7 @@ func (aggregator *Aggregator) aggregateMetric(config QueueConfig) (float64, erro
 		for msg := range msgs {
 			var movie protopb.MovieSanit
 			if err := proto.Unmarshal(msg.Body, &movie); err != nil {
-				aggregator.Log.Errorf("[%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_UNMARSHAL, err)
+				aggregator.Log.Errorf("[aggregator_%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_UNMARSHAL, err)
 				continue
 			}
 			aggregator.Log.Debugf("aggregateMetric - got message %s", movie.GetTitle())
@@ -406,7 +406,7 @@ func (aggregator *Aggregator) aggregateMetric(config QueueConfig) (float64, erro
 					if count != 0 {
 						avgRevenueOverBudget = sumAvg / float64(count)
 					}
-					aggregator.Log.Debugf("[%s] %s: AvgRevenueOverBudget: %v", aggregator.Config.AggregatorType, MSG_AGGREGATED, avgRevenueOverBudget)
+					aggregator.Log.Debugf("[aggregator_%s] %s: AvgRevenueOverBudget: %v", aggregator.Config.AggregatorType, MSG_AGGREGATED, avgRevenueOverBudget)
 					break
 				}
 				continue
@@ -434,7 +434,7 @@ func (aggregator *Aggregator) consumeQueue(config QueueConfig) (<-chan amqp.Deli
 	if err != nil {
 		aggregator.Log.Fatalf("%s '%s': %v", MSG_FAILED_CONSUME, config.Name, err)
 	}
-	aggregator.Log.Infof("[%s] Waiting for messages...", aggregator.Config.AggregatorType)
+	aggregator.Log.Infof("[aggregator_%s] Waiting for messages...", aggregator.Config.AggregatorType)
 	return msgs, err
 }
 

@@ -7,7 +7,6 @@ import (
 	"os"
 	"sync"
 	"testing"
-	"time"
 	"tp1/server/workers/aggregator/common"
 )
 
@@ -37,18 +36,4 @@ func TestAggregatorConfig(t *testing.T) {
 		aggregator.Dispose()
 	}
 
-	/*
-		err := aggregator.Channel.Publish("", aggregator.Config.InputQueue.Name, false, false, amqp.Publishing{
-			ContentType: "text/plain",
-			Body:        []byte("Hola"),
-		})
-		if err != nil {
-			common.Log.Infof("Error subir mensaje")
-		}*/
-	//time.Sleep(20 * time.Second)
-	//	common.Log.Infof("Subio mensaje")
-
-	//	common.Consume(aggregator)
-
-	time.Sleep(600 * time.Second)
 }
