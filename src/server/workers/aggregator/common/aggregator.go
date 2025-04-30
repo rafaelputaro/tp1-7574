@@ -225,7 +225,7 @@ func (aggregator *Aggregator) aggregateMovies() {
 					break
 				}
 			}
-			aggregator.Log.Debugf("[aggregator_%s] %s: %s (%d)", aggregator.Config.AggregatorType, MSG_AGGREGATED, movie.Title, movie.ReleaseYear)
+			aggregator.Log.Debugf("[aggregator_%s] %s: %s (%d)", aggregator.Config.AggregatorType, MSG_AGGREGATED, *movie.Title, *movie.ReleaseYear)
 			aggregator.publishData(msg.Body)
 		}
 	}
