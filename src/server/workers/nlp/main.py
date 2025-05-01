@@ -1,18 +1,20 @@
 import logging
-import os
-import time
-import pika
 import sys
+import time
+
+import pika
 from transformers import pipeline
+
 import movie_sanit_pb2
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("sentiment")
 
 RABBITMQ_URL = "amqp://admin:admin@rabbitmq:5672/"
-FANOUT_EXCHANGE = "movies_exchange"
+QUEUE_NAME = "movies3"
 POSITIVE_QUEUE = "positive_movies"
 NEGATIVE_QUEUE = "negative_movies"
+
 
 def connect_rabbitmq_with_retries(logger: logging.Logger, retries=20, delay=3):
     """Attempt to connect to RabbitMQ with retries."""
@@ -28,9 +30,11 @@ def connect_rabbitmq_with_retries(logger: logging.Logger, retries=20, delay=3):
     logger.error("Failed to connect to RabbitMQ after multiple attempts.")
     sys.exit(1)
 
+
 # Add this global counter and max limit at the top of the file
 MESSAGE_LIMIT = 1000
 message_count = 0
+
 
 def callback(ch, method, properties, body):
     global message_count
@@ -64,6 +68,7 @@ def callback(ch, method, properties, body):
     logger.info(f"Message published to {target_queue}")
     message_count += 1
 
+
 def main():
     global sentiment_analyzer, channel
 
@@ -71,17 +76,8 @@ def main():
     connection = connect_rabbitmq_with_retries(logger)
     channel = connection.channel()
 
-    # Declare the fanout exchange
-    channel.exchange_declare(exchange=FANOUT_EXCHANGE, exchange_type='fanout', durable=True)
+    channel.queue_declare(queue=QUEUE_NAME, durable=True)
 
-    # Declare a unique, temporary queue
-    result = channel.queue_declare(queue='', exclusive=True, durable=True)
-    queue_name = result.method.queue
-
-    # Bind it to the fanout exchange
-    channel.queue_bind(exchange=FANOUT_EXCHANGE, queue=queue_name)
-
-    # Ensure target queues exist
     channel.exchange_declare(exchange='sentiment_exchange', exchange_type='direct', durable=True)
     channel.queue_declare(queue=POSITIVE_QUEUE, durable=True)
     channel.queue_declare(queue=NEGATIVE_QUEUE, durable=True)
@@ -91,8 +87,8 @@ def main():
     logger.info("Loading sentiment analysis model...")
     sentiment_analyzer = pipeline('sentiment-analysis', model='distilbert-base-uncased-finetuned-sst-2-english')
 
-    logger.info(f"Listening for messages from exchange '{FANOUT_EXCHANGE}'...")
-    channel.basic_consume(queue=queue_name, on_message_callback=callback, auto_ack=True)
+    logger.info(f"Listening for messages from queue '{QUEUE_NAME}'...")
+    channel.basic_consume(queue=QUEUE_NAME, on_message_callback=callback, auto_ack=True)
 
     try:
         channel.start_consuming()
@@ -101,6 +97,7 @@ def main():
         channel.stop_consuming()
         connection.close()
         sys.exit(0)
+
 
 if __name__ == "__main__":
     main()
