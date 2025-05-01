@@ -102,12 +102,9 @@ func (f *Filter) processArEsFilter() {
 
 	f.log.Infof("[%s] Starting job for ID: %d", filterName, f.config.ID)
 
-	// Declare queues (if rabbitmq doesn't have them, it creates them)
-	for _, queue := range []string{inputQueue, outputQueue} {
-		err := rabbitmq.DeclareDirectQueue(f.channel, queue)
-		if err != nil {
-			f.log.Fatalf("Failed to declare queue '%s': %v", queue, err)
-		}
+	err := rabbitmq.DeclareDirectQueues(f.channel, inputQueue, outputQueue)
+	if err != nil {
+		f.log.Fatalf("Failed to declare queues: %v", err)
 	}
 
 	msgs, err := rabbitmq.ConsumeFromQueue(f.channel, inputQueue)
@@ -369,7 +366,7 @@ func (f *Filter) processYearFilters() {
 	}
 
 	for outputQueue := range outputQueues {
-		err := rabbitmq.DeclareDirectQueue(f.channel, outputQueue)
+		err := rabbitmq.DeclareDirectQueues(f.channel, outputQueue)
 		if err != nil {
 			f.log.Fatalf("[%s] Failed to declare queue '%s': %v", filterName, outputQueue, err)
 		}
@@ -549,7 +546,7 @@ func (f *Filter) runShardedFilter(
 ) {
 	// TODO: sacar esta lógica de acá
 	if declareInput {
-		err := rabbitmq.DeclareDirectQueue(f.channel, inputQueue)
+		err := rabbitmq.DeclareDirectQueues(f.channel, inputQueue)
 		if err != nil {
 			f.log.Fatalf("Failed to declare queue '%s': %v", inputQueue, err)
 		}
@@ -575,7 +572,7 @@ func (f *Filter) runShardedFilter(
 
 		routingKey := fmt.Sprintf("%d", i)
 
-		err := rabbitmq.DeclareDirectQueue(f.channel, queueName)
+		err := rabbitmq.DeclareDirectQueues(f.channel, queueName)
 		f.log.Debugf("Declaring %v", queueName)
 		if err != nil {
 			f.log.Fatalf("Failed to declare queue '%s': %v", queueName, err)

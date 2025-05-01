@@ -12,6 +12,7 @@ import (
 
 func main() {
 	logger := logging.MustGetLogger("controller")
+
 	conn, err := rabbitmq.ConnectRabbitMQ(logger)
 	if err != nil {
 		logger.Fatalf("Failed to connect to RabbitMQ: %v", err)
@@ -24,24 +25,16 @@ func main() {
 	}
 	defer ch.Close()
 
-	// Declare fanout exchanges
-	exchanges := []string{"movies_exchange", "ratings_exchange", "credits_exchange"}
-	for _, name := range exchanges {
-		err := ch.ExchangeDeclare(
-			name,
-			"fanout",
-			true,
-			false,
-			false,
-			false,
-			nil,
-		)
-		if err != nil {
-			logger.Fatalf("Failed to declare exchange '%s': %v", name, err)
-		}
+	err = rabbitmq.DeclareFanoutExchanges(ch, "ratings_exchange", "credits_exchange")
+	if err != nil {
+		logger.Fatalf("Failed to declare exchanges: %v", err)
 	}
 
-	// Start gRPC server
+	err = rabbitmq.DeclareDirectQueues(ch, "movies1", "movies2")
+	if err != nil {
+		logger.Fatalf("Failed to declare movies: %v", err)
+	}
+
 	lis, err := net.Listen("tcp", ":50051")
 	if err != nil {
 		logger.Fatalf("Failed to listen on port 50051: %v", err)
@@ -55,7 +48,9 @@ func main() {
 	protopb.RegisterCreditServiceServer(grpcServer, ctrl)
 
 	logger.Info("gRPC server listening on :50051")
-	if err := grpcServer.Serve(lis); err != nil {
+
+	err = grpcServer.Serve(lis)
+	if err != nil {
 		logger.Fatalf("Failed to serve gRPC: %v", err)
 	}
 }

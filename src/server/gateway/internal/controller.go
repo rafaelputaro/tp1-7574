@@ -9,12 +9,16 @@ import (
 	"strconv"
 	"strings"
 	pb "tp1/protobuf/protopb"
+	"tp1/rabbitmq"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-var logger = logging.MustGetLogger("controller")
+var (
+	logger       = logging.MustGetLogger("controller")
+	moviesQueues = []string{"movies1", "movies2", "movies3"}
+)
 
 type Controller struct {
 	pb.UnimplementedMovieServiceServer
@@ -56,7 +60,7 @@ func (c *Controller) StreamMovies(stream pb.MovieService_StreamMoviesServer) err
 			return err
 		}
 
-		err = c.publish("movies_exchange", data)
+		err = c.publishToQueues(data, moviesQueues...)
 		if err != nil {
 			return err
 		}
@@ -94,7 +98,7 @@ func (c *Controller) StreamRatings(stream pb.RatingService_StreamRatingsServer) 
 			return err
 		}
 
-		err = c.publish("ratings_exchange", data)
+		err = c.publishToExchange("ratings_exchange", data)
 		if err != nil {
 			return err
 		}
@@ -132,7 +136,7 @@ func (c *Controller) StreamCredits(stream pb.CreditService_StreamCreditsServer) 
 			return err
 		}
 
-		err = c.publish("credits_exchange", data)
+		err = c.publishToExchange("credits_exchange", data)
 		if err != nil {
 			return err
 		}
@@ -141,17 +145,18 @@ func (c *Controller) StreamCredits(stream pb.CreditService_StreamCreditsServer) 
 	}
 }
 
-func (c *Controller) publish(exchange string, data []byte) error {
-	return c.ch.Publish(
-		exchange,
-		"",
-		false,
-		false,
-		amqp.Publishing{
-			ContentType: "application/protobuf",
-			Body:        data,
-		},
-	)
+func (c *Controller) publishToExchange(exchange string, data []byte) error {
+	return rabbitmq.Publish(c.ch, exchange, "", data)
+}
+
+func (c *Controller) publishToQueues(data []byte, queues ...string) error {
+	for _, queue := range queues {
+		err := rabbitmq.Publish(c.ch, "", queue, data)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (c *Controller) publishMovieEof() error {
@@ -168,7 +173,7 @@ func (c *Controller) publishMovieEof() error {
 		return err
 	}
 
-	err = c.publish("movies_exchange", data)
+	err = c.publishToQueues(data, moviesQueues...)
 	if err != nil {
 		return err
 	}
@@ -185,7 +190,7 @@ func (c *Controller) publishCreditEof() error {
 		return err
 	}
 
-	err = c.publish("credits_exchange", data)
+	err = c.publishToExchange("credits_exchange", data)
 	if err != nil {
 		return err
 	}
@@ -203,7 +208,7 @@ func (c *Controller) publishRatingEof() error {
 		return err
 	}
 
-	err = c.publish("ratings_exchange", data)
+	err = c.publishToExchange("ratings_exchange", data)
 	if err != nil {
 		return err
 	}

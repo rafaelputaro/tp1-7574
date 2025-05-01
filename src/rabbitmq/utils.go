@@ -7,7 +7,6 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-// Attempts to establish a connection with RabbitMQ, retrying at most 5 times with 5 seconds intervals
 func ConnectRabbitMQ(log *logging.Logger) (*amqp.Connection, error) {
 	var conn *amqp.Connection
 	var err error
@@ -29,27 +28,64 @@ func ConnectRabbitMQ(log *logging.Logger) (*amqp.Connection, error) {
 	return nil, err
 }
 
-// Attempts to declare a direct queue in rabbitmq
-func DeclareDirectQueue(channel *amqp.Channel, queue string) error {
-	_, err := channel.QueueDeclare(
-		queue, // name
-		true,  // durable: the queue is maintained event after the broker is resetted
-		false, // autoDelete: the queue is not automatically deleted when there are no more consumers
-		false, // exclusive: the queue can be accessed by multiple connections
-		false, // no-wait: wait for the broker's confirmation to know if the queue was succesfully created
-		nil,   // args
-	)
-	return err
+func DeclareDirectQueues(channel *amqp.Channel, queues ...string) error {
+	for _, queue := range queues {
+		_, err := channel.QueueDeclare(
+			queue,
+			true,
+			false,
+			false,
+			false,
+			nil,
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func ConsumeFromQueue(channel *amqp.Channel, queue string) (<-chan amqp.Delivery, error) {
 	return channel.Consume(
-		queue, // name
-		"",    // consumerTag: "" lets rabbitmq generate a tag for this consumer
-		true,  // autoAck: when a msg arrives, the consumers acks the msg
-		false, // exclusive: allow others to consume from the queue
-		false, // no-local: ignored field
-		false, // no-wait: wait for confirmation of the consumers correct registration
-		nil,   // args
+		queue,
+		"",
+		true,
+		false,
+		false,
+		false,
+		nil,
+	)
+}
+
+func DeclareFanoutExchanges(channel *amqp.Channel, exchanges ...string) error {
+	for _, name := range exchanges {
+		err := channel.ExchangeDeclare(
+			name,
+			"fanout",
+			true,
+			false,
+			false,
+			false,
+			nil,
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func Publish(channel *amqp.Channel, exchange, routingKey string, data []byte) error {
+	return channel.Publish(
+		exchange,
+		routingKey,
+		false,
+		false,
+		amqp.Publishing{
+			ContentType: "application/protobuf",
+			Body:        data,
+		},
 	)
 }
