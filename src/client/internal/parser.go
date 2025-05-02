@@ -91,6 +91,12 @@ func NewCreditsParser(path string, batchSize int) (Parser[pb.Credit], error) {
 	return newBatchCSVParser[pb.Credit](path, parseCredit, batchSize)
 }
 
+func ShutdownParser[T any](p Parser[T]) {
+	if p != nil {
+		_ = p.Close()
+	}
+}
+
 func parseMovie(record []string) (*pb.Movie, error) {
 	budget, _ := strconv.Atoi(record[2])
 	id, _ := strconv.Atoi(record[5])

@@ -89,3 +89,15 @@ func Publish(channel *amqp.Channel, exchange, routingKey string, data []byte) er
 		},
 	)
 }
+
+func ShutdownConnection(conn *amqp.Connection) {
+	if conn != nil {
+		_ = conn.Close()
+	}
+}
+
+func ShutdownChannel(ch *amqp.Channel) {
+	if ch != nil {
+		_ = ch.Close()
+	}
+}

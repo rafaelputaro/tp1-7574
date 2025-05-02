@@ -318,6 +318,7 @@ docker_compose_txt += f"""
             - controller
         volumes:
             - ./src/client/datasets:/app/datasets
+            - ./reports:/app
         entrypoint: /client
         command:
             - /app/datasets/movies.csv

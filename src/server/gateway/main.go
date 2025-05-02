@@ -18,13 +18,13 @@ func main() {
 	if err != nil {
 		logger.Fatalf("Failed to connect to RabbitMQ: %v", err)
 	}
-	defer conn.Close()
+	defer rabbitmq.ShutdownConnection(conn)
 
 	ch, err := conn.Channel()
 	if err != nil {
 		logger.Fatalf("Failed to open RabbitMQ channel: %v", err)
 	}
-	defer ch.Close()
+	defer rabbitmq.ShutdownChannel(ch)
 
 	err = rabbitmq.DeclareFanoutExchanges(ch, config.Exchanges...)
 	if err != nil {

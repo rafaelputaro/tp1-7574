@@ -238,6 +238,7 @@ services:
             - controller
         volumes:
             - ./src/client/datasets:/app/datasets
+            - ./reports:/app
         entrypoint: /client
         command:
             - /app/datasets/movies.csv
