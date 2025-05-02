@@ -434,7 +434,7 @@ func (aggregator *Aggregator) consumeQueue(config QueueConfig) (<-chan amqp.Deli
 	if err != nil {
 		aggregator.Log.Fatalf("%s '%s': %v", MSG_FAILED_CONSUME, config.Name, err)
 	}
-	aggregator.Log.Infof("[aggregator_%s] Waiting for messages...", aggregator.Config.AggregatorType)
+	aggregator.Log.Infof("[aggregator_%s] Waiting for messages in queue %s ...", config.Name, aggregator.Config.AggregatorType)
 	return msgs, err
 }
 

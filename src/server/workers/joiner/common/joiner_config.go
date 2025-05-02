@@ -55,7 +55,7 @@ func LoadJoinerConfig() *JoinerConfig {
 	// get values
 	id := v.GetString("id")
 	joinerType := v.GetString("type")
-	inputQueue := getShardQueueName(v.GetString("input_queue.base_name"), id)
+	inputQueue := getShardQueueName(v.GetString("input_queue.base_name"), id) // Esta usando el ID para calcular el shard. En el compose el ID es 2 a pesar de que el shard es 1.
 	inputQueueSec := v.GetString("input_queue_sec.name")
 	outputQueue := v.GetString("output_queue.name")
 	inputQueuesExchange := getExchangeName(id)
