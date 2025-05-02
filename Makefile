@@ -11,6 +11,11 @@ deps:
 	cd src && go mod tidy
 	cd src && go mod vendor
 
+docker-compose-dev.yaml: compose-generator.py config.ini
+	python3 compose-generator.py
+.PHONY: docker-compose-dev.yaml
+
+
 # `-f`: used to specify the dockerfile location
 # `-t`: is used to asign a tag to the created image. <image name>:<tag>
 # `.`: sets the build context to the current directory (root of the proyect). That means that when
@@ -27,7 +32,7 @@ docker-image: deps
 
 # `-d`: detached mode. Run the containers in the background as to not take over the terminal session.
 # `--build`: force the rebuilding of the images before starting the containers.
-docker-compose-up: docker-image
+docker-compose-up: docker-compose-dev.yaml docker-image
 	docker compose -f docker-compose-dev.yaml up -d --build
 .PHONY: docker-compose-up
 
