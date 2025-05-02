@@ -34,6 +34,8 @@ go mod download
 go get -u all
 go mod tidy
 go mod vendor
+
+pip install Jinja2
 ```
 
 Generar archivos proto
