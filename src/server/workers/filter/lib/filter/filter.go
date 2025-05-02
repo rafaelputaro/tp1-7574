@@ -315,8 +315,7 @@ func (f *Filter) processTop5InvestorsFilter() {
 // * 3: "Películas de Producción Argentina estrenadas a partir del 2000, con mayor y menor promedio de rating"
 // * 4: "Top 10 de actores con mayor participación en películas de producción Argentina posterior al 2000"
 func (f *Filter) processYearFilters() {
-	exchangeName := "movies_exchange"
-	exchangeType := "fanout"
+	inputQueue := "movies2"
 
 	outputQueues := map[string]func(uint32) bool{
 		"movies_2000_to_2009":   func(year uint32) bool { return year >= 2000 && year <= 2009 },
@@ -327,42 +326,9 @@ func (f *Filter) processYearFilters() {
 
 	f.log.Infof("[%s] Starting job for ID: %d", filterName, f.config.ID)
 
-	err := f.channel.ExchangeDeclare(
-		exchangeName,
-		exchangeType,
-		true,  // durable
-		false, // auto-deleted
-		false, // internal
-		false, // no-wait
-		nil,   // args
-	)
+	err := rabbitmq.DeclareDirectQueues(f.channel, inputQueue)
 	if err != nil {
-		f.log.Fatalf("[%s] Failed to declare exchange: %v", filterName, err)
-	}
-
-	// Declare temporal queue used to read from the exchange
-	inputQueue, err := f.channel.QueueDeclare(
-		"",    // empty = temporal queue with generated name
-		false, // durable
-		true,  // auto-delete when unused
-		true,  // exclusive
-		false, // no-wait
-		nil,
-	)
-	if err != nil {
-		f.log.Fatalf("[%s] Failed to declare temporary queue: %v", filterName, err)
-	}
-
-	// Bind the queue to the exchange
-	err = f.channel.QueueBind(
-		inputQueue.Name, // queue name
-		"",              // routing key (empty on a fanout)
-		exchangeName,    // exchange
-		false,
-		nil,
-	)
-	if err != nil {
-		f.log.Fatalf("[%s] Failed to bind queue to exchange: %v", filterName, err)
+		f.log.Fatalf("Failed to declare queue '%s': %v", inputQueue, err)
 	}
 
 	for outputQueue := range outputQueues {
@@ -372,9 +338,9 @@ func (f *Filter) processYearFilters() {
 		}
 	}
 
-	msgs, err := rabbitmq.ConsumeFromQueue(f.channel, inputQueue.Name)
+	msgs, err := rabbitmq.ConsumeFromQueue(f.channel, inputQueue)
 	if err != nil {
-		f.log.Fatalf("[%s] Failed to consume messages from '%s': %v", filterName, inputQueue.Name, err)
+		f.log.Fatalf("[%s] Failed to consume messages from '%s': %v", filterName, inputQueue, err)
 	}
 
 	f.log.Infof("[%s] Waiting for messages...", filterName)
@@ -467,49 +433,9 @@ func (f *Filter) processArFilter() {
 }
 
 func (f *Filter) processSingleCountryOriginFilter() {
-	inputExchange := "movies_exchange"
-	exchangeType := "fanout"
+	inputQueue := "movies1"
 	outputExchange := "single_country_origin_exchange"
-
 	filterName := "single_country_origin_filter"
-
-	err := f.channel.ExchangeDeclare(
-		inputExchange,
-		exchangeType,
-		true,  // durable
-		false, // auto-deleted
-		false, // internal
-		false, // no-wait
-		nil,   // args
-	)
-	if err != nil {
-		f.log.Fatalf("[%s] Failed to declare exchange: %v", filterName, err)
-	}
-
-	// Declare temporal queue used to read from the exchange
-	inputQueue, err := f.channel.QueueDeclare(
-		"movies_for_single_country_origin", // empty = temporal queue with generated name
-		false,                              // durable
-		true,                               // auto-delete when unused
-		true,                               // exclusive
-		false,                              // no-wait
-		nil,
-	)
-	if err != nil {
-		f.log.Fatalf("[%s] Failed to declare temporary queue: %v", filterName, err)
-	}
-
-	// Bind the queue to the exchange
-	err = f.channel.QueueBind(
-		inputQueue.Name, // queue name
-		"",              // routing key (empty on a fanout)
-		inputExchange,   // exchange
-		false,
-		nil,
-	)
-	if err != nil {
-		f.log.Fatalf("[%s] Failed to bind queue to exchange: %v", filterName, err)
-	}
 
 	filterFunc := func(movie *protopb.MovieSanit) bool {
 		productionCountries := movie.GetProductionCountries()
@@ -531,8 +457,7 @@ func (f *Filter) processSingleCountryOriginFilter() {
 		return (int(hasher.Sum32()) % f.config.Shards) + 1
 	}
 
-	declareInput := false
-	f.runShardedFilter(inputQueue.Name, declareInput, outputExchange, filterName, filterFunc, shardingFunc)
+	f.runShardedFilter(inputQueue, true, outputExchange, filterName, filterFunc, shardingFunc)
 }
 
 // Creates a direct exchange using sharding with routing keys

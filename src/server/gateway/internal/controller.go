@@ -8,6 +8,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"tp1/config"
 	pb "tp1/protobuf/protopb"
 	"tp1/rabbitmq"
 
@@ -16,8 +17,7 @@ import (
 )
 
 var (
-	logger       = logging.MustGetLogger("controller")
-	moviesQueues = []string{"movies1", "movies2", "movies3"}
+	logger = logging.MustGetLogger("controller")
 )
 
 type Controller struct {
@@ -42,7 +42,7 @@ func (c *Controller) StreamMovies(stream pb.MovieService_StreamMoviesServer) err
 				logger.Errorf("failed to publish movie EOF message: %v", err)
 				return err
 			}
-			logger.Infof("StreamMovies: published %d movies to 'movies_exchange'", count)
+			logger.Infof("StreamMovies: published %d movies", count)
 			return stream.SendAndClose(&emptypb.Empty{})
 		}
 		if err != nil {
@@ -60,7 +60,7 @@ func (c *Controller) StreamMovies(stream pb.MovieService_StreamMoviesServer) err
 			return err
 		}
 
-		err = c.publishToQueues(data, moviesQueues...)
+		err = c.publishToQueues(data, config.MoviesQueues...)
 		if err != nil {
 			return err
 		}
@@ -80,7 +80,7 @@ func (c *Controller) StreamRatings(stream pb.RatingService_StreamRatingsServer) 
 				logger.Errorf("failed to publish rating EOF message: %v", err)
 				return err
 			}
-			logger.Infof("StreamRatings: published %d ratings to 'ratings_exchange'", count)
+			logger.Infof("StreamRatings: published %d ratings", count)
 			return stream.SendAndClose(&emptypb.Empty{})
 		}
 		if err != nil {
@@ -98,7 +98,7 @@ func (c *Controller) StreamRatings(stream pb.RatingService_StreamRatingsServer) 
 			return err
 		}
 
-		err = c.publishToExchange("ratings_exchange", data)
+		err = c.publishToExchange(config.RatingsExchange, data)
 		if err != nil {
 			return err
 		}
@@ -118,7 +118,7 @@ func (c *Controller) StreamCredits(stream pb.CreditService_StreamCreditsServer) 
 				logger.Errorf("failed to publish credit EOF message: %v", err)
 				return err
 			}
-			logger.Infof("StreamCredits: published %d credits to 'credits_exchange'", count)
+			logger.Infof("StreamCredits: published %d credits", count)
 			return stream.SendAndClose(&emptypb.Empty{})
 		}
 		if err != nil {
@@ -136,7 +136,7 @@ func (c *Controller) StreamCredits(stream pb.CreditService_StreamCreditsServer) 
 			return err
 		}
 
-		err = c.publishToExchange("credits_exchange", data)
+		err = c.publishToExchange(config.CreditsExchange, data)
 		if err != nil {
 			return err
 		}
@@ -173,7 +173,7 @@ func (c *Controller) publishMovieEof() error {
 		return err
 	}
 
-	err = c.publishToQueues(data, moviesQueues...)
+	err = c.publishToQueues(data, config.MoviesQueues...)
 	if err != nil {
 		return err
 	}
@@ -190,7 +190,7 @@ func (c *Controller) publishCreditEof() error {
 		return err
 	}
 
-	err = c.publishToExchange("credits_exchange", data)
+	err = c.publishToExchange(config.CreditsExchange, data)
 	if err != nil {
 		return err
 	}
@@ -208,7 +208,7 @@ func (c *Controller) publishRatingEof() error {
 		return err
 	}
 
-	err = c.publishToExchange("ratings_exchange", data)
+	err = c.publishToExchange(config.RatingsExchange, data)
 	if err != nil {
 		return err
 	}
