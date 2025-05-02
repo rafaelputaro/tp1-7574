@@ -142,3 +142,57 @@ func createDummyRating(clientId string, eof bool) *protopb.Rating {
 func createEofRating(clientId string) *protopb.Rating {
 	return createDummyRating(clientId, true)
 }
+
+func createDummyRevenueOverBudget(clientId string, eof bool) *protopb.RevenueOverBudget {
+	return &protopb.RevenueOverBudget{
+		SumRevenueOverBudget: proto.Float64(0.0),
+		AmountReviews:        proto.Int64(0),
+		ClientId:             &clientId,
+		Eof:                  proto.Bool(eof),
+	}
+}
+
+func createEofRevenueOverBudget(clientId string) *protopb.RevenueOverBudget {
+	return createDummyRevenueOverBudget(clientId, true)
+}
+
+func createDummyTop5Country(clientId string, eof bool) *protopb.Top5Country {
+	return &protopb.Top5Country{
+		Budget:              []int32{},
+		ProductionCountries: []string{},
+		ClientId:            &clientId,
+		Eof:                 proto.Bool(eof),
+	}
+}
+
+func createEofTop5Country(clientId string) *protopb.Top5Country {
+	return createDummyTop5Country(clientId, true)
+}
+
+func createDummyTop10(clientId string, eof bool) *protopb.Top10 {
+	return &protopb.Top10{
+		Names:        []string{},
+		ProfilePaths: []string{},
+		CountMovies:  []int64{},
+		ClientId:     &clientId,
+		Eof:          proto.Bool(eof),
+	}
+}
+
+func createEofTop10(clientId string) *protopb.Top10 {
+	return createDummyTop10(clientId, true)
+}
+
+func createDummyTopAndBottomRatingAvg(clientId string, eof bool) *protopb.TopAndBottomRatingAvg {
+	return &protopb.TopAndBottomRatingAvg{
+		TitleTop:        proto.String("Dummy"),
+		RatingAvgTop:    proto.Float64(0.0),
+		RatingAvgBottom: proto.Float64(0.0),
+		ClientId:        &clientId,
+		Eof:             proto.Bool(eof),
+	}
+}
+
+func createEofTopAndBottomRatingAvg(clientId string) *protopb.TopAndBottomRatingAvg {
+	return createDummyTopAndBottomRatingAvg(clientId, true)
+}
