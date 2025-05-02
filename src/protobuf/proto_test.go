@@ -128,3 +128,25 @@ func TestRatingSanit(t *testing.T) {
 	checkMarshal(t, data, err)
 	checkUnmarshal(t, proto.Unmarshal(data, &protopb.RatingSanit{}))
 }
+
+func TestEof(t *testing.T) {
+	actor := createEofActor("0")
+	credit := createEofCredit("0")
+	creditSanit := createEofCreditSanit("0")
+	metrics := createEofMetrics("0")
+	movie := createEofMovie("0")
+	movieSanit := createEofMovieSanit("0")
+	rating := createEofRating("0")
+	ratingSanit := createEofRatingSanit("0")
+	revOveBud := createEofRevenueOverBudget("0")
+	top10 := createEofTop10("0")
+	top5Country := createEofTop5Country("0")
+	topAndBottomRatAvg := createEofTopAndBottomRatingAvg("0")
+	test := actor.GetEof() && credit.GetEof() && creditSanit.GetEof() && metrics.GetEof() &&
+		movie.GetEof() && movieSanit.GetEof() && rating.GetEof() && ratingSanit.GetEof() &&
+		rating.GetEof() && revOveBud.GetEof() && top10.GetEof() && top5Country.GetEof() &&
+		topAndBottomRatAvg.GetEof()
+	if !test {
+		t.Fatal("Error on create Eof")
+	}
+}
