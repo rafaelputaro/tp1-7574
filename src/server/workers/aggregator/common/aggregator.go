@@ -3,6 +3,7 @@ package common
 import (
 	"sync"
 	"tp1/protobuf/protopb"
+	protoUtils "tp1/protobuf/utils"
 	rabbitUtils "tp1/rabbitmq"
 
 	"tp1/server/workers/aggregator/common/utils"
@@ -206,6 +207,15 @@ func (aggregator *Aggregator) publishData(data []byte) {
 	}
 }
 
+// Check error and publish
+func (aggregator *Aggregator) checkErrorAndPublish(data []byte, err error) {
+	if err != nil {
+		aggregator.Log.Fatalf("[aggregator_%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_MARSHAL, err)
+	} else {
+		aggregator.publishData(data)
+	}
+}
+
 func (aggregator *Aggregator) aggregateMovies() {
 	msgs, err := aggregator.consumeQueue(aggregator.Config.InputQueue)
 	if err == nil {
@@ -299,7 +309,7 @@ func (aggregator *Aggregator) aggregateTop10() {
 					// send top10 to report
 					aggregator.publishData(data)
 					// submit the EOF to report
-					aggregator.publishData(msg.Body)
+					aggregator.checkErrorAndPublish(protoUtils.CreateEofMessageTop10(""))
 					break
 				}
 			}

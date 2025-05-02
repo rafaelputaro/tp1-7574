@@ -3,6 +3,7 @@ package proto
 import (
 	"testing"
 	"tp1/protobuf/protopb"
+	protoUtils "tp1/protobuf/utils"
 
 	"google.golang.org/protobuf/proto"
 )
@@ -130,18 +131,18 @@ func TestRatingSanit(t *testing.T) {
 }
 
 func TestEof(t *testing.T) {
-	actor := createEofActor("0")
-	credit := createEofCredit("0")
-	creditSanit := createEofCreditSanit("0")
-	metrics := createEofMetrics("0")
-	movie := createEofMovie("0")
-	movieSanit := createEofMovieSanit("0")
-	rating := createEofRating("0")
-	ratingSanit := createEofRatingSanit("0")
-	revOveBud := createEofRevenueOverBudget("0")
-	top10 := createEofTop10("0")
-	top5Country := createEofTop5Country("0")
-	topAndBottomRatAvg := createEofTopAndBottomRatingAvg("0")
+	actor := protoUtils.CreateEofActor("0")
+	credit := protoUtils.CreateEofCredit("0")
+	creditSanit := protoUtils.CreateEofCreditSanit("0")
+	metrics := protoUtils.CreateEofMetrics("0")
+	movie := protoUtils.CreateEofMovie("0")
+	movieSanit := protoUtils.CreateEofMovieSanit("0")
+	rating := protoUtils.CreateEofRating("0")
+	ratingSanit := protoUtils.CreateEofRatingSanit("0")
+	revOveBud := protoUtils.CreateEofRevenueOverBudget("0")
+	top10 := protoUtils.CreateEofTop10("0")
+	top5Country := protoUtils.CreateEofTop5Country("0")
+	topAndBottomRatAvg := protoUtils.CreateEofTopAndBottomRatingAvg("0")
 	test := actor.GetEof() && credit.GetEof() && creditSanit.GetEof() && metrics.GetEof() &&
 		movie.GetEof() && movieSanit.GetEof() && rating.GetEof() && ratingSanit.GetEof() &&
 		rating.GetEof() && revOveBud.GetEof() && top10.GetEof() && top5Country.GetEof() &&
