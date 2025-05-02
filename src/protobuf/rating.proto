@@ -9,7 +9,8 @@ message Rating {
   required int64 movieId = 2;
   required float rating = 3;
   required int64 timestamp = 4;
-  optional bool eof = 5;
+  optional string clientId = 5;
+  optional bool eof = 6;
 }
 
 service RatingService {

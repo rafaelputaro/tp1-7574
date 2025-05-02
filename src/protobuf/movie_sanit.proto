@@ -9,5 +9,6 @@ message MovieSanit {
   required uint32 release_year = 6;
   required double revenue = 7;
   required string title = 8;
-  optional bool eof = 9;
+  optional string clientId = 9;
+  optional bool eof = 10;
 }

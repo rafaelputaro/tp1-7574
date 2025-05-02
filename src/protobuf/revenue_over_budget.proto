@@ -3,5 +3,6 @@ option go_package = "./protopb";
 message RevenueOverBudget {
   required double sumRevenueOverBudget = 1;
   required int64 amountReviews = 2;
-  optional bool eof = 3;
+  optional string clientId = 3;
+  optional bool eof = 4;
 }

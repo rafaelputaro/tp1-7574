@@ -5,5 +5,6 @@ message TopAndBottomRatingAvg {
   optional string title_bottom = 2;
   optional double rating_avg_top = 3;
   optional double rating_avg_bottom = 4;
-  optional bool eof = 5;
+  optional string clientId = 5;
+  optional bool eof = 6;
 }

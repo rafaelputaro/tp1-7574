@@ -29,7 +29,8 @@ message Movie {
   required bool video = 22;
   required double vote_average = 23;
   required int32 vote_count = 24;
-  optional bool eof = 25;
+  optional string clientId = 25;
+  optional bool eof = 26;
 }
 
 service MovieService {
