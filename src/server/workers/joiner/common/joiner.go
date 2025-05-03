@@ -1,6 +1,7 @@
 package common
 
 import (
+	"tp1/config"
 	"tp1/protobuf/protopb"
 	"tp1/rabbitmq"
 
@@ -34,8 +35,8 @@ type Joiner struct {
 }
 
 func NewJoiner(log *logging.Logger) (*Joiner, error) {
-	var config = LoadJoinerConfig()
-	config.LogConfig(log)
+	var c = LoadJoinerConfig()
+	c.LogConfig(log)
 
 	connection, err := rabbitmq.ConnectRabbitMQ(log)
 	if err != nil {
@@ -47,17 +48,17 @@ func NewJoiner(log *logging.Logger) (*Joiner, error) {
 		Shutdown(log, connection, channel, "Error on create rabbitmq channel", err)
 	}
 
-	err = rabbitmq.DeclareDirectExchanges(channel, config.InputQueuesExchange)
+	err = rabbitmq.DeclareDirectExchanges(channel, c.InputQueuesExchange)
 	if err != nil {
 		Shutdown(log, connection, channel, "Failed to declare exchange", err)
 	}
 
-	err = rabbitmq.DeclareDirectQueues(channel, config.InputQueueName, config.OutputQueueName, config.InputQueueSecName)
+	err = rabbitmq.DeclareDirectQueues(channel, c.InputQueueName, c.OutputQueueName, c.InputQueueSecName)
 	if err != nil {
 		Shutdown(log, connection, channel, "Error on declare queue", err)
 	}
 
-	err = rabbitmq.BindQueueToExchange(channel, config.InputQueueName, config.InputQueuesExchange, "")
+	err = rabbitmq.BindQueueToExchange(channel, c.InputQueueName, c.InputQueuesExchange, "")
 	if err != nil {
 		Shutdown(log, connection, channel, "Failed to bin queue", err)
 	}
@@ -65,7 +66,7 @@ func NewJoiner(log *logging.Logger) (*Joiner, error) {
 	return &Joiner{
 		Channel:    channel,
 		Connection: connection,
-		Config:     *config,
+		Config:     *c,
 		Log:        log,
 	}, nil
 }
@@ -139,9 +140,7 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 		joiner.Log.Fatalf("[%s] Failed to bind queue to exchange: %v", joiner.Config.JoinerType, err)
 	}
 
-	// Read from credits fanout
-	exchangeName := "credits_exchange"
-	err = rabbitmq.DeclareFanoutExchanges(joiner.Channel, "credits_exchange")
+	err = rabbitmq.DeclareFanoutExchanges(joiner.Channel, config.CreditsExchange)
 	if err != nil {
 		joiner.Log.Fatalf("[%s] Failed to declare exchange: %v", joiner.Config.JoinerType, err)
 	}
@@ -161,9 +160,9 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 
 	// Bind the queue to the exchange
 	err = joiner.Channel.QueueBind(
-		inputQueue.Name, // queue name
-		"",              // routing key (empty on a fanout)
-		exchangeName,    // exchange
+		inputQueue.Name,        // queue name
+		"",                     // routing key (empty on a fanout)
+		config.CreditsExchange, // exchange
 		false,
 		nil,
 	)
@@ -272,9 +271,7 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 		joiner.Log.Fatalf("[%s] Failed to bind queue to exchange: %v", joiner.Config.JoinerType, err)
 	}
 
-	// Read from rating fanout
-	exchangeName := "ratings_exchange"
-	err = rabbitmq.DeclareFanoutExchanges(joiner.Channel, "ratings_exchange")
+	err = rabbitmq.DeclareFanoutExchanges(joiner.Channel, config.RatingsExchange)
 	if err != nil {
 		joiner.Log.Fatalf("[%s] Failed to declare exchange: %v", joiner.Config.JoinerType, err)
 	}
@@ -294,9 +291,9 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 
 	// Bind the queue to the exchange
 	err = joiner.Channel.QueueBind(
-		inputQueue.Name, // queue name
-		"",              // routing key (empty on a fanout)
-		exchangeName,    // exchange
+		inputQueue.Name,        // queue name
+		"",                     // routing key (empty on a fanout)
+		config.RatingsExchange, // exchange
 		false,
 		nil,
 	)
@@ -386,13 +383,8 @@ func (joiner *Joiner) Dispose() {
 }
 
 func Shutdown(log *logging.Logger, connection *amqp.Connection, channel *amqp.Channel, message string, err error) {
-	if connection != nil {
-		_ = connection.Close()
-	}
-
-	if channel != nil {
-		_ = channel.Close()
-	}
+	rabbitmq.ShutdownConnection(connection)
+	rabbitmq.ShutdownChannel(channel)
 
 	if err != nil {
 		log.Fatalf("%v: %v", message, err)
