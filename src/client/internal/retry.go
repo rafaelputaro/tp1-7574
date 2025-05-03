@@ -9,7 +9,7 @@ type StreamOpener[T any] func() (T, error)
 
 // RetryWithBackoff tries to execute an operation with exponential backoff + jitter.
 func RetryWithBackoff[T any](operation StreamOpener[T]) (T, error) {
-	baseDelay := time.Second
+	baseDelay := 3 * time.Second
 	maxRetries := 5
 
 	var stream T

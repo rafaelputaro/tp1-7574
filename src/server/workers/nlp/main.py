@@ -32,7 +32,7 @@ def connect_rabbitmq_with_retries(logger: logging.Logger, retries=20, delay=3):
 
 
 # Add this global counter and max limit at the top of the file
-MESSAGE_LIMIT = 100
+MESSAGE_LIMIT = 2000
 message_count = 0
 
 
@@ -85,7 +85,7 @@ def main():
     channel.queue_bind(exchange='sentiment_exchange', queue=NEGATIVE_QUEUE, routing_key=NEGATIVE_QUEUE)
 
     logger.info("Loading sentiment analysis model...")
-    sentiment_analyzer = pipeline('sentiment-analysis', model='distilbert-base-uncased-finetuned-sst-2-english')
+    sentiment_analyzer = pipeline('sentiment-analysis', model='distilbert-base-uncased-finetuned-sst-2-english', max_length=512, truncation=True)
 
     logger.info(f"Listening for messages from queue '{QUEUE_NAME}'...")
     channel.basic_consume(queue=QUEUE_NAME, on_message_callback=callback, auto_ack=True)

@@ -83,7 +83,7 @@ func NewAggregator(log *logging.Logger) (*Aggregator, error) {
 	}
 	if config.AggregatorType == METRICS {
 		// Bind the queue to the exchange
-		err = rabbitmq.BindQueueToExchange(channel, config.InputQueue, config.InputQueue, "sentiment_exchange")
+		err = rabbitmq.BindQueueToExchange(channel, config.InputQueue, "sentiment_exchange", "")
 		if err != nil {
 			log.Fatalf("[aggregator_%s] Failed on bind %s: %v", config.AggregatorType, "", err)
 		}
@@ -96,7 +96,7 @@ func NewAggregator(log *logging.Logger) (*Aggregator, error) {
 			return nil, err
 		}
 		// Bind the queue to the exchange
-		err = rabbitmq.BindQueueToExchange(channel, config.InputQueueSec, config.InputQueueSec, "sentiment_exchange")
+		err = rabbitmq.BindQueueToExchange(channel, config.InputQueueSec, "sentiment_exchange", "")
 		if err != nil {
 			log.Fatalf("[aggregator_%s] Failed on bind %s: %v", config.AggregatorType, "", err)
 		}
