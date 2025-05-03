@@ -8,7 +8,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
-	"tp1/config"
+	"tp1/globalconfig"
 	pb "tp1/protobuf/protopb"
 	"tp1/rabbitmq"
 
@@ -60,7 +60,7 @@ func (c *Controller) StreamMovies(stream pb.MovieService_StreamMoviesServer) err
 			return err
 		}
 
-		err = c.publishToQueues(data, config.MoviesQueues...)
+		err = c.publishToQueues(data, globalconfig.MoviesQueues...)
 		if err != nil {
 			return err
 		}
@@ -98,7 +98,7 @@ func (c *Controller) StreamRatings(stream pb.RatingService_StreamRatingsServer) 
 			return err
 		}
 
-		err = c.publishToExchange(config.RatingsExchange, data)
+		err = c.publishToExchange(globalconfig.RatingsExchange, data)
 		if err != nil {
 			return err
 		}
@@ -136,7 +136,7 @@ func (c *Controller) StreamCredits(stream pb.CreditService_StreamCreditsServer) 
 			return err
 		}
 
-		err = c.publishToExchange(config.CreditsExchange, data)
+		err = c.publishToExchange(globalconfig.CreditsExchange, data)
 		if err != nil {
 			return err
 		}
@@ -173,7 +173,7 @@ func (c *Controller) publishMovieEof() error {
 		return err
 	}
 
-	err = c.publishToQueues(data, config.MoviesQueues...)
+	err = c.publishToQueues(data, globalconfig.MoviesQueues...)
 	if err != nil {
 		return err
 	}
@@ -190,7 +190,7 @@ func (c *Controller) publishCreditEof() error {
 		return err
 	}
 
-	err = c.publishToExchange(config.CreditsExchange, data)
+	err = c.publishToExchange(globalconfig.CreditsExchange, data)
 	if err != nil {
 		return err
 	}
@@ -208,7 +208,7 @@ func (c *Controller) publishRatingEof() error {
 		return err
 	}
 
-	err = c.publishToExchange(config.RatingsExchange, data)
+	err = c.publishToExchange(globalconfig.RatingsExchange, data)
 	if err != nil {
 		return err
 	}

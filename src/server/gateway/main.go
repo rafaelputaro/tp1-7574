@@ -6,7 +6,7 @@ import (
 	"tp1/server/gateway/internal"
 
 	"github.com/op/go-logging"
-	"tp1/config"
+	"tp1/globalconfig"
 	"tp1/protobuf/protopb"
 	"tp1/rabbitmq"
 )
@@ -26,12 +26,12 @@ func main() {
 	}
 	defer rabbitmq.ShutdownChannel(ch)
 
-	err = rabbitmq.DeclareFanoutExchanges(ch, config.Exchanges...)
+	err = rabbitmq.DeclareFanoutExchanges(ch, globalconfig.Exchanges...)
 	if err != nil {
 		logger.Fatalf("Failed to declare exchanges: %v", err)
 	}
 
-	err = rabbitmq.DeclareDirectQueues(ch, config.MoviesQueues...)
+	err = rabbitmq.DeclareDirectQueues(ch, globalconfig.MoviesQueues...)
 	if err != nil {
 		logger.Fatalf("Failed to declare movies: %v", err)
 	}
