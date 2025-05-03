@@ -46,18 +46,6 @@ func DeclareDirectQueues(channel *amqp.Channel, queues ...string) error {
 	return nil
 }
 
-func ConsumeFromQueue(channel *amqp.Channel, queue string) (<-chan amqp.Delivery, error) {
-	return channel.Consume(
-		queue,
-		"",
-		true,
-		false,
-		false,
-		false,
-		nil,
-	)
-}
-
 func DeclareFanoutExchanges(channel *amqp.Channel, exchanges ...string) error {
 	for _, name := range exchanges {
 		err := channel.ExchangeDeclare(
@@ -75,6 +63,47 @@ func DeclareFanoutExchanges(channel *amqp.Channel, exchanges ...string) error {
 	}
 
 	return nil
+}
+
+func DeclareDirectExchanges(channel *amqp.Channel, exchanges ...string) error {
+	for _, name := range exchanges {
+		err := channel.ExchangeDeclare(
+			name,
+			"direct",
+			true,
+			false,
+			false,
+			false,
+			nil,
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func BindQueueToExchange(channel *amqp.Channel, queue, exchange, routingKey string) error {
+	return channel.QueueBind(
+		queue,
+		routingKey,
+		exchange,
+		false,
+		nil,
+	)
+}
+
+func ConsumeFromQueue(channel *amqp.Channel, queue string) (<-chan amqp.Delivery, error) {
+	return channel.Consume(
+		queue,
+		"",
+		true,
+		false,
+		false,
+		false,
+		nil,
+	)
 }
 
 func Publish(channel *amqp.Channel, exchange, routingKey string, data []byte) error {

@@ -2,7 +2,7 @@ package common
 
 import (
 	"tp1/protobuf/protopb"
-	rabbitUtils "tp1/rabbitmq"
+	"tp1/rabbitmq"
 
 	"tp1/server/workers/joiner/common/utils"
 
@@ -16,12 +16,6 @@ const G_B_M_ID_RATINGS string = "group_by_movie_id_ratings"
 const G_B_M_ID_CREDITS string = "group_by_movie_id_credits"
 
 // Messages to log:
-const MSG_ERROR_CONFIG = "Configuration could not be read from config file. Using env variables instead"
-const MSG_FAILED_TO_DECLARE_EXCHANGE = "Failed to declare exchange"
-const MSG_FAILED_TO_BIND_QUEUE = "Failed to bin queue"
-const MSG_ERROR_DIAL = "Error on dial rabbitmq"
-const MSG_ERROR_ON_CREATE_CHANNEL = "Error on create rabbitmq channel"
-const MSG_ERROR_ON_DECLARE_QUEUE = "Error on declare queue"
 const MSG_START = "Starting job for ID"
 const MSG_FAILED_CONSUME = "Failed to consume messages from"
 const MSG_JOB_FINISHED = "Job finished"
@@ -32,112 +26,47 @@ const MSG_FAILED_TO_MARSHAL = "Failed to marshal message"
 const MSG_FAILED_TO_PUBLISH_ON_OUTPUT_QUEUE = "Failed to publish on outputqueue"
 
 // Joiner which can be of types "group_by_movie_id_ratings" or "group_by_movie_id_credits".
-// InputQueue: movies
-// InputQueueSec: ratings o credits
 type Joiner struct {
-	Channel       *amqp.Channel
-	Connection    *amqp.Connection
-	InputQueue    amqp.Queue
-	InputQueueSec amqp.Queue
-	OutputQueue   amqp.Queue
-	Config        JoinerConfig
-	Log           *logging.Logger
+	Channel    *amqp.Channel
+	Connection *amqp.Connection
+	Config     JoinerConfig
+	Log        *logging.Logger
 }
 
-// Returns new joiner ready to work with rabbit
 func NewJoiner(log *logging.Logger) (*Joiner, error) {
 	var config = LoadJoinerConfig()
 	config.LogConfig(log)
-	connection, err := rabbitUtils.ConnectRabbitMQ(log)
+
+	connection, err := rabbitmq.ConnectRabbitMQ(log)
 	if err != nil {
-		log.Fatalf("%v: %v", MSG_ERROR_DIAL, err)
-		return nil, err
+		Shutdown(log, connection, nil, "Error on dial rabbitmq", err)
 	}
+
 	channel, err := connection.Channel()
 	if err != nil {
-		log.Fatalf("%v: %v", MSG_ERROR_ON_CREATE_CHANNEL, err)
-		connection.Close()
-		return nil, err
+		Shutdown(log, connection, channel, "Error on create rabbitmq channel", err)
 	}
-	err = channel.ExchangeDeclare(
-		config.InputQueuesExchange,
-		"direct",
-		true,  // durable
-		false, // auto-deleted
-		false, // internal
-		false, // no-wait
-		nil,   // args
-	)
+
+	err = rabbitmq.DeclareDirectExchanges(channel, config.InputQueuesExchange)
 	if err != nil {
-		connection.Close()
-		channel.Close()
-		log.Fatalf("%v: %v", MSG_FAILED_TO_DECLARE_EXCHANGE, err)
-		return nil, err
+		Shutdown(log, connection, channel, "Failed to declare exchange", err)
 	}
-	inputQueue, err := channel.QueueDeclare(
-		config.InputQueueName,
-		true,
-		false,
-		false,
-		false,
-		nil,
-	)
+
+	err = rabbitmq.DeclareDirectQueues(channel, config.InputQueueName, config.OutputQueueName, config.InputQueueSecName)
 	if err != nil {
-		connection.Close()
-		channel.Close()
-		log.Fatalf("%v: %v", MSG_ERROR_ON_DECLARE_QUEUE, err)
-		return nil, err
+		Shutdown(log, connection, channel, "Error on declare queue", err)
 	}
-	outputQueue, err := channel.QueueDeclare(
-		config.OutputQueueName,
-		true,
-		false,
-		false,
-		false,
-		nil,
-	)
+
+	err = rabbitmq.BindQueueToExchange(channel, config.InputQueueName, config.InputQueuesExchange, "")
 	if err != nil {
-		connection.Close()
-		channel.Close()
-		log.Fatalf("%v: %v", MSG_ERROR_ON_DECLARE_QUEUE, err)
-		return nil, err
+		Shutdown(log, connection, channel, "Failed to bin queue", err)
 	}
-	inputQueueSec, err := channel.QueueDeclare(
-		config.InputQueueSecName,
-		true,
-		false,
-		false,
-		false,
-		nil,
-	)
-	if err != nil {
-		connection.Close()
-		channel.Close()
-		log.Fatalf("%v: %v", MSG_ERROR_ON_DECLARE_QUEUE, err)
-		return nil, err
-	}
-	// Bind the queue to the exchange
-	err = channel.QueueBind(
-		config.InputQueueSecName,   // queue name
-		"",                         // routing key (empty on a fanout)
-		config.InputQueuesExchange, // exchange
-		false,
-		nil,
-	)
-	if err != nil {
-		connection.Close()
-		channel.Close()
-		log.Fatalf("%v: %v", MSG_FAILED_TO_BIND_QUEUE, err)
-		return nil, err
-	}
+
 	return &Joiner{
-		Channel:       channel,
-		Connection:    connection,
-		InputQueue:    inputQueue,
-		InputQueueSec: inputQueueSec,
-		OutputQueue:   outputQueue,
-		Config:        *config,
-		Log:           log,
+		Channel:    channel,
+		Connection: connection,
+		Config:     *config,
+		Log:        log,
 	}, nil
 }
 
@@ -212,17 +141,7 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 
 	// Read from credits fanout
 	exchangeName := "credits_exchange"
-	exchangeType := "fanout"
-
-	err = joiner.Channel.ExchangeDeclare(
-		exchangeName,
-		exchangeType,
-		true,  // durable
-		false, // auto-deleted
-		false, // internal
-		false, // no-wait
-		nil,   // args
-	)
+	err = rabbitmq.DeclareFanoutExchanges(joiner.Channel, "credits_exchange")
 	if err != nil {
 		joiner.Log.Fatalf("[%s] Failed to declare exchange: %v", joiner.Config.JoinerType, err)
 	}
@@ -355,17 +274,7 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 
 	// Read from rating fanout
 	exchangeName := "ratings_exchange"
-	exchangeType := "fanout"
-
-	err = joiner.Channel.ExchangeDeclare(
-		exchangeName,
-		exchangeType,
-		true,  // durable
-		false, // auto-deleted
-		false, // internal
-		false, // no-wait
-		nil,   // args
-	)
+	err = rabbitmq.DeclareFanoutExchanges(joiner.Channel, "ratings_exchange")
 	if err != nil {
 		joiner.Log.Fatalf("[%s] Failed to declare exchange: %v", joiner.Config.JoinerType, err)
 	}
@@ -473,10 +382,19 @@ func (joiner *Joiner) consumeQueue(name string) (<-chan amqp.Delivery, error) {
 
 func (joiner *Joiner) Dispose() {
 	joiner.Log.Infof("Close joiner")
-	if joiner.Channel != nil {
-		joiner.Channel.Close()
+	Shutdown(joiner.Log, joiner.Connection, joiner.Channel, "", nil)
+}
+
+func Shutdown(log *logging.Logger, connection *amqp.Connection, channel *amqp.Channel, message string, err error) {
+	if connection != nil {
+		_ = connection.Close()
 	}
-	if joiner.Connection != nil {
-		joiner.Connection.Close()
+
+	if channel != nil {
+		_ = channel.Close()
+	}
+
+	if err != nil {
+		log.Fatalf("%v: %v", message, err)
 	}
 }
