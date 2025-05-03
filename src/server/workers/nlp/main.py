@@ -32,7 +32,7 @@ def connect_rabbitmq_with_retries(logger: logging.Logger, retries=20, delay=3):
 
 
 # Add this global counter and max limit at the top of the file
-MESSAGE_LIMIT = 500
+MESSAGE_LIMIT = 100
 message_count = 0
 
 

@@ -42,6 +42,7 @@ Generar archivos proto
 
 ```bash
 protoc -I=./src/protobuf --go_out=./src/protobuf --go-grpc_out=./src/protobuf ./src/protobuf/*.proto
+protoc -I=./src/protobuf --python_out=./src/server/workers/nlp ./src/protobuf/movie_sanit.proto
 ```
 
 ## Tests Automáticos
