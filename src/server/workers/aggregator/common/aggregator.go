@@ -4,6 +4,7 @@ import (
 	"sync"
 	"tp1/protobuf/protopb"
 	protoUtils "tp1/protobuf/utils"
+	"tp1/rabbitmq"
 	rabbitUtils "tp1/rabbitmq"
 
 	"tp1/server/workers/aggregator/common/utils"
@@ -40,13 +41,10 @@ const MSG_FAILED_TO_GENERATE_A_METRIC = "Failure to generate a metric"
 // InputQueue: negative_movies
 // InputQueueSec: positive_movies
 type Aggregator struct {
-	Channel       *amqp.Channel
-	Connection    *amqp.Connection
-	InputQueue    amqp.Queue
-	InputQueueSec amqp.Queue
-	OutputQueue   amqp.Queue
-	Config        AggregatorConfig
-	Log           *logging.Logger
+	Channel    *amqp.Channel
+	Connection *amqp.Connection
+	Config     AggregatorConfig
+	Log        *logging.Logger
 }
 
 // Returns new aggregator ready to work with rabbit
@@ -71,41 +69,12 @@ func NewAggregator(log *logging.Logger) (*Aggregator, error) {
 	// Exchange config and bind for metrics case
 	if config.AggregatorType == METRICS {
 		// declare exchange
-		err = channel.ExchangeDeclare(
-			"sentiment_exchange",
-			"direct",
-			true,  // durable
-			false, // auto-deleted
-			false, // internal
-			false, // no-wait
-			nil,   // args
-		)
+		err = rabbitmq.DeclareDirectExchanges(channel, "sentiment_exchange")
 		if err != nil {
 			log.Fatalf("[aggregator_%s] Failed to declare exchange %s: %v", config.AggregatorType, "", err)
 		}
 	}
-	inputQueue, err := channel.QueueDeclare(
-		config.InputQueue.Name,
-		config.InputQueue.Durable,
-		config.InputQueue.DeleteWhenUnused,
-		config.InputQueue.Exclusive,
-		config.InputQueue.NoWait,
-		nil,
-	)
-	if err != nil {
-		connection.Close()
-		channel.Close()
-		log.Fatalf("%v: %v", MSG_ERROR_ON_DECLARE_QUEUE, err)
-		return nil, err
-	}
-	outputQueue, err := channel.QueueDeclare(
-		config.OutputQueue.Name,
-		config.OutputQueue.Durable,
-		config.OutputQueue.DeleteWhenUnused,
-		config.OutputQueue.Exclusive,
-		config.OutputQueue.NoWait,
-		nil,
-	)
+	err = rabbitmq.DeclareDirectQueues(channel, config.InputQueue, config.OutputQueue)
 	if err != nil {
 		connection.Close()
 		channel.Close()
@@ -113,14 +82,13 @@ func NewAggregator(log *logging.Logger) (*Aggregator, error) {
 		return nil, err
 	}
 	if config.AggregatorType == METRICS {
-		inputQueueSec, err := channel.QueueDeclare(
-			config.InputQueueSec.Name,
-			config.InputQueueSec.Durable,
-			config.InputQueueSec.DeleteWhenUnused,
-			config.InputQueueSec.Exclusive,
-			config.InputQueueSec.NoWait,
-			nil,
-		)
+		// Bind the queue to the exchange
+		err = rabbitmq.BindQueueToExchange(channel, config.InputQueue, config.InputQueue, "sentiment_exchange")
+		if err != nil {
+			log.Fatalf("[aggregator_%s] Failed on bind %s: %v", config.AggregatorType, "", err)
+		}
+		// Declare secundary input queue
+		err = rabbitmq.DeclareDirectQueues(channel, config.InputQueueSec)
 		if err != nil {
 			connection.Close()
 			channel.Close()
@@ -128,50 +96,28 @@ func NewAggregator(log *logging.Logger) (*Aggregator, error) {
 			return nil, err
 		}
 		// Bind the queue to the exchange
-		err = channel.QueueBind(
-			config.InputQueue.Name, // queue name
-			config.InputQueue.Name, // routing key (empty on a fanout)
-			"sentiment_exchange",   // exchange
-			false,
-			nil,
-		)
-		if err != nil {
-			log.Fatalf("[aggregator_%s] Failed on bind %s: %v", config.AggregatorType, "", err)
-		}
-		// Bind the queue to the exchange
-		err = channel.QueueBind(
-			config.InputQueueSec.Name, // queue name
-			config.InputQueueSec.Name, // routing key (empty on a fanout)
-			"sentiment_exchange",      // exchange
-			false,
-			nil,
-		)
+		err = rabbitmq.BindQueueToExchange(channel, config.InputQueueSec, config.InputQueueSec, "sentiment_exchange")
 		if err != nil {
 			log.Fatalf("[aggregator_%s] Failed on bind %s: %v", config.AggregatorType, "", err)
 		}
 		return &Aggregator{
-			Channel:       channel,
-			Connection:    connection,
-			InputQueue:    inputQueue,
-			InputQueueSec: inputQueueSec,
-			OutputQueue:   outputQueue,
-			Config:        *config,
-			Log:           log,
+			Channel:    channel,
+			Connection: connection,
+			Config:     *config,
+			Log:        log,
 		}, nil
 	}
 	return &Aggregator{
-		Channel:     channel,
-		Connection:  connection,
-		InputQueue:  inputQueue,
-		OutputQueue: outputQueue,
-		Config:      *config,
-		Log:         log,
+		Channel:    channel,
+		Connection: connection,
+		Config:     *config,
+		Log:        log,
 	}, nil
 }
 
 // Init aggregator loop
 func (aggregator *Aggregator) Start() {
-	aggregator.Log.Infof("[aggregator_%s] %s: %d", aggregator.Config.AggregatorType, MSG_START, aggregator.Config.ID)
+	aggregator.Log.Infof("[aggregator_%s] %s: %s", aggregator.Config.AggregatorType, MSG_START, aggregator.Config.ID)
 	switch aggregator.Config.AggregatorType {
 	case MOVIES:
 		aggregator.aggregateMovies()
@@ -198,10 +144,7 @@ func (aggregator *Aggregator) checkEofSingleQueue(amountEOF int) bool {
 
 // Send to report
 func (aggregator *Aggregator) publishData(data []byte) {
-	err := aggregator.Channel.Publish("", aggregator.Config.OutputQueue.Name, false, false, amqp.Publishing{
-		ContentType: "application/protobuf",
-		Body:        data,
-	})
+	err := rabbitmq.Publish(aggregator.Channel, "", aggregator.Config.OutputQueue, data)
 	if err != nil {
 		aggregator.Log.Errorf("[aggregator_%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_PUBLISH_ON_OUTPUT_QUEUE, err)
 	}
@@ -244,7 +187,7 @@ func (aggregator *Aggregator) aggregateMovies() {
 func (aggregator *Aggregator) aggregateTop5() {
 	msgs, err := aggregator.consumeQueue(aggregator.Config.InputQueue)
 	if err != nil {
-		aggregator.Log.Fatalf("%s '%s': %v", MSG_FAILED_CONSUME, aggregator.Config.InputQueue.Name, err)
+		aggregator.Log.Fatalf("%s '%s': %v", MSG_FAILED_CONSUME, aggregator.Config.InputQueue, err)
 	}
 
 	amountEOF := 0
@@ -393,8 +336,8 @@ func (aggregator *Aggregator) aggregateMetrics() {
 	aggregator.publishData(data)
 }
 
-func (aggregator *Aggregator) aggregateMetric(config QueueConfig) (float64, error) {
-	msgs, err := aggregator.consumeQueue(config)
+func (aggregator *Aggregator) aggregateMetric(queueName string) (float64, error) {
+	msgs, err := aggregator.consumeQueue(queueName)
 	if err == nil {
 		amountEOF := 0
 		var avgRevenueOverBudget float64 = 0.0
@@ -406,7 +349,7 @@ func (aggregator *Aggregator) aggregateMetric(config QueueConfig) (float64, erro
 				aggregator.Log.Errorf("[aggregator_%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_UNMARSHAL, err)
 				continue
 			}
-			aggregator.Log.Debugf("aggregateMetric - queue %s - got message %s - eof %t", config.Name, movie.GetTitle(), movie.GetEof())
+			aggregator.Log.Debugf("aggregateMetric - queue %s - got message %s - eof %t", queueName, movie.GetTitle(), movie.GetEof())
 
 			// EOF
 			if movie.GetEof() {
@@ -431,20 +374,12 @@ func (aggregator *Aggregator) aggregateMetric(config QueueConfig) (float64, erro
 	}
 }
 
-func (aggregator *Aggregator) consumeQueue(config QueueConfig) (<-chan amqp.Delivery, error) {
-	msgs, err := aggregator.Channel.Consume(
-		config.Name,      // name
-		"",               // consumerTag: "" lets rabbitmq generate a tag for this consumer
-		true,             // autoAck: when a msg arrives, the consumers acks the msg
-		config.Exclusive, // exclusive: allow others to consume from the queue
-		false,            // no-local: ignored field
-		config.NoWait,    // no-wait: wait for confirmation of the consumers correct registration
-		nil,              // args
-	)
+func (aggregator *Aggregator) consumeQueue(queueName string) (<-chan amqp.Delivery, error) {
+	msgs, err := rabbitmq.ConsumeFromQueue(aggregator.Channel, queueName)
 	if err != nil {
-		aggregator.Log.Fatalf("%s '%s': %v", MSG_FAILED_CONSUME, config.Name, err)
+		aggregator.Log.Fatalf("%s '%s': %v", MSG_FAILED_CONSUME, queueName, err)
 	}
-	aggregator.Log.Infof("[aggregator_%s] Waiting for messages in queue %s ...", config.Name, aggregator.Config.AggregatorType)
+	aggregator.Log.Infof("[aggregator_%s] Waiting for messages in queue %s ...", queueName, aggregator.Config.AggregatorType)
 	return msgs, err
 }
 
