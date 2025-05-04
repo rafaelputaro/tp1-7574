@@ -102,3 +102,22 @@ func TestTop10(t *testing.T) {
 		t.Fatal("Error on reduce top10")
 	}
 }
+
+func TestMap(t *testing.T) {
+	init := func() int {
+		return 1
+	}
+	aMap := make(map[string]int)
+
+	aMap["0"] = GetOrInitKeyMap(&aMap, "0", init) + 1
+
+	if aMap["0"] != 2 {
+		t.Fatal("Error on map")
+	}
+
+	aMap["0"] = GetOrInitKeyMap(&aMap, "0", init) + 1
+
+	if aMap["0"] != 3 {
+		t.Fatal("Error on map")
+	}
+}
