@@ -338,40 +338,41 @@ func (aggregator *Aggregator) aggregateMetrics() {
 
 func (aggregator *Aggregator) aggregateMetric(queueName string) (float64, error) {
 	msgs, err := aggregator.consumeQueue(queueName)
-	if err == nil {
-		amountEOF := 0
-		var avgRevenueOverBudget float64 = 0.0
-		var count int64 = 0
-		var sumAvg float64 = 0.0
-		for msg := range msgs {
-			var movie protopb.MovieSanit
-			if err := proto.Unmarshal(msg.Body, &movie); err != nil {
-				aggregator.Log.Errorf("[aggregator_%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_UNMARSHAL, err)
-				continue
-			}
-			aggregator.Log.Debugf("aggregateMetric - queue %s - got message %s - eof %t - count %d", queueName, movie.GetTitle(), movie.GetEof(), count)
-
-			// EOF
-			if movie.GetEof() {
-				amountEOF += 1
-				// If all sources sent EOF calculate avg and break loop
-				if aggregator.checkEofSingleQueue(amountEOF) {
-					if count != 0 {
-						avgRevenueOverBudget = sumAvg / float64(count)
-					}
-					aggregator.Log.Debugf("[aggregator_%s] %s: AvgRevenueOverBudget: %v", aggregator.Config.AggregatorType, MSG_AGGREGATED, avgRevenueOverBudget)
-					break
-				}
-				continue
-			}
-			// update sum and count
-			count++
-			sumAvg += (*movie.Revenue) / float64(*movie.Budget)
-		}
-		return avgRevenueOverBudget, nil
-	} else {
+	if err != nil {
 		return 0.0, err
 	}
+
+	amountEOF := 0
+	var avgRevenueOverBudget float64 = 0.0
+	var count int64 = 0
+	var sumAvg float64 = 0.0
+	for msg := range msgs {
+		var movie protopb.MovieSanit
+		if err := proto.Unmarshal(msg.Body, &movie); err != nil {
+			aggregator.Log.Errorf("[aggregator_%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_UNMARSHAL, err)
+			continue
+		}
+		aggregator.Log.Debugf("aggregateMetric - queue %s - got message %s - eof %t - count %d", queueName, movie.GetTitle(), movie.GetEof(), count)
+
+		// EOF
+		if movie.GetEof() {
+			amountEOF += 1
+			// If all sources sent EOF calculate avg and break loop
+			if aggregator.checkEofSingleQueue(amountEOF) {
+				if count != 0 {
+					avgRevenueOverBudget = sumAvg / float64(count)
+				}
+				aggregator.Log.Debugf("[aggregator_%s] %s: AvgRevenueOverBudget: %v", aggregator.Config.AggregatorType, MSG_AGGREGATED, avgRevenueOverBudget)
+				break
+			}
+			continue
+		}
+		// update sum and count
+		count++
+		sumAvg += (*movie.Revenue) / float64(*movie.Budget)
+	}
+	return avgRevenueOverBudget, nil
+
 }
 
 func (aggregator *Aggregator) consumeQueue(queueName string) (<-chan amqp.Delivery, error) {

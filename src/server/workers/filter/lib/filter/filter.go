@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"tp1/globalconfig"
 	"tp1/protobuf/protopb"
 	"tp1/rabbitmq"
 
@@ -315,8 +316,6 @@ func (f *Filter) processTop5InvestorsFilter() {
 // * 3: "Películas de Producción Argentina estrenadas a partir del 2000, con mayor y menor promedio de rating"
 // * 4: "Top 10 de actores con mayor participación en películas de producción Argentina posterior al 2000"
 func (f *Filter) processYearFilters() {
-	inputQueue := "movies2"
-
 	outputQueues := map[string]func(uint32) bool{
 		"movies_2000_to_2009":   func(year uint32) bool { return year >= 2000 && year <= 2009 },
 		"movies_after_2000":     func(year uint32) bool { return year > 2000 },
@@ -326,9 +325,9 @@ func (f *Filter) processYearFilters() {
 
 	f.log.Infof("[%s] Starting job for ID: %d", filterName, f.config.ID)
 
-	err := rabbitmq.DeclareDirectQueues(f.channel, inputQueue)
+	err := rabbitmq.DeclareDirectQueues(f.channel, globalconfig.Movies2Queue)
 	if err != nil {
-		f.log.Fatalf("Failed to declare queue '%s': %v", inputQueue, err)
+		f.log.Fatalf("Failed to declare queue '%s': %v", globalconfig.Movies2Queue, err)
 	}
 
 	for outputQueue := range outputQueues {
@@ -338,9 +337,9 @@ func (f *Filter) processYearFilters() {
 		}
 	}
 
-	msgs, err := rabbitmq.ConsumeFromQueue(f.channel, inputQueue)
+	msgs, err := rabbitmq.ConsumeFromQueue(f.channel, globalconfig.Movies2Queue)
 	if err != nil {
-		f.log.Fatalf("[%s] Failed to consume messages from '%s': %v", filterName, inputQueue, err)
+		f.log.Fatalf("[%s] Failed to consume messages from '%s': %v", filterName, globalconfig.Movies2Queue, err)
 	}
 
 	f.log.Infof("[%s] Waiting for messages...", filterName)
@@ -433,7 +432,6 @@ func (f *Filter) processArFilter() {
 }
 
 func (f *Filter) processSingleCountryOriginFilter() {
-	inputQueue := "movies1"
 	outputExchange := "single_country_origin_exchange"
 	filterName := "single_country_origin_filter"
 
@@ -457,7 +455,7 @@ func (f *Filter) processSingleCountryOriginFilter() {
 		return (int(hasher.Sum32()) % f.config.Shards) + 1
 	}
 
-	f.runShardedFilter(inputQueue, true, outputExchange, filterName, filterFunc, shardingFunc)
+	f.runShardedFilter(globalconfig.Movies1Queue, true, outputExchange, filterName, filterFunc, shardingFunc)
 }
 
 // Creates a direct exchange using sharding with routing keys

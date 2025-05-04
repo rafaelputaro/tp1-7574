@@ -1,0 +1,9 @@
+# Exclude client datasets
+src/client/datasets/
+
+# Optional: other things you might not need in image builds
+*.log
+*.tmp
+__pycache__/
+*.pyc
+tests/

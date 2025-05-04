@@ -1,6 +1,7 @@
 package common
 
 import (
+	"tp1/globalconfig"
 	"tp1/protobuf/protopb"
 	"tp1/rabbitmq"
 
@@ -139,7 +140,7 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 		joiner.Log.Fatalf("[%s] Failed to bind queue to exchange: %v", joiner.Config.JoinerType, err)
 	}
 
-	err = rabbitmq.DeclareFanoutExchanges(joiner.Channel, "credits_exchange")
+	err = rabbitmq.DeclareFanoutExchanges(joiner.Channel, globalconfig.CreditsExchange)
 	if err != nil {
 		joiner.Log.Fatalf("[%s] Failed to declare exchange: %v", joiner.Config.JoinerType, err)
 	}
@@ -159,9 +160,9 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 
 	// Bind the queue to the exchange
 	err = joiner.Channel.QueueBind(
-		inputQueue.Name,    // queue name
-		"",                 // routing key (empty on a fanout)
-		"credits_exchange", // exchange
+		inputQueue.Name,              // queue name
+		"",                           // routing key (empty on a fanout)
+		globalconfig.CreditsExchange, // exchange
 		false,
 		nil,
 	)
@@ -270,7 +271,7 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 		joiner.Log.Fatalf("[%s] Failed to bind queue to exchange: %v", joiner.Config.JoinerType, err)
 	}
 
-	err = rabbitmq.DeclareFanoutExchanges(joiner.Channel, "ratings_exchange")
+	err = rabbitmq.DeclareFanoutExchanges(joiner.Channel, globalconfig.RatingsExchange)
 	if err != nil {
 		joiner.Log.Fatalf("[%s] Failed to declare exchange: %v", joiner.Config.JoinerType, err)
 	}
@@ -290,9 +291,9 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 
 	// Bind the queue to the exchange
 	err = joiner.Channel.QueueBind(
-		inputQueue.Name,    // queue name
-		"",                 // routing key (empty on a fanout)
-		"ratings_exchange", // exchange
+		inputQueue.Name,              // queue name
+		"",                           // routing key (empty on a fanout)
+		globalconfig.RatingsExchange, // exchange
 		false,
 		nil,
 	)

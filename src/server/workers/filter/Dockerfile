@@ -13,7 +13,18 @@ LABEL intermediateStageToBeDeleted=true
 
 WORKDIR /build/
 # Source code
-COPY src/ .
+RUN mkdir protobuf
+RUN mkdir rabbitmq
+RUN mkdir globalconfig
+RUN mkdir server
+RUN mkdir vendor
+COPY src/go.mod .
+COPY src/go.sum .
+COPY src/protobuf ./protobuf
+COPY src/rabbitmq ./rabbitmq
+COPY src/globalconfig ./globalconfig
+COPY src/server ./server
+COPY src/vendor ./vendor
 # Build the binary
 # * `CGO_ENABLED` must be disabled to run go binary in Alpine
 # * `GOOS=linux` tells the compiler to generate a binary for Linux
