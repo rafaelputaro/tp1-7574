@@ -207,6 +207,39 @@ services:
     depends_on:
       - rabbitmq
 
+  nlp-2:
+    container_name: nlp-2
+    image: nlp:latest
+    environment:
+      - NODE_NUM=2
+      - SHARDS=1
+    networks:
+      - tp1_net
+    depends_on:
+      - rabbitmq
+
+  nlp-3:
+    container_name: nlp-3
+    image: nlp:latest
+    environment:
+      - NODE_NUM=3
+      - SHARDS=1
+    networks:
+      - tp1_net
+    depends_on:
+      - rabbitmq
+
+  nlp-4:
+    container_name: nlp-4
+    image: nlp:latest
+    environment:
+      - NODE_NUM=4
+      - SHARDS=1
+    networks:
+      - tp1_net
+    depends_on:
+      - rabbitmq
+
 
   controller:
     container_name: controller
@@ -232,6 +265,9 @@ services:
       - top-5-investors-filter-1
       - single-country-origin-filter-1
       - nlp-1
+      - nlp-2
+      - nlp-3
+      - nlp-4
 
   client:
     container_name: client
