@@ -240,6 +240,17 @@ services:
     depends_on:
       - rabbitmq
 
+  nlp-5:
+    container_name: nlp-5
+    image: nlp:latest
+    environment:
+      - NODE_NUM=5
+      - SHARDS=1
+    networks:
+      - tp1_net
+    depends_on:
+      - rabbitmq
+
 
   controller:
     container_name: controller
@@ -268,6 +279,7 @@ services:
       - nlp-2
       - nlp-3
       - nlp-4
+      - nlp-5
 
   client:
     container_name: client

@@ -31,8 +31,6 @@ def connect_rabbitmq_with_retries(logger: logging.Logger, retries=20, delay=3):
     sys.exit(1)
 
 
-# Add this global counter and max limit at the top of the file
-MESSAGE_LIMIT = 200
 message_count = 0
 
 
@@ -41,7 +39,7 @@ def callback(ch, method, properties, body):
     movie = movie_sanit_pb2.MovieSanit()
     movie.ParseFromString(body)
 
-    if (movie.HasField("eof") and movie.eof) or message_count >= MESSAGE_LIMIT:
+    if movie.HasField("eof") and movie.eof:
         logger.info("Received EOF. Sending EOF message to all output queues...")
 
         movie.eof = True
@@ -65,8 +63,8 @@ def callback(ch, method, properties, body):
         body=movie.SerializeToString()
     )
 
-    logger.info(f"Message published to {target_queue}")
     message_count += 1
+    logger.info(f"Message published to {target_queue} - count {message_count}")
 
 
 def main():
@@ -85,7 +83,10 @@ def main():
     channel.queue_bind(exchange='sentiment_exchange', queue=NEGATIVE_QUEUE, routing_key=NEGATIVE_QUEUE)
 
     logger.info("Loading sentiment analysis model...")
-    sentiment_analyzer = pipeline('sentiment-analysis', model='distilbert-base-uncased-finetuned-sst-2-english', max_length=512, truncation=True)
+    sentiment_analyzer = pipeline('sentiment-analysis',
+                                  model='distilbert-base-uncased-finetuned-sst-2-english',
+                                  max_length=512,
+                                  truncation=True)
 
     logger.info(f"Listening for messages from queue '{QUEUE_NAME}'...")
     channel.basic_consume(queue=QUEUE_NAME, on_message_callback=callback, auto_ack=True)
