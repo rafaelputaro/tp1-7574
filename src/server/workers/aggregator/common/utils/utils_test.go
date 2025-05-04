@@ -5,12 +5,13 @@ import (
 	"strings"
 	"testing"
 	"tp1/protobuf/protopb"
+	protoUtils "tp1/protobuf/utils"
 
 	"google.golang.org/protobuf/proto"
 )
 
 func TestTop5(t *testing.T) {
-	top1 := CreateEmptyTop5()
+	top1 := protoUtils.CreateMinimumTop5Country("")
 	top1.Budget[2] = 500
 	top2 := protopb.Top5Country{
 		Budget:              []int32{50, 2000, 10000, 500},
@@ -20,14 +21,14 @@ func TestTop5(t *testing.T) {
 		Budget:              []int32{10000, 2000, 500, 500, 50},
 		ProductionCountries: []string{"USA", "England", "Empty2", "France", "Argentine"},
 	}
-	globalTop := ReduceTop5(&top1, &top2)
-	if Top5ToString(globalTop) != Top5ToString(&sorted) {
+	globalTop := ReduceTop5(top1, &top2)
+	if protoUtils.Top5ToString(globalTop) != protoUtils.Top5ToString(&sorted) {
 		t.Fatal("Error on reduce top 5")
 	}
 }
 
 func TestTopAndBottom(t *testing.T) {
-	topAndBottom1 := CreateEmptyTopAndBottom()
+	topAndBottom1 := protoUtils.CreateSeedTopAndBottom("")
 	topAndBottom2 := protopb.TopAndBottomRatingAvg{
 		TitleTop:        proto.String("Rocky"),
 		RatingAvgTop:    proto.Float64(8.3),
@@ -98,7 +99,7 @@ func TestTop10(t *testing.T) {
 		})
 	}
 	toCheck := "Mark Rufallo(14) Rosario Dawson(6) Morena Baccarin(6) Hugh Grant(5) Mel Gibson(5) Franchella(5) Gina Carano(4) Vincent D'Onofrio(4) Julia Roberts(4) Ryan Reynolds(3)"
-	if !strings.Contains(Top10ToString(actorsData.GetTop10()), toCheck) {
+	if !strings.Contains(protoUtils.Top10ToString(actorsData.GetTop10()), toCheck) {
 		t.Fatal("Error on reduce top10")
 	}
 }

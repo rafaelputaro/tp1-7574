@@ -1,21 +1,14 @@
 package utils
 
 import (
-	"fmt"
 	"slices"
 	"tp1/protobuf/protopb"
+	protoUtils "tp1/protobuf/utils"
 )
 
 type CountryBudget struct {
 	Budget             int32
 	ProductionCountrie string
-}
-
-func CreateEmptyTop5() protopb.Top5Country {
-	return protopb.Top5Country{
-		Budget:              []int32{0, 0, 0, 0, 0},
-		ProductionCountries: []string{"Empty0", "Empty1", "Empty2", "Empty3", "Empty4"},
-	}
 }
 
 // Returns: 1 country1 < country2; 0 country1 == country2; -1 country1 > country2
@@ -33,20 +26,20 @@ func cmpCountry(country1, country2 CountryBudget) int {
 // Order from highest to lowest budget
 func sortCountries(top1, top2 *protopb.Top5Country) []CountryBudget {
 	countries := []CountryBudget{}
-	for index := range len(top1.ProductionCountries) {
+	for index := range len(top1.GetProductionCountries()) {
 		countries = append(
 			countries,
 			CountryBudget{
-				Budget:             top1.Budget[index],
-				ProductionCountrie: top1.ProductionCountries[index],
+				Budget:             top1.GetBudget()[index],
+				ProductionCountrie: top1.GetProductionCountries()[index],
 			})
 	}
-	for index := range len(top2.ProductionCountries) {
+	for index := range len(top2.GetProductionCountries()) {
 		countries = append(
 			countries,
 			CountryBudget{
-				Budget:             top2.Budget[index],
-				ProductionCountrie: top2.ProductionCountries[index],
+				Budget:             top2.GetBudget()[index],
+				ProductionCountrie: top2.GetProductionCountries()[index],
 			})
 	}
 	slices.SortFunc(countries, cmpCountry)
@@ -56,20 +49,10 @@ func sortCountries(top1, top2 *protopb.Top5Country) []CountryBudget {
 // Create a new top from two partials top's. len(top1)+len(top2) >= 5
 func ReduceTop5(top1, top2 *protopb.Top5Country) *protopb.Top5Country {
 	sorted := sortCountries(top1, top2)
-	toReturn := CreateEmptyTop5()
+	toReturn := protoUtils.CreateMinimumTop5Country(top1.GetClientId())
 	for index := range 5 {
 		toReturn.Budget[index] = sorted[index].Budget
 		toReturn.ProductionCountries[index] = sorted[index].ProductionCountrie
 	}
-	return &toReturn
-}
-
-// Returns string from Top5
-func Top5ToString(top *protopb.Top5Country) string {
-	toReturn := ""
-	for index := range len(top.ProductionCountries) {
-		toReturn += fmt.Sprintf("%v(US$ %v) ", top.ProductionCountries[index], top.Budget[index])
-	}
-	toReturn += "EOF:" + fmt.Sprintf("%t", top.GetEof())
 	return toReturn
 }

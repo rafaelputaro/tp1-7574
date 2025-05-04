@@ -1,6 +1,8 @@
 package protoUtils
 
 import (
+	"fmt"
+	"math"
 	"tp1/protobuf/protopb"
 
 	"google.golang.org/protobuf/proto"
@@ -75,6 +77,10 @@ func CreateEofMetrics(clientId string) *protopb.Metrics {
 
 func CreateEofMessageMetrics(clientId string) ([]byte, error) {
 	return proto.Marshal(CreateEofMetrics(clientId))
+}
+
+func MetricsToString(metrics *protopb.Metrics) string {
+	return fmt.Sprintf("Negative: %v | Positive: %v", metrics.GetAvgRevenueOverBudgetNegative(), metrics.GetAvgRevenueOverBudgetPositive())
 }
 
 func CreateDummyMovieSanit(clientId string, eof bool) *protopb.MovieSanit {
@@ -201,12 +207,29 @@ func CreateDummyTop5Country(clientId string, eof bool) *protopb.Top5Country {
 	}
 }
 
+func CreateMinimumTop5Country(clientId string) *protopb.Top5Country {
+	return &protopb.Top5Country{
+		Budget:              []int32{0, 0, 0, 0, 0},
+		ProductionCountries: []string{"Empty0", "Empty1", "Empty2", "Empty3", "Empty4"},
+		ClientId:            &clientId,
+	}
+}
+
 func CreateEofTop5Country(clientId string) *protopb.Top5Country {
 	return CreateDummyTop5Country(clientId, true)
 }
 
 func CreateEofMessageTop5Country(clientId string) ([]byte, error) {
 	return proto.Marshal(CreateEofTop5Country(clientId))
+}
+
+// Returns string from Top5
+func Top5ToString(top *protopb.Top5Country) string {
+	toReturn := ""
+	for index := range len(top.GetProductionCountries()) {
+		toReturn += fmt.Sprintf("%v(US$ %v) ", top.GetProductionCountries()[index], top.GetBudget()[index])
+	}
+	return toReturn
 }
 
 func CreateDummyTop10(clientId string, eof bool) *protopb.Top10 {
@@ -227,6 +250,15 @@ func CreateEofMessageTop10(clientId string) ([]byte, error) {
 	return proto.Marshal(CreateEofTop10(clientId))
 }
 
+// Return names an count as string
+func Top10ToString(top *protopb.Top10) string {
+	toReturn := ""
+	for index := range len(top.GetNames()) {
+		toReturn += fmt.Sprintf("%v(%v) ", top.GetNames()[index], top.GetCountMovies()[index])
+	}
+	return toReturn
+}
+
 func CreateDummyTopAndBottomRatingAvg(clientId string, eof bool) *protopb.TopAndBottomRatingAvg {
 	return &protopb.TopAndBottomRatingAvg{
 		TitleTop:        proto.String("Dummy"),
@@ -237,10 +269,27 @@ func CreateDummyTopAndBottomRatingAvg(clientId string, eof bool) *protopb.TopAnd
 	}
 }
 
+func CreateSeedTopAndBottom(clientId string) protopb.TopAndBottomRatingAvg {
+	return protopb.TopAndBottomRatingAvg{
+		TitleTop:        proto.String("Empty1"),
+		TitleBottom:     proto.String("Empty2"),
+		RatingAvgTop:    proto.Float64(0.0),
+		RatingAvgBottom: proto.Float64(math.MaxFloat64),
+		ClientId:        &clientId,
+	}
+}
+
 func CreateEofTopAndBottomRatingAvg(clientId string) *protopb.TopAndBottomRatingAvg {
 	return CreateDummyTopAndBottomRatingAvg(clientId, true)
 }
 
 func CreateEofMessageTopAndBottomRatingAvg(clientId string) ([]byte, error) {
 	return proto.Marshal(CreateEofTopAndBottomRatingAvg(clientId))
+}
+
+// Returns string from TopAndBottomRagingAvg
+func TopAndBottomToString(topAndBottom *protopb.TopAndBottomRatingAvg) string {
+	return fmt.Sprintf("Top: %s(%v) | Bottom: %s(%v)",
+		topAndBottom.GetTitleTop(), topAndBottom.GetRatingAvgTop(),
+		topAndBottom.GetTitleBottom(), topAndBottom.GetRatingAvgBottom())
 }

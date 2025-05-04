@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"fmt"
 	"slices"
 	"tp1/protobuf/protopb"
 )
@@ -34,18 +33,18 @@ func NewActorsData() *ActorsData {
 }
 
 func (actorsData *ActorsData) UpdateCount(actor *protopb.Actor) {
-	key := *actor.ProfilePath
+	key := actor.GetProfilePath()
 	foundIndex, existsData := actorsData.index[key]
 	if existsData {
 		// update
 		foundActorData := actorsData.data[foundIndex]
-		newData := *newActorData(*actor.Name, *actor.ProfilePath, foundActorData.CountMovies+*actor.CountMovies)
+		newData := *newActorData(*actor.Name, actor.GetProfilePath(), foundActorData.CountMovies+actor.GetCountMovies())
 		actorsData.data[foundIndex] = newData
 	} else {
 		// append
 		newIndex := len(actorsData.data)
 		actorsData.index[key] = newIndex
-		newData := *newActorData(*actor.Name, *actor.ProfilePath, *actor.CountMovies)
+		newData := *newActorData(actor.GetName(), actor.GetProfilePath(), actor.GetCountMovies())
 		actorsData.data = append(actorsData.data, newData)
 	}
 }
@@ -87,13 +86,4 @@ func (actorsData *ActorsData) GetTop10() *protopb.Top10 {
 		toReturn.CountMovies = append(toReturn.CountMovies, actorsData.data[index].CountMovies)
 	}
 	return &toReturn
-}
-
-// Returns string from Top5
-func Top10ToString(top *protopb.Top10) string {
-	toReturn := ""
-	for index := range len(top.Names) {
-		toReturn += fmt.Sprintf("%v(%v) ", top.Names[index], top.CountMovies[index])
-	}
-	return toReturn
 }

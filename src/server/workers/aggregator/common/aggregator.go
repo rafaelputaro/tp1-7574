@@ -202,20 +202,20 @@ func (aggregator *Aggregator) aggregateTop5() {
 			continue
 		}
 		clientID := top5.GetClientId()
-		aggregator.Log.Debugf("[aggregator_%s client_%s] %s: %s", aggregator.Config.AggregatorType, clientID, MSG_AGGREGATED, utils.Top5ToString(&top5))
+		aggregator.Log.Debugf("[aggregator_%s client_%s] %s: %s", aggregator.Config.AggregatorType, clientID, MSG_AGGREGATED, protoUtils.Top5ToString(&top5))
 		// get the last global top 5 or init for a client
-		top5Found := utils.GetOrInitKeyMap(&globalTop5, clientID, utils.CreateEmptyTop5)
+		top5Found := utils.GetOrInitKeyMapWithKey(&globalTop5, clientID, protoUtils.CreateMinimumTop5Country)
 		// Update global top 5
 		globalTop5[clientID] = *utils.ReduceTop5(&top5Found, &top5)
 		// To log
-		newGlobalTop5Cli := utils.GetOrInitKeyMap(&globalTop5, clientID, utils.CreateEmptyTop5)
-		aggregator.Log.Debugf("[aggregator_%s client_%s] %s: %s", aggregator.Config.AggregatorType, clientID, "Top After Reduce", utils.Top5ToString(&newGlobalTop5Cli))
+		newGlobalTop5Cli := utils.GetOrInitKeyMapWithKey(&globalTop5, clientID, protoUtils.CreateMinimumTop5Country)
+		aggregator.Log.Debugf("[aggregator_%s client_%s] %s: %s", aggregator.Config.AggregatorType, clientID, "Top After Reduce", protoUtils.Top5ToString(&newGlobalTop5Cli))
 		// EOF
 		if top5.GetEof() {
 			amountEOF[clientID] = utils.GetOrInitKeyMap(&amountEOF, clientID, utils.InitEOFCount) + 1
 			// If all sources sent EOF, send top 5 and submit the EOF to report
 			if aggregator.checkEofSingleQueue(amountEOF[clientID]) {
-				aggregator.Log.Debugf("[aggregator_%s client_%s] %s: %s", aggregator.Config.AggregatorType, clientID, MSG_AGGREGATED, utils.Top5ToString(&newGlobalTop5Cli))
+				aggregator.Log.Debugf("[aggregator_%s client_%s] %s: %s", aggregator.Config.AggregatorType, clientID, MSG_AGGREGATED, protoUtils.Top5ToString(&newGlobalTop5Cli))
 				data, err := proto.Marshal(&newGlobalTop5Cli)
 				if err != nil {
 					aggregator.Log.Fatalf("[aggregator_%s client_%s] %s: %v", aggregator.Config.AggregatorType, clientID, MSG_FAILED_TO_MARSHAL, err)
@@ -250,7 +250,7 @@ func (aggregator *Aggregator) aggregateTop10() {
 				// If all sources sent EOF, send top 10 and submit the EOF to report
 				if aggregator.checkEofSingleQueue(amountEOF) {
 					top10 := actorsData.GetTop10()
-					aggregator.Log.Debugf("[aggregator_%s] %s: %s", aggregator.Config.AggregatorType, MSG_AGGREGATED, utils.Top10ToString(top10))
+					aggregator.Log.Debugf("[aggregator_%s] %s: %s", aggregator.Config.AggregatorType, MSG_AGGREGATED, protoUtils.Top10ToString(top10))
 					data, err := proto.Marshal(top10)
 					if err != nil {
 						aggregator.Log.Fatalf("[aggregator_%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_MARSHAL, err)
@@ -273,7 +273,7 @@ func (aggregator *Aggregator) aggregateTopAndBottom() {
 	msgs, err := aggregator.consumeQueue(aggregator.Config.InputQueue)
 	if err == nil {
 		amountEOF := 0
-		globalTopAndBottom := utils.CreateEmptyTopAndBottom()
+		globalTopAndBottom := protoUtils.CreateSeedTopAndBottom("")
 		for msg := range msgs {
 			var topAndBottom protopb.TopAndBottomRatingAvg
 			if err := proto.Unmarshal(msg.Body, &topAndBottom); err != nil {
@@ -285,7 +285,7 @@ func (aggregator *Aggregator) aggregateTopAndBottom() {
 				amountEOF += 1
 				// If all sources sent EOF, send top and Bottom and submit the EOF to report
 				if aggregator.checkEofSingleQueue(amountEOF) {
-					aggregator.Log.Debugf("[aggregator_%s] %s: %s", aggregator.Config.AggregatorType, MSG_AGGREGATED, utils.TopAndBottomToString(&globalTopAndBottom))
+					aggregator.Log.Debugf("[aggregator_%s] %s: %s", aggregator.Config.AggregatorType, MSG_AGGREGATED, protoUtils.TopAndBottomToString(&globalTopAndBottom))
 					data, err := proto.Marshal(&globalTopAndBottom)
 					if err != nil {
 						aggregator.Log.Fatalf("[aggregator_%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_MARSHAL, err)
@@ -325,7 +325,7 @@ func (aggregator *Aggregator) aggregateMetrics() {
 	}
 	// prepare report
 	report := utils.CreateMetricsReport(avgRevenueOverBudgetNegative, avgRevenueOverBudgetPositive)
-	aggregator.Log.Debugf("[aggregator_%s] %s: %s", aggregator.Config.AggregatorType, MSG_AGGREGATED, utils.MetricsToString(&report))
+	aggregator.Log.Debugf("[aggregator_%s] %s: %s", aggregator.Config.AggregatorType, MSG_AGGREGATED, protoUtils.MetricsToString(&report))
 	data, err := proto.Marshal(&report)
 	if err != nil {
 		aggregator.Log.Fatalf("[aggregator_%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_MARSHAL, err)
@@ -334,8 +334,8 @@ func (aggregator *Aggregator) aggregateMetrics() {
 	// send report
 	aggregator.publishData(data)
 	// prepare eof
-	eof := utils.CreateMetricsEof()
-	data, err = proto.Marshal(&eof)
+	eof := protoUtils.CreateEofMetrics("")
+	data, err = proto.Marshal(eof)
 	if err != nil {
 		aggregator.Log.Fatalf("[aggregator_%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_MARSHAL, err)
 		return
