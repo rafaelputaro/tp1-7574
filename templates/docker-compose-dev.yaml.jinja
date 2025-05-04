@@ -11,6 +11,11 @@ services:
       - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
     networks:
       - tp1_net
+    healthcheck:
+      test: rabbitmq-diagnostics check_port_connectivity
+      interval: 5s
+      timeout: 3s
+      retries: 3
 
 {% for i in range(1, filter_nodes_2000s + 1) %}
   2000s-filter-{{ i }}:
@@ -23,7 +28,8 @@ services:
     networks:
       - tp1_net
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
 {% endfor %}
 
 {% for i in range(1, ar_es_filter_nodes + 1) %}
@@ -37,7 +43,8 @@ services:
     networks:
       - tp1_net
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
 {% endfor %}
 
 {% for i in range(1, ar_filter_nodes + 1) %}
@@ -51,7 +58,8 @@ services:
     networks:
       - tp1_net
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
 {% endfor %}
 
 {% for i in range(1, single_country_origin_filter_nodes + 1) %}
@@ -65,7 +73,8 @@ services:
     networks:
       - tp1_net
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
 {% endfor %}
 
 {% for i in range(1, top_5_investors_filter_nodes + 1) %}
@@ -79,7 +88,8 @@ services:
     networks:
       - tp1_net
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
 {% endfor %}
 
   joiner_group_by_movie_id_ratings:
@@ -94,7 +104,8 @@ services:
     networks:
       - tp1_net
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
     links:
       - rabbitmq
 
@@ -110,7 +121,8 @@ services:
     networks:
       - tp1_net
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
     links:
       - rabbitmq
 
@@ -126,7 +138,8 @@ services:
     networks:
       - tp1_net
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
     links:
       - rabbitmq
 
@@ -142,7 +155,8 @@ services:
     networks:
       - tp1_net
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
     links:
       - rabbitmq
 
@@ -158,7 +172,8 @@ services:
     networks:
       - tp1_net
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
     links:
       - rabbitmq
 
@@ -174,7 +189,8 @@ services:
     networks:
       - tp1_net
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
     links:
       - rabbitmq
 
@@ -191,7 +207,8 @@ services:
     networks:
       - tp1_net
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
     links:
       - rabbitmq
 
@@ -205,7 +222,8 @@ services:
     networks:
       - tp1_net
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
 {% endfor %}
 
   controller:
@@ -217,7 +235,6 @@ services:
     networks:
       - tp1_net
     depends_on:
-      - rabbitmq
       - aggregator_metrics
       - aggregator_top_and_bottom
       - aggregator_top_10
@@ -270,7 +287,8 @@ services:
       dockerfile: src/server/report/Dockerfile
     container_name: report
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
     networks:
       - tp1_net
 

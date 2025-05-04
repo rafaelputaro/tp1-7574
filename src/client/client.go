@@ -23,7 +23,7 @@ const (
 )
 
 func main() {
-	time.Sleep(10 * time.Second)
+	time.Sleep(30 * time.Second)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

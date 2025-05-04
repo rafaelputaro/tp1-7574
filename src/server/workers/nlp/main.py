@@ -32,6 +32,8 @@ def connect_rabbitmq_with_retries(logger: logging.Logger, retries=20, delay=3):
 
 
 sentiment_cache = {}
+
+
 def cached_sentiment(text):
     key = hash(text)
     if key in sentiment_cache:
@@ -40,7 +42,10 @@ def cached_sentiment(text):
     sentiment_cache[key] = result[0]["label"]
     return result[0]["label"]
 
+
 message_count = 0
+
+
 def callback(ch, method, properties, body):
     global message_count
     movie = movie_sanit_pb2.MovieSanit()
@@ -79,6 +84,8 @@ def main():
     connection = connect_rabbitmq_with_retries(logger)
     channel = connection.channel()
 
+    channel.basic_qos(prefetch_count=1)
+
     channel.queue_declare(queue=QUEUE_NAME, durable=True)
 
     channel.exchange_declare(exchange='sentiment_exchange', exchange_type='direct', durable=True)
@@ -88,10 +95,12 @@ def main():
     channel.queue_bind(exchange='sentiment_exchange', queue=NEGATIVE_QUEUE, routing_key=NEGATIVE_QUEUE)
 
     logger.info("Loading sentiment analysis model...")
-    sentiment_analyzer = pipeline('sentiment-analysis',
+    sentiment_analyzer = pipeline(task='sentiment-analysis',
                                   model='distilbert-base-uncased-finetuned-sst-2-english',
                                   max_length=64,
-                                  truncation=True)
+                                  truncation=True,
+                                  num_workers=16,
+                                  batch_size=8)
 
     logger.info(f"Listening for messages from queue '{QUEUE_NAME}'...")
     channel.basic_consume(queue=QUEUE_NAME, on_message_callback=callback, auto_ack=True)

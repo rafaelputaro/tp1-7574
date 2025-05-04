@@ -11,6 +11,11 @@ services:
       - ./rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
     networks:
       - tp1_net
+    healthcheck:
+      test: rabbitmq-diagnostics check_port_connectivity
+      interval: 5s
+      timeout: 3s
+      retries: 3
 
 
   2000s-filter-1:
@@ -205,7 +210,8 @@ services:
     networks:
       - tp1_net
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
 
   nlp-2:
     container_name: nlp-2
@@ -216,7 +222,8 @@ services:
     networks:
       - tp1_net
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
 
   nlp-3:
     container_name: nlp-3
@@ -227,7 +234,8 @@ services:
     networks:
       - tp1_net
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
 
   nlp-4:
     container_name: nlp-4
@@ -238,7 +246,8 @@ services:
     networks:
       - tp1_net
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
 
   nlp-5:
     container_name: nlp-5
@@ -249,62 +258,8 @@ services:
     networks:
       - tp1_net
     depends_on:
-      - rabbitmq
-
-  nlp-6:
-    container_name: nlp-6
-    image: nlp:latest
-    environment:
-      - NODE_NUM=6
-      - SHARDS=1
-    networks:
-      - tp1_net
-    depends_on:
-      - rabbitmq
-
-  nlp-7:
-    container_name: nlp-7
-    image: nlp:latest
-    environment:
-      - NODE_NUM=7
-      - SHARDS=1
-    networks:
-      - tp1_net
-    depends_on:
-      - rabbitmq
-
-  nlp-8:
-    container_name: nlp-8
-    image: nlp:latest
-    environment:
-      - NODE_NUM=8
-      - SHARDS=1
-    networks:
-      - tp1_net
-    depends_on:
-      - rabbitmq
-
-  nlp-9:
-    container_name: nlp-9
-    image: nlp:latest
-    environment:
-      - NODE_NUM=9
-      - SHARDS=1
-    networks:
-      - tp1_net
-    depends_on:
-      - rabbitmq
-
-  nlp-10:
-    container_name: nlp-10
-    image: nlp:latest
-    environment:
-      - NODE_NUM=10
-      - SHARDS=1
-    networks:
-      - tp1_net
-    depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
 
 
   controller:
@@ -335,11 +290,6 @@ services:
       - nlp-3
       - nlp-4
       - nlp-5
-      - nlp-6
-      - nlp-7
-      - nlp-8
-      - nlp-9
-      - nlp-10
 
   client:
     container_name: client
