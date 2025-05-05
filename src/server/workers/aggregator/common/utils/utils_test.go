@@ -35,28 +35,28 @@ func TestTopAndBottom(t *testing.T) {
 		TitleBottom:     proto.String("Attack of the killer tomatoes"),
 		RatingAvgBottom: proto.Float64(3.2),
 	}
-	newTop := ReduceTopAndBottom(&topAndBottom1, &topAndBottom2)
+	newTop := ReduceTopAndBottom(topAndBottom1, &topAndBottom2)
 	if *newTop.TitleTop != *topAndBottom2.TitleTop || *newTop.RatingAvgTop != *topAndBottom2.RatingAvgTop ||
 		*newTop.TitleBottom != *topAndBottom2.TitleBottom || *newTop.RatingAvgBottom != *topAndBottom2.RatingAvgBottom {
 		t.Fatal("Error on reduce bottom and top")
 	}
-	newTop = ReduceTopAndBottom(&topAndBottom2, &topAndBottom1)
+	newTop = ReduceTopAndBottom(&topAndBottom2, topAndBottom1)
 	if *newTop.TitleTop != *topAndBottom2.TitleTop || *newTop.RatingAvgTop != *topAndBottom2.RatingAvgTop ||
 		*newTop.TitleBottom != *topAndBottom2.TitleBottom || *newTop.RatingAvgBottom != *topAndBottom2.RatingAvgBottom {
 		t.Fatal("Error on reduce bottom and top")
 	}
-	topAndBottom1 = protopb.TopAndBottomRatingAvg{
+	*topAndBottom1 = protopb.TopAndBottomRatingAvg{
 		TitleTop:        proto.String("Iron Man"),
 		RatingAvgTop:    proto.Float64(7.2),
 		TitleBottom:     proto.String("Mars Attack"),
 		RatingAvgBottom: proto.Float64(1.2),
 	}
-	newTop = ReduceTopAndBottom(&topAndBottom2, &topAndBottom1)
+	newTop = ReduceTopAndBottom(&topAndBottom2, topAndBottom1)
 	if *newTop.TitleTop != *topAndBottom2.TitleTop || *newTop.RatingAvgTop != *topAndBottom2.RatingAvgTop ||
 		*newTop.TitleBottom != *topAndBottom1.TitleBottom || *newTop.RatingAvgBottom != *topAndBottom1.RatingAvgBottom {
 		t.Fatal("Error on reduce bottom and top")
 	}
-	newTop = ReduceTopAndBottom(&topAndBottom1, &topAndBottom2)
+	newTop = ReduceTopAndBottom(topAndBottom1, &topAndBottom2)
 	if *newTop.TitleTop != *topAndBottom2.TitleTop || *newTop.RatingAvgTop != *topAndBottom2.RatingAvgTop ||
 		*newTop.TitleBottom != *topAndBottom1.TitleBottom || *newTop.RatingAvgBottom != *topAndBottom1.RatingAvgBottom {
 		t.Fatal("Error on reduce bottom and top")
@@ -109,15 +109,11 @@ func TestGetOrInitKeyMap(t *testing.T) {
 		return 1
 	}
 	aMap := make(map[string]int)
-
 	aMap["0"] = GetOrInitKeyMap(&aMap, "0", init) + 1
-
 	if aMap["0"] != 2 {
 		t.Fatal("Error on map")
 	}
-
 	aMap["0"] = GetOrInitKeyMap(&aMap, "0", init) + 1
-
 	if aMap["0"] != 3 {
 		t.Fatal("Error on map")
 	}
@@ -125,90 +121,47 @@ func TestGetOrInitKeyMap(t *testing.T) {
 
 func TestGetOrInitKeyMapWithKey(t *testing.T) {
 	globalTop5 := make(map[string]*protopb.Top5Country)
-
 	found := GetOrInitKeyMapWithKey(&globalTop5, "", protoUtils.CreateMinimumTop5Country)
-
 	if *globalTop5[""].ClientId != "" {
 		t.Fatal("Error on map")
 	}
-
 	if *found.ClientId != "" {
 		t.Fatal("Error on map")
 	}
-
 	globalTop5[""].Budget[0] = 1000
-
 	found = GetOrInitKeyMapWithKey(&globalTop5, "", protoUtils.CreateMinimumTop5Country)
-
 	if found.Budget[0] != 1000 {
 		t.Fatal("Error on map")
 	}
-
 	if globalTop5[""].Budget[0] != 1000 {
 		t.Fatal("Error on map")
 	}
-
 	found = GetOrInitKeyMapWithKey(&globalTop5, "", protoUtils.CreateMinimumTop5Country)
-
 	found.Budget[0] = 2000
-
 	found = GetOrInitKeyMapWithKey(&globalTop5, "", protoUtils.CreateMinimumTop5Country)
-
 	if found.Budget[0] != 2000 {
 		t.Fatal("Error on map")
 	}
-
 	if globalTop5[""].Budget[0] != 2000 {
 		t.Fatal("Error on map")
 	}
-
 	actorsData := make(map[string]*ActorsData)
-
 	actorsDataClient := GetOrInitKeyMapWithKey(&actorsData, "", InitActorsData)
-
 	actorsDataClient.UpdateCount(&protopb.Actor{
 		Name:        proto.String("Pepe"),
 		ProfilePath: proto.String("Pepe.jpg"),
 		CountMovies: proto.Int64(1000),
 		ClientId:    proto.String(""),
 	})
-
 	actorsDataClient = GetOrInitKeyMapWithKey(&actorsData, "", InitActorsData)
-
 	actorsDataClient.UpdateCount(&protopb.Actor{
 		Name:        proto.String("Pepe"),
 		ProfilePath: proto.String("Pepe.jpg"),
 		CountMovies: proto.Int64(1000),
 		ClientId:    proto.String(""),
 	})
-
 	top10 := actorsDataClient.GetTop10()
-
 	if top10.CountMovies[0] != 2000 {
 		t.Fatal("Error on map")
 	}
-
-	/*
-		if fountTop. != 1000 {
-			t.Fatal("Error on map")
-		}
-
-		if globalTop5[""].Budget[0] != 1000 {
-			t.Fatal("Error on map")
-		}
-
-		found = GetOrInitKeyMapWithKey(&globalTop5, "", protoUtils.CreateMinimumTop5Country)
-
-		found.Budget[0] = 2000
-
-		found = GetOrInitKeyMapWithKey(&globalTop5, "", protoUtils.CreateMinimumTop5Country)
-
-		if found.Budget[0] != 2000 {
-			t.Fatal("Error on map")
-		}
-
-		if globalTop5[""].Budget[0] != 2000 {
-			t.Fatal("Error on map")
-		}*/
-
 }

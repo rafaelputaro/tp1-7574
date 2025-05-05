@@ -282,8 +282,8 @@ func CreateDummyTopAndBottomRatingAvg(clientId string, eof bool) *protopb.TopAnd
 	}
 }
 
-func CreateSeedTopAndBottom(clientId string) protopb.TopAndBottomRatingAvg {
-	return protopb.TopAndBottomRatingAvg{
+func CreateSeedTopAndBottom(clientId string) *protopb.TopAndBottomRatingAvg {
+	return &protopb.TopAndBottomRatingAvg{
 		TitleTop:        proto.String("Empty1"),
 		TitleBottom:     proto.String("Empty2"),
 		RatingAvgTop:    proto.Float64(0.0),

@@ -172,7 +172,7 @@ func (aggregator *Aggregator) aggregateMovies() {
 				continue
 			}
 			// EOF
-			if movie.Eof != nil && *movie.Eof {
+			if movie.GetEof() {
 				clientID := movie.GetClientId()
 				amountEOF[clientID] = utils.GetOrInitKeyMap(&amountEOF, clientID, utils.InitEOFCount) + 1
 				// If all sources sent EOF, submit the EOF to report
@@ -268,8 +268,8 @@ func (aggregator *Aggregator) aggregateTop10() {
 				aggregator.publishData(data)
 				aggregator.Log.Debugf("[aggregator_%s client_%s] %s: %s", aggregator.Config.AggregatorType, clientID, MSG_SENT_TO_REPORT, protoUtils.Top10ToString(top10))
 				// submit the EOF to report
-				dataEof, errEof := protoUtils.CreateEofMessageTop10("")
-				aggregator.checkErrorAndPublish("", dataEof, errEof)
+				dataEof, errEof := protoUtils.CreateEofMessageTop10(clientID)
+				aggregator.checkErrorAndPublish(clientID, dataEof, errEof)
 			}
 			continue
 		}
@@ -280,36 +280,42 @@ func (aggregator *Aggregator) aggregateTop10() {
 
 func (aggregator *Aggregator) aggregateTopAndBottom() {
 	msgs, err := aggregator.consumeQueue(aggregator.Config.InputQueue)
-	if err == nil {
-		// Count EOF and top_and_bottom for all clients
-		amountEOF := 0
-		globalTopAndBottom := protoUtils.CreateSeedTopAndBottom("")
-		for msg := range msgs {
-			var topAndBottom protopb.TopAndBottomRatingAvg
-			if err := proto.Unmarshal(msg.Body, &topAndBottom); err != nil {
-				aggregator.Log.Errorf("[aggregator_%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_UNMARSHAL, err)
-				continue
-			}
-			// EOF
-			if topAndBottom.Eof != nil && *topAndBottom.Eof {
-				amountEOF += 1
-				// If all sources sent EOF, send top and Bottom and submit the EOF to report
-				if aggregator.checkEofSingleQueue(amountEOF) {
-					aggregator.Log.Debugf("[aggregator_%s] %s: %s", aggregator.Config.AggregatorType, MSG_AGGREGATED, protoUtils.TopAndBottomToString(&globalTopAndBottom))
-					data, err := proto.Marshal(&globalTopAndBottom)
-					if err != nil {
-						aggregator.Log.Fatalf("[aggregator_%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_MARSHAL, err)
-						break
-					}
-					// send topAndBottom to report
-					aggregator.publishData(data)
-					// submit the EOF to report
-					aggregator.publishData(msg.Body)
-					break
-				}
-			}
-			globalTopAndBottom = *utils.ReduceTopAndBottom(&globalTopAndBottom, &topAndBottom)
+	if err != nil {
+		aggregator.Log.Fatalf("%s '%s': %v", MSG_FAILED_CONSUME, aggregator.Config.InputQueue, err)
+	}
+	// Count EOF and top_and_bottom for all clients
+	amountEOF := make(map[string]int)
+	globalTopAndBottom := make(map[string](*protopb.TopAndBottomRatingAvg))
+	for msg := range msgs {
+		var topAndBottom protopb.TopAndBottomRatingAvg
+		if err := proto.Unmarshal(msg.Body, &topAndBottom); err != nil {
+			aggregator.Log.Errorf("[aggregator_%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_UNMARSHAL, err)
+			continue
 		}
+		clientID := topAndBottom.GetClientId()
+		aggregator.Log.Debugf("[aggregator_%s client_%s] %s : %s", aggregator.Config.AggregatorType, clientID, MSG_RECEIVED, protoUtils.TopAndBottomToString(&topAndBottom))
+		// Actual top and bottom for a client
+		globalTopAndBottomClient := utils.GetOrInitKeyMapWithKey(&globalTopAndBottom, clientID, protoUtils.CreateSeedTopAndBottom)
+		// EOF
+		if topAndBottom.GetEof() {
+			amountEOF[clientID] = utils.GetOrInitKeyMap(&amountEOF, clientID, utils.InitEOFCount) + 1
+			// If all sources sent EOF, send top and Bottom and submit the EOF to report
+			if aggregator.checkEofSingleQueue(amountEOF[clientID]) {
+				data, err := proto.Marshal(globalTopAndBottomClient)
+				if err != nil {
+					aggregator.Log.Fatalf("[aggregator_%s cliente_%s] %s: %v", aggregator.Config.AggregatorType, clientID, MSG_FAILED_TO_MARSHAL, err)
+					continue
+				}
+				// send topAndBottom to report
+				aggregator.publishData(data)
+				aggregator.Log.Debugf("[aggregator_%s client_%s] %s: %s", aggregator.Config.AggregatorType, clientID, MSG_SENT_TO_REPORT, protoUtils.TopAndBottomToString(globalTopAndBottomClient))
+				// submit the EOF to report
+				dataEof, errEof := protoUtils.CreateEofMessageTopAndBottomRatingAvg(clientID)
+				aggregator.checkErrorAndPublish(clientID, dataEof, errEof)
+			}
+			continue
+		}
+		globalTopAndBottom[clientID] = utils.ReduceTopAndBottom(globalTopAndBottomClient, &topAndBottom)
 	}
 }
 

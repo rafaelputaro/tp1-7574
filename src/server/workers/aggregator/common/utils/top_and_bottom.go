@@ -24,5 +24,5 @@ func ReduceTopAndBottom(topAndBottom1, topAndBottom2 *protopb.TopAndBottomRating
 		*toReturn.RatingAvgBottom = topAndBottom2.GetRatingAvgBottom()
 		*toReturn.TitleBottom = topAndBottom2.GetTitleBottom()
 	}
-	return &toReturn
+	return toReturn
 }
