@@ -224,6 +224,8 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
+    volumes:
+      - ./nlp-cache:/app/cache
 {% endfor %}
 
   controller:

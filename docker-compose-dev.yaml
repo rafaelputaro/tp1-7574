@@ -224,6 +224,8 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
+    volumes:
+      - ./nlp-cache:/app/cache
 
   nlp-2:
     container_name: nlp-2
@@ -236,6 +238,8 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
+    volumes:
+      - ./nlp-cache:/app/cache
 
   nlp-3:
     container_name: nlp-3
@@ -248,6 +252,8 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
+    volumes:
+      - ./nlp-cache:/app/cache
 
   nlp-4:
     container_name: nlp-4
@@ -260,6 +266,8 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
+    volumes:
+      - ./nlp-cache:/app/cache
 
   nlp-5:
     container_name: nlp-5
@@ -272,6 +280,8 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
+    volumes:
+      - ./nlp-cache:/app/cache
 
 
   controller:

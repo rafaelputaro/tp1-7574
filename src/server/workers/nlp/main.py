@@ -1,11 +1,13 @@
 import logging
 import sys
 import time
+from os import getenv
 
 import pika
 from transformers import pipeline
 
 import movie_sanit_pb2
+from cache import SentimentCache
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("sentiment")
@@ -34,13 +36,15 @@ def connect_rabbitmq_with_retries(logger: logging.Logger, retries=20, delay=3):
 sentiment_cache = {}
 
 
-def cached_sentiment(text):
-    key = hash(text)
-    if key in sentiment_cache:
-        return sentiment_cache[key]
-    result = sentiment_analyzer(text)
-    sentiment_cache[key] = result[0]["label"]
-    return result[0]["label"]
+def cached_sentiment(movie):
+    cached = cache.get(movie)
+    if cached:
+        return cached
+    else:
+        result = sentiment_analyzer(movie.overview)
+        label = result[0]["label"]
+        cache.set(movie, label)
+        return label
 
 
 message_count = 0
@@ -63,8 +67,7 @@ def callback(ch, method, properties, body):
         ch.stop_consuming()
         return
 
-    text = movie.overview[:64]
-    label = cached_sentiment(text)
+    label = cached_sentiment(movie)
     target_queue = POSITIVE_QUEUE if label == "POSITIVE" else NEGATIVE_QUEUE
 
     channel.basic_publish(
@@ -99,14 +102,15 @@ def main():
                                   model='distilbert-base-uncased-finetuned-sst-2-english',
                                   max_length=64,
                                   truncation=True,
-                                  num_workers=16,
-                                  batch_size=8)
-
-    logger.info(f"Listening for messages from queue '{QUEUE_NAME}'...")
-    channel.basic_consume(queue=QUEUE_NAME, on_message_callback=callback, auto_ack=True)
+                                  )
 
     try:
-        channel.start_consuming()
+        with SentimentCache(getenv("NODE_NUM")) as c:
+            global cache
+            cache = c
+            logger.info(f"Listening for messages from queue '{QUEUE_NAME}'...")
+            channel.basic_consume(queue=QUEUE_NAME, on_message_callback=callback, auto_ack=True)
+            channel.start_consuming()
     except KeyboardInterrupt:
         logger.info("Interrupted. Closing connection...")
         channel.stop_consuming()

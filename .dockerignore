@@ -1,5 +1,6 @@
 # Exclude client datasets
 src/client/datasets/
+src/server/workers/nlp/datasets
 
 # Optional: other things you might not need in image builds
 *.log

@@ -30,6 +30,7 @@ go.work.sum
 # Custom
 src/client/datasets/
 reports/
+nlp-cache/
 
 # Compilation
 src/client/client
