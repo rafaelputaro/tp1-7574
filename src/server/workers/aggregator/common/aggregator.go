@@ -321,6 +321,107 @@ func (aggregator *Aggregator) aggregateTopAndBottom() {
 
 func (aggregator *Aggregator) aggregateMetrics() {
 	// declare results
+	avgRevenueOverBudgetNegative := make(map[string]float64)
+	avgRevenueOverBudgetPositive := make(map[string]float64)
+	// channel to receive results from aggregate gorutines
+	channelResults := make(chan utils.MetricResultClient)
+	// wait group
+	var wg sync.WaitGroup
+	wg.Add(2)
+	// negative queue
+	var errNeg, errPos error
+	go func() {
+		defer wg.Done()
+		errNeg = aggregator.aggregateMetric(aggregator.Config.InputQueue, channelResults)
+	}()
+	// prositive queue
+	go func() {
+		defer wg.Done()
+		errPos = aggregator.aggregateMetric(aggregator.Config.InputQueueSec, channelResults)
+	}()
+	// read resuls from channel
+	for result := range channelResults {
+		// update average for a client
+		utils.UpdateMetrics(&avgRevenueOverBudgetNegative, &avgRevenueOverBudgetPositive, &result)
+		// get client id
+		clientID := result.ClientID
+		// try to report
+		errReport, report := utils.CreateMetricsReport(clientID, &avgRevenueOverBudgetNegative, &avgRevenueOverBudgetPositive)
+		if errReport != nil {
+			continue
+		}
+		// prepare report
+		data, err := proto.Marshal(report)
+		if err != nil {
+			aggregator.Log.Fatalf("[aggregator_%s client_%s] %s: %v", aggregator.Config.AggregatorType, clientID, MSG_FAILED_TO_MARSHAL, err)
+			continue
+		}
+		// send report
+		aggregator.publishData(data)
+		aggregator.Log.Debugf("[aggregator_%s client_%s] %s: %s", aggregator.Config.AggregatorType, clientID, MSG_SENT_TO_REPORT, protoUtils.MetricsToString(report))
+		// submit the EOF to report
+		dataEof, errEof := protoUtils.CreateEofMessageMetrics(clientID)
+		aggregator.checkErrorAndPublish(clientID, dataEof, errEof)
+	}
+	// wait go func
+	wg.Wait()
+	// check errors
+	if errNeg != nil || errPos != nil {
+		aggregator.Log.Fatalf("[aggregator_%s] %s: Neg error: %v | Pos error: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_GENERATE_A_METRIC, errNeg, errPos)
+		return
+	}
+}
+
+func (aggregator *Aggregator) aggregateMetric(queueName string, channelResults chan utils.MetricResultClient) error {
+	msgs, err := aggregator.consumeQueue(queueName)
+	if err != nil {
+		return err
+	}
+	// check negative
+	var isNegative bool
+	if aggregator.Config.InputQueue == queueName {
+		isNegative = true
+	} else {
+		isNegative = false
+	}
+	// count EOF and count and sumAvg for each clients
+	amountEOF := make(map[string]int)
+	count := make(map[string]int64)
+	sumAvg := make(map[string]float64)
+	// read all message from queue for each clients
+	for msg := range msgs {
+		var movie protopb.MovieSanit
+		if err := proto.Unmarshal(msg.Body, &movie); err != nil {
+			aggregator.Log.Errorf("[aggregator_%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_UNMARSHAL, err)
+			continue
+		}
+		clientID := movie.GetClientId()
+		aggregator.Log.Debugf("[aggregator_%s client_%s] %s : queue(%s) - title(%s) - eof(%t)", aggregator.Config.AggregatorType, clientID, MSG_RECEIVED, queueName, movie.GetTitle(), movie.GetEof())
+		// EOF
+		if movie.GetEof() {
+			amountEOF[clientID] = utils.GetOrInitKeyMap(&amountEOF, clientID, utils.InitEOFCount) + 1
+			// If all sources sent EOF calculate avg and send result to channel
+			if aggregator.checkEofSingleQueue(amountEOF[clientID]) {
+				errResult, result := utils.CreateMetricResult(clientID, isNegative, &count, &sumAvg)
+				if errResult != nil {
+					aggregator.Log.Errorf("[aggregator_%s client_%s] error: %s", aggregator.Config.AggregatorType, clientID, errResult)
+					continue
+				}
+				channelResults <- *result
+			}
+			continue
+		}
+		// update sum and count
+		count[clientID] = utils.GetOrInitKeyMap(&count, clientID, utils.InitCount) + 1
+		avg := (*movie.Revenue) / float64(*movie.Budget)
+		sumAvg[clientID] = utils.GetOrInitKeyMap(&sumAvg, clientID, utils.InitSumAvg) + avg
+	}
+	return nil
+}
+
+/*
+func (aggregator *Aggregator) aggregateMetrics() {
+	// declare results
 	var avgRevenueOverBudgetNegative, avgRevenueOverBudgetPositive float64
 	// wait group
 	var wg sync.WaitGroup
@@ -395,6 +496,7 @@ func (aggregator *Aggregator) aggregateMetric(queueName string) (float64, error)
 	}
 	return avgRevenueOverBudget, nil
 }
+*/
 
 func (aggregator *Aggregator) consumeQueue(queueName string) (<-chan amqp.Delivery, error) {
 	msgs, err := rabbitmq.ConsumeFromQueue(aggregator.Channel, queueName)
