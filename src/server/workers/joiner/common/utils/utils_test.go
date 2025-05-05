@@ -23,18 +23,6 @@ func TestActor(t *testing.T) {
 		actors = append(actors, counter.GetActor(actorPath))
 	}
 	fmt.Printf("%v", actors)
-	// TODO chequear los resultados sean correctos, al parecer lo son
-	/*
-	   // Expected
-	   actorsCountExpected := []int64{3, 2, 2, 4, 3, 4, 2, 4, 2, 3, 2, 3, 2, 5, 2, 6, 4, 2}
-
-	   	for index, actor := range actors {
-	   		if *actor.CountMovies != actorsCountExpected[index] {
-	   			fmt.Printf("%v, %v", *actor.CountMovies, actorsCountExpected[index])
-	   			t.Fatal("Error on count")
-	   		}
-	   	}
-	*/
 }
 
 func TestRatings(t *testing.T) {

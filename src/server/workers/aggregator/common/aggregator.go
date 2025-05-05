@@ -32,6 +32,8 @@ const MSG_JOB_FINISHED = "Job finished"
 const MSG_FAILED_TO_UNMARSHAL = "Failed to unmarshal message"
 const MSG_RECEIVED_EOF_MARKER = "Received EOF marker"
 const MSG_AGGREGATED = "Accepted"
+const MSG_RECEIVED = "Received"
+const MSG_SENT_TO_REPORT = "Sent to report"
 const MSG_FAILED_TO_MARSHAL = "Failed to marshal message"
 const MSG_FAILED_TO_PUBLISH_ON_OUTPUT_QUEUE = "Failed to publish on outputqueue"
 const MSG_FAILED_TO_GENERATE_A_METRIC = "Failure to generate a metric"
@@ -193,7 +195,7 @@ func (aggregator *Aggregator) aggregateTop5() {
 	}
 	// Count EOF and globalTop5 for all clients
 	amountEOF := make(map[string]int)
-	globalTop5 := make(map[string]protopb.Top5Country)
+	globalTop5 := make(map[string]*protopb.Top5Country)
 	// Message loop
 	for msg := range msgs {
 		var top5 protopb.Top5Country
@@ -202,76 +204,84 @@ func (aggregator *Aggregator) aggregateTop5() {
 			continue
 		}
 		clientID := top5.GetClientId()
-		aggregator.Log.Debugf("[aggregator_%s client_%s] %s: %s", aggregator.Config.AggregatorType, clientID, MSG_AGGREGATED, protoUtils.Top5ToString(&top5))
+		aggregator.Log.Debugf("[aggregator_%s client_%s] %s: %s", aggregator.Config.AggregatorType, clientID, MSG_RECEIVED, protoUtils.Top5ToString(&top5))
 		// get the last global top 5 or init for a client
-		top5Found := utils.GetOrInitKeyMapWithKey(&globalTop5, clientID, protoUtils.CreateMinimumTop5Country)
-		// Update global top 5
-		globalTop5[clientID] = *utils.ReduceTop5(&top5Found, &top5)
-		// To log
-		newGlobalTop5Cli := utils.GetOrInitKeyMapWithKey(&globalTop5, clientID, protoUtils.CreateMinimumTop5Country)
-		aggregator.Log.Debugf("[aggregator_%s client_%s] %s: %s", aggregator.Config.AggregatorType, clientID, "Top After Reduce", protoUtils.Top5ToString(&newGlobalTop5Cli))
+		lastGlobalTop5Cli := utils.GetOrInitKeyMapWithKey(&globalTop5, clientID, protoUtils.CreateMinimumTop5Country)
 		// EOF
 		if top5.GetEof() {
 			amountEOF[clientID] = utils.GetOrInitKeyMap(&amountEOF, clientID, utils.InitEOFCount) + 1
 			// If all sources sent EOF, send top 5 and submit the EOF to report
 			if aggregator.checkEofSingleQueue(amountEOF[clientID]) {
-				aggregator.Log.Debugf("[aggregator_%s client_%s] %s: %s", aggregator.Config.AggregatorType, clientID, MSG_AGGREGATED, protoUtils.Top5ToString(&newGlobalTop5Cli))
-				data, err := proto.Marshal(&newGlobalTop5Cli)
+				// Prepare to send report
+				data, err := proto.Marshal(lastGlobalTop5Cli)
 				if err != nil {
 					aggregator.Log.Fatalf("[aggregator_%s client_%s] %s: %v", aggregator.Config.AggregatorType, clientID, MSG_FAILED_TO_MARSHAL, err)
-				} else {
-					// send top5 to report
-					aggregator.publishData(data)
-					// submit the EOF to report
-					dataEof, errEof := protoUtils.CreateEofMessageTop5Country(clientID)
-					aggregator.checkErrorAndPublish(clientID, dataEof, errEof)
+					continue
 				}
+				// send top5 to report
+				aggregator.publishData(data)
+				aggregator.Log.Debugf("[aggregator_%s client_%s] %s: %s", aggregator.Config.AggregatorType, clientID, MSG_SENT_TO_REPORT, protoUtils.Top5ToString(lastGlobalTop5Cli))
+				// submit the EOF to report
+				dataEof, errEof := protoUtils.CreateEofMessageTop5Country(clientID)
+				aggregator.checkErrorAndPublish(clientID, dataEof, errEof)
 			}
+			continue
 		}
+		// Update global top 5
+		globalTop5[clientID] = utils.ReduceTop5(lastGlobalTop5Cli, &top5)
+		// To log
+		newGlobalTop5Cli := utils.GetOrInitKeyMapWithKey(&globalTop5, clientID, protoUtils.CreateMinimumTop5Country)
+		aggregator.Log.Debugf("[aggregator_%s client_%s] Top After Reduce: %s", aggregator.Config.AggregatorType, clientID, protoUtils.Top5ToString(newGlobalTop5Cli))
 	}
 }
 
 func (aggregator *Aggregator) aggregateTop10() {
 	msgs, err := aggregator.consumeQueue(aggregator.Config.InputQueue)
-	if err == nil {
-		actorsData := utils.NewActorsData()
-		amountEOF := 0
-		for msg := range msgs {
-			var actorCount protopb.Actor
-			if err := proto.Unmarshal(msg.Body, &actorCount); err != nil {
-				aggregator.Log.Errorf("[aggregator_%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_UNMARSHAL, err)
-				continue
-			}
-			aggregator.Log.Debugf("got message %s", actorCount.GetName())
-
-			// EOF
-			if actorCount.Eof != nil && *actorCount.Eof {
-				amountEOF += 1
-				// If all sources sent EOF, send top 10 and submit the EOF to report
-				if aggregator.checkEofSingleQueue(amountEOF) {
-					top10 := actorsData.GetTop10()
-					aggregator.Log.Debugf("[aggregator_%s] %s: %s", aggregator.Config.AggregatorType, MSG_AGGREGATED, protoUtils.Top10ToString(top10))
-					data, err := proto.Marshal(top10)
-					if err != nil {
-						aggregator.Log.Fatalf("[aggregator_%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_MARSHAL, err)
-						break
-					}
-					// send top10 to report
-					aggregator.publishData(data)
-					// submit the EOF to report
-					dataEof, errEof := protoUtils.CreateEofMessageTop10("")
-					aggregator.checkErrorAndPublish("", dataEof, errEof)
-					break
-				}
-			}
-			actorsData.UpdateCount(&actorCount)
+	if err != nil {
+		aggregator.Log.Fatalf("%s '%s': %v", MSG_FAILED_CONSUME, aggregator.Config.InputQueue, err)
+	}
+	// Count EOF and actors data for all clients
+	amountEOF := make(map[string]int)
+	actorsData := make(map[string](*utils.ActorsData))
+	for msg := range msgs {
+		var actorCount protopb.Actor
+		if err := proto.Unmarshal(msg.Body, &actorCount); err != nil {
+			aggregator.Log.Errorf("[aggregator_%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_UNMARSHAL, err)
+			continue
 		}
+		clientID := actorCount.GetClientId()
+		aggregator.Log.Debugf("[aggregator_%s client_%s] %s : %s", aggregator.Config.AggregatorType, clientID, MSG_RECEIVED, protoUtils.ActorToString(&actorCount))
+		// Actual data for a client
+		actorsDataClient := utils.GetOrInitKeyMapWithKey(&actorsData, clientID, utils.InitActorsData)
+		// EOF
+		if actorCount.GetEof() {
+			amountEOF[clientID] = utils.GetOrInitKeyMap(&amountEOF, clientID, utils.InitEOFCount) + 1
+			// If all sources sent EOF, send top 10 and submit the EOF to report
+			if aggregator.checkEofSingleQueue(amountEOF[clientID]) {
+				top10 := actorsDataClient.GetTop10()
+				data, err := proto.Marshal(top10)
+				if err != nil {
+					aggregator.Log.Fatalf("[aggregator_%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_MARSHAL, err)
+					continue
+				}
+				// send top10 to report
+				aggregator.publishData(data)
+				aggregator.Log.Debugf("[aggregator_%s client_%s] %s: %s", aggregator.Config.AggregatorType, clientID, MSG_SENT_TO_REPORT, protoUtils.Top10ToString(top10))
+				// submit the EOF to report
+				dataEof, errEof := protoUtils.CreateEofMessageTop10("")
+				aggregator.checkErrorAndPublish("", dataEof, errEof)
+			}
+			continue
+		}
+		// Update top for a client
+		actorsDataClient.UpdateCount(&actorCount)
 	}
 }
 
 func (aggregator *Aggregator) aggregateTopAndBottom() {
 	msgs, err := aggregator.consumeQueue(aggregator.Config.InputQueue)
 	if err == nil {
+		// Count EOF and top_and_bottom for all clients
 		amountEOF := 0
 		globalTopAndBottom := protoUtils.CreateSeedTopAndBottom("")
 		for msg := range msgs {

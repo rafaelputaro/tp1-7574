@@ -8,6 +8,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+const EOF_MESSAGE = "EOF Message"
+
 func CreateDummyActor(clientId string, eof bool) *protopb.Actor {
 	return &protopb.Actor{
 		Name:        proto.String("Dummys"),
@@ -24,6 +26,11 @@ func CreateEofActor(clientId string) *protopb.Actor {
 
 func CreateEofMessageActor(clientId string) ([]byte, error) {
 	return proto.Marshal(CreateEofActor(clientId))
+}
+
+// Returns string from actor count
+func ActorToString(actor *protopb.Actor) string {
+	return fmt.Sprintf("Name: %s | Path Profile %s (%v) ", actor.GetName(), actor.GetProfilePath(), actor.GetCountMovies())
 }
 
 func CreateDummyCreditSanit(clientId string, eof bool) *protopb.CreditSanit {
@@ -225,6 +232,9 @@ func CreateEofMessageTop5Country(clientId string) ([]byte, error) {
 
 // Returns string from Top5
 func Top5ToString(top *protopb.Top5Country) string {
+	if top.GetEof() {
+		return EOF_MESSAGE
+	}
 	toReturn := ""
 	for index := range len(top.GetProductionCountries()) {
 		toReturn += fmt.Sprintf("%v(US$ %v) ", top.GetProductionCountries()[index], top.GetBudget()[index])
@@ -252,6 +262,9 @@ func CreateEofMessageTop10(clientId string) ([]byte, error) {
 
 // Return names an count as string
 func Top10ToString(top *protopb.Top10) string {
+	if top.GetEof() {
+		return EOF_MESSAGE
+	}
 	toReturn := ""
 	for index := range len(top.GetNames()) {
 		toReturn += fmt.Sprintf("%v(%v) ", top.GetNames()[index], top.GetCountMovies()[index])

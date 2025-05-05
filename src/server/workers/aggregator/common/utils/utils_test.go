@@ -104,7 +104,7 @@ func TestTop10(t *testing.T) {
 	}
 }
 
-func TestMap(t *testing.T) {
+func TestGetOrInitKeyMap(t *testing.T) {
 	init := func() int {
 		return 1
 	}
@@ -121,4 +121,94 @@ func TestMap(t *testing.T) {
 	if aMap["0"] != 3 {
 		t.Fatal("Error on map")
 	}
+}
+
+func TestGetOrInitKeyMapWithKey(t *testing.T) {
+	globalTop5 := make(map[string]*protopb.Top5Country)
+
+	found := GetOrInitKeyMapWithKey(&globalTop5, "", protoUtils.CreateMinimumTop5Country)
+
+	if *globalTop5[""].ClientId != "" {
+		t.Fatal("Error on map")
+	}
+
+	if *found.ClientId != "" {
+		t.Fatal("Error on map")
+	}
+
+	globalTop5[""].Budget[0] = 1000
+
+	found = GetOrInitKeyMapWithKey(&globalTop5, "", protoUtils.CreateMinimumTop5Country)
+
+	if found.Budget[0] != 1000 {
+		t.Fatal("Error on map")
+	}
+
+	if globalTop5[""].Budget[0] != 1000 {
+		t.Fatal("Error on map")
+	}
+
+	found = GetOrInitKeyMapWithKey(&globalTop5, "", protoUtils.CreateMinimumTop5Country)
+
+	found.Budget[0] = 2000
+
+	found = GetOrInitKeyMapWithKey(&globalTop5, "", protoUtils.CreateMinimumTop5Country)
+
+	if found.Budget[0] != 2000 {
+		t.Fatal("Error on map")
+	}
+
+	if globalTop5[""].Budget[0] != 2000 {
+		t.Fatal("Error on map")
+	}
+
+	actorsData := make(map[string]*ActorsData)
+
+	actorsDataClient := GetOrInitKeyMapWithKey(&actorsData, "", InitActorsData)
+
+	actorsDataClient.UpdateCount(&protopb.Actor{
+		Name:        proto.String("Pepe"),
+		ProfilePath: proto.String("Pepe.jpg"),
+		CountMovies: proto.Int64(1000),
+		ClientId:    proto.String(""),
+	})
+
+	actorsDataClient = GetOrInitKeyMapWithKey(&actorsData, "", InitActorsData)
+
+	actorsDataClient.UpdateCount(&protopb.Actor{
+		Name:        proto.String("Pepe"),
+		ProfilePath: proto.String("Pepe.jpg"),
+		CountMovies: proto.Int64(1000),
+		ClientId:    proto.String(""),
+	})
+
+	top10 := actorsDataClient.GetTop10()
+
+	if top10.CountMovies[0] != 2000 {
+		t.Fatal("Error on map")
+	}
+
+	/*
+		if fountTop. != 1000 {
+			t.Fatal("Error on map")
+		}
+
+		if globalTop5[""].Budget[0] != 1000 {
+			t.Fatal("Error on map")
+		}
+
+		found = GetOrInitKeyMapWithKey(&globalTop5, "", protoUtils.CreateMinimumTop5Country)
+
+		found.Budget[0] = 2000
+
+		found = GetOrInitKeyMapWithKey(&globalTop5, "", protoUtils.CreateMinimumTop5Country)
+
+		if found.Budget[0] != 2000 {
+			t.Fatal("Error on map")
+		}
+
+		if globalTop5[""].Budget[0] != 2000 {
+			t.Fatal("Error on map")
+		}*/
+
 }

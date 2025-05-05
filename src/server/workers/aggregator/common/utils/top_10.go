@@ -32,6 +32,10 @@ func NewActorsData() *ActorsData {
 	}
 }
 
+func InitActorsData(clientId string) *ActorsData {
+	return NewActorsData()
+}
+
 func (actorsData *ActorsData) UpdateCount(actor *protopb.Actor) {
 	key := actor.GetProfilePath()
 	foundIndex, existsData := actorsData.index[key]
