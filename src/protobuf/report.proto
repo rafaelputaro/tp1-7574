@@ -62,6 +62,14 @@ message SentimentScore {
   required float score = 2;
 }
 
+message ReportRequest {
+  required string clientId = 1;
+}
+
 service ReportService {
+  rpc GetReport(ReportRequest) returns (ReportResponse);
+}
+
+service Controller {
   rpc GetReport(google.protobuf.Empty) returns (ReportResponse);
 }

@@ -19,7 +19,6 @@ import (
 const (
 	batchSize          = 100
 	controllerGrpcAddr = "controller:50051"
-	reportGrpcAddr     = "report:50052"
 )
 
 func main() {
@@ -82,22 +81,9 @@ func main() {
 	internal.SendCredits(ctx, creditsClient, creditsParser)
 	internal.SendRatings(ctx, ratingsClient, ratingsParser)
 
-	var reportConn *grpc.ClientConn
-	reportConn, err = internal.RetryWithBackoff(
-		func() (*grpc.ClientConn, error) {
-			return grpc.NewClient(reportGrpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-		})
-	if err != nil {
-		logger.Fatalf("Failed to connect to report generator: %v", err)
-	}
-	defer reportConn.Close()
+	controllerReportClient := pb.NewControllerClient(controllerConn)
 
-	reportClient := pb.NewReportServiceClient(reportConn)
-
-	resp, err := reportClient.GetReport(ctx, &emptypb.Empty{})
-	if err != nil {
-		logger.Fatalf("Failed to generate report: %v", err)
-	}
+	resp, err := controllerReportClient.GetReport(ctx, &emptypb.Empty{})
 
 	logger.Infof("Received report response: %+v", resp)
 

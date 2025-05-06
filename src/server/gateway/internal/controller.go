@@ -1,10 +1,13 @@
 package internal
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/op/go-logging"
 	amqp "github.com/rabbitmq/amqp091-go"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"io"
 	"strconv"
 	"strings"
@@ -24,20 +27,28 @@ type Controller struct {
 	pb.UnimplementedMovieServiceServer
 	pb.UnimplementedRatingServiceServer
 	pb.UnimplementedCreditServiceServer
-	ch *amqp.Channel
+	pb.UnimplementedControllerServer
+	ch             *amqp.Channel
+	reportClient   pb.ReportServiceClient
+	clientRegistry *ClientRegistry
 }
 
-func NewController(ch *amqp.Channel) *Controller {
-	return &Controller{ch: ch}
+func NewController(ch *amqp.Channel, client pb.ReportServiceClient, registry *ClientRegistry) *Controller {
+	return &Controller{ch: ch, reportClient: client, clientRegistry: registry}
 }
 
 func (c *Controller) StreamMovies(stream pb.MovieService_StreamMoviesServer) error {
+	clientID, err := c.clientRegistry.GetOrCreateClientID(stream.Context())
+	if err != nil {
+		return status.Errorf(codes.Internal, "failed to get client id: %v", err)
+	}
+
 	count := 0
 
 	for {
 		msg, err := stream.Recv()
 		if err == io.EOF {
-			err := c.publishMovieEof()
+			err := c.publishMovieEof(clientID)
 			if err != nil {
 				logger.Errorf("failed to publish movie EOF message: %v", err)
 				return err
@@ -49,7 +60,7 @@ func (c *Controller) StreamMovies(stream pb.MovieService_StreamMoviesServer) err
 			return err
 		}
 
-		sanitized, err := sanitizeMovie(msg)
+		sanitized, err := sanitizeMovie(msg, clientID)
 		if err != nil {
 			// logger.Infof("skipping invalid movie (id %d): %v", msg.GetId(), err)
 			continue
@@ -70,12 +81,17 @@ func (c *Controller) StreamMovies(stream pb.MovieService_StreamMoviesServer) err
 }
 
 func (c *Controller) StreamRatings(stream pb.RatingService_StreamRatingsServer) error {
+	clientID, err := c.clientRegistry.GetOrCreateClientID(stream.Context())
+	if err != nil {
+		return status.Errorf(codes.Internal, "failed to get client id: %v", err)
+	}
+
 	count := 0
 
 	for {
 		rating, err := stream.Recv()
 		if err == io.EOF {
-			err := c.publishRatingEof()
+			err := c.publishRatingEof(clientID)
 			if err != nil {
 				logger.Errorf("failed to publish rating EOF message: %v", err)
 				return err
@@ -87,7 +103,7 @@ func (c *Controller) StreamRatings(stream pb.RatingService_StreamRatingsServer) 
 			return err
 		}
 
-		sanitized, err := sanitizeRating(rating)
+		sanitized, err := sanitizeRating(rating, clientID)
 		if err != nil {
 			logger.Infof("skipping invalid rating (movie id %d): %v", rating.GetMovieId(), err)
 			continue
@@ -108,12 +124,17 @@ func (c *Controller) StreamRatings(stream pb.RatingService_StreamRatingsServer) 
 }
 
 func (c *Controller) StreamCredits(stream pb.CreditService_StreamCreditsServer) error {
+	clientID, err := c.clientRegistry.GetOrCreateClientID(stream.Context())
+	if err != nil {
+		return status.Errorf(codes.Internal, "failed to get client id: %v", err)
+	}
+
 	count := 0
 
 	for {
 		credit, err := stream.Recv()
 		if err == io.EOF {
-			err := c.publishCreditEof()
+			err := c.publishCreditEof(clientID)
 			if err != nil {
 				logger.Errorf("failed to publish credit EOF message: %v", err)
 				return err
@@ -125,7 +146,7 @@ func (c *Controller) StreamCredits(stream pb.CreditService_StreamCreditsServer) 
 			return err
 		}
 
-		sanitized, err := sanitizeCredit(credit)
+		sanitized, err := sanitizeCredit(credit, clientID)
 		if err != nil {
 			// logger.Infof("skipping invalid credit (movie id %d): %v", credit.GetId(), err)
 			continue
@@ -145,6 +166,19 @@ func (c *Controller) StreamCredits(stream pb.CreditService_StreamCreditsServer) 
 	}
 }
 
+func (c *Controller) GetReport(ctx context.Context, _ *emptypb.Empty) (*pb.ReportResponse, error) {
+	clientID, err := c.clientRegistry.GetOrCreateClientID(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get client id: %v", err)
+	}
+
+	report, err := c.reportClient.GetReport(context.Background(), &pb.ReportRequest{ClientId: &clientID})
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get report: %v", err)
+	}
+	return report, nil
+}
+
 func (c *Controller) publishToExchange(exchange string, data []byte) error {
 	return rabbitmq.Publish(c.ch, exchange, "", data)
 }
@@ -159,7 +193,7 @@ func (c *Controller) publishToQueues(data []byte, queues ...string) error {
 	return nil
 }
 
-func (c *Controller) publishMovieEof() error {
+func (c *Controller) publishMovieEof(clientID string) error {
 	data, err := proto.Marshal(&pb.MovieSanit{
 		Budget:      proto.Int32(0),
 		Id:          proto.Int32(0),
@@ -168,6 +202,7 @@ func (c *Controller) publishMovieEof() error {
 		Revenue:     proto.Float64(0),
 		Title:       proto.String(""),
 		Eof:         proto.Bool(true),
+		ClientId:    proto.String(clientID),
 	})
 	if err != nil {
 		return err
@@ -181,10 +216,11 @@ func (c *Controller) publishMovieEof() error {
 	return nil
 }
 
-func (c *Controller) publishCreditEof() error {
+func (c *Controller) publishCreditEof(clientID string) error {
 	data, err := proto.Marshal(&pb.CreditSanit{
-		Id:  proto.Int64(0),
-		Eof: proto.Bool(true),
+		Id:       proto.Int64(0),
+		Eof:      proto.Bool(true),
+		ClientId: proto.String(clientID),
 	})
 	if err != nil {
 		return err
@@ -198,11 +234,12 @@ func (c *Controller) publishCreditEof() error {
 	return nil
 }
 
-func (c *Controller) publishRatingEof() error {
+func (c *Controller) publishRatingEof(clientID string) error {
 	data, err := proto.Marshal(&pb.RatingSanit{
-		MovieId: proto.Int64(0),
-		Rating:  proto.Float32(0),
-		Eof:     proto.Bool(true),
+		MovieId:  proto.Int64(0),
+		Rating:   proto.Float32(0),
+		Eof:      proto.Bool(true),
+		ClientId: proto.String(clientID),
 	})
 	if err != nil {
 		return err
@@ -216,7 +253,7 @@ func (c *Controller) publishRatingEof() error {
 	return nil
 }
 
-func sanitizeMovie(m *pb.Movie) (*pb.MovieSanit, error) {
+func sanitizeMovie(m *pb.Movie, clientID string) (*pb.MovieSanit, error) {
 	// Release Year
 	var releaseYear uint32
 	if date := m.GetReleaseDate(); date != "" {
@@ -269,22 +306,24 @@ func sanitizeMovie(m *pb.Movie) (*pb.MovieSanit, error) {
 		Revenue:             m.Revenue,
 		Title:               proto.String(strings.TrimSpace(m.GetTitle())),
 		Eof:                 m.Eof,
+		ClientId:            proto.String(clientID),
 	}, nil
 }
 
-func sanitizeRating(r *pb.Rating) (*pb.RatingSanit, error) {
+func sanitizeRating(r *pb.Rating, clientId string) (*pb.RatingSanit, error) {
 	if r.GetRating() < 0.0 || r.GetRating() > 5.0 {
 		return nil, fmt.Errorf("invalid rating value: %v", r.GetRating())
 	}
 
 	return &pb.RatingSanit{
-		MovieId: r.MovieId,
-		Rating:  r.Rating,
-		Eof:     r.Eof,
+		MovieId:  r.MovieId,
+		Rating:   r.Rating,
+		Eof:      r.Eof,
+		ClientId: proto.String(clientId),
 	}, nil
 }
 
-func sanitizeCredit(c *pb.Credit) (*pb.CreditSanit, error) {
+func sanitizeCredit(c *pb.Credit, clientId string) (*pb.CreditSanit, error) {
 	castJson := NormalizeJSON(c.GetCast())
 	var parsedCast []struct {
 		Name        string `json:"name"`
@@ -310,5 +349,6 @@ func sanitizeCredit(c *pb.Credit) (*pb.CreditSanit, error) {
 		ProfilePaths: profiles,
 		Id:           c.Id,
 		Eof:          c.Eof,
+		ClientId:     proto.String(clientId),
 	}, nil
 }

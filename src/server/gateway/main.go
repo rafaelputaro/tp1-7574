@@ -2,6 +2,7 @@ package main
 
 import (
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"net"
 	"tp1/server/gateway/internal"
 
@@ -9,6 +10,10 @@ import (
 	"tp1/globalconfig"
 	"tp1/protobuf/protopb"
 	"tp1/rabbitmq"
+)
+
+var (
+	reportGrpcAddr = "report:50052"
 )
 
 func main() {
@@ -43,10 +48,24 @@ func main() {
 
 	grpcServer := grpc.NewServer()
 
-	ctrl := internal.NewController(ch)
+	var reportConn *grpc.ClientConn
+	reportConn, err = internal.RetryWithBackoff(
+		func() (*grpc.ClientConn, error) {
+			return grpc.NewClient(reportGrpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		})
+	if err != nil {
+		logger.Fatalf("Failed to connect to report generator: %v", err)
+	}
+	defer internal.ShutdownGRPCConnection(reportConn)
+
+	reportClient := protopb.NewReportServiceClient(reportConn)
+	clientRegistry := internal.NewClientRegistry()
+	ctrl := internal.NewController(ch, reportClient, clientRegistry)
+
 	protopb.RegisterMovieServiceServer(grpcServer, ctrl)
 	protopb.RegisterRatingServiceServer(grpcServer, ctrl)
 	protopb.RegisterCreditServiceServer(grpcServer, ctrl)
+	protopb.RegisterControllerServer(grpcServer, ctrl)
 
 	logger.Info("gRPC server listening on :50051")
 

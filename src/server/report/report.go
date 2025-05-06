@@ -2,16 +2,18 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"github.com/op/go-logging"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/emptypb"
 	"net"
-	"sync"
+	"time"
+	"tp1/globalconfig"
 	pb "tp1/protobuf/protopb"
 	"tp1/rabbitmq"
+	"tp1/server/report/internal"
 )
 
 var logger = logging.MustGetLogger("report")
@@ -19,88 +21,74 @@ var logger = logging.MustGetLogger("report")
 type ReportGenerator struct {
 	pb.UnimplementedReportServiceServer
 	ch *amqp.Channel
+	rr *internal.ReportRegistry
 }
 
-func NewReportGenerator(ch *amqp.Channel) *ReportGenerator {
-	return &ReportGenerator{ch: ch}
+func NewReportGenerator(ch *amqp.Channel, rr *internal.ReportRegistry) *ReportGenerator {
+	return &ReportGenerator{ch: ch, rr: rr}
 }
 
-func (r *ReportGenerator) GetReport(_ context.Context, _ *emptypb.Empty) (*pb.ReportResponse, error) {
+func (r *ReportGenerator) StartConsuming() {
 	queues := []queueConfig{
 		{
-			Name:    "movies_report",
+			Name:    globalconfig.Report1Queue,
 			IsEOF:   isMoviesEOF,
 			Process: processMovies,
 		},
 		{
-			Name:    "top_5_report",
+			Name:    globalconfig.Report2Queue,
 			IsEOF:   isTop5EOF,
 			Process: processTop5,
 		},
 		{
-			Name:    "top_and_bottom_report",
+			Name:    globalconfig.Report3Queue,
 			IsEOF:   isTopAndBottomEOF,
 			Process: processTopAndBottom,
 		},
 		{
-			Name:    "top_10_report",
+			Name:    globalconfig.Report4Queue,
 			IsEOF:   isTop10EOF,
 			Process: processTop10,
 		},
 		{
-			Name:    "metrics_report",
+			Name:    globalconfig.Report5Queue,
 			IsEOF:   isMetricsEOF,
 			Process: processMetrics,
 		},
 	}
 
-	response := pb.ReportResponse{}
-	wg := sync.WaitGroup{}
-
 	for _, q := range queues {
-		wg.Add(1)
 		go func(config queueConfig) {
-			defer wg.Done()
-
-			msgsCh, err := r.ch.Consume(config.Name, "", true, false, false, false, nil)
+			msgsCh, err := rabbitmq.ConsumeFromQueue(r.ch, config.Name)
 			if err != nil {
 				logger.Errorf("failed to consume from %s: %v", config.Name, err)
 				return
 			}
 
-			var allMsgs [][]byte
-
 			for d := range msgsCh {
-				if config.IsEOF(d.Body) {
+				/*if config.IsEOF(d.Body) {
 					logger.Infof("received EOF for %s", config.Name)
-					break
-				}
-				allMsgs = append(allMsgs, d.Body)
+					// break
+				}*/
+				config.Process(d.Body, r.rr)
 			}
 
-			config.Process(allMsgs, &response)
 		}(q)
 	}
+}
 
-	wg.Wait()
-
-	return &pb.ReportResponse{
-		Answer1: response.Answer1,
-		Answer2: response.Answer2,
-		Answer3: response.Answer3,
-		Answer4: response.Answer4,
-		Answer5: &pb.Answer5{
-			Positive: &pb.SentimentScore{Type: proto.String("positive"), Score: proto.Float32(0.82)},
-			Negative: &pb.SentimentScore{Type: proto.String("negative"), Score: proto.Float32(0.13)},
-		},
-	}, nil
-
+func (r *ReportGenerator) GetReport(_ context.Context, req *pb.ReportRequest) (*pb.ReportResponse, error) {
+	report := r.rr.WaitForReport(req.GetClientId(), 21*time.Second)
+	if report == nil {
+		return nil, status.Error(codes.DeadlineExceeded, "report not ready")
+	}
+	return report, nil
 }
 
 type queueConfig struct {
 	Name    string
 	IsEOF   func([]byte) bool
-	Process func([][]byte, *pb.ReportResponse)
+	Process func([]byte, *internal.ReportRegistry)
 }
 
 func isMoviesEOF(data []byte) bool {
@@ -109,24 +97,23 @@ func isMoviesEOF(data []byte) bool {
 	return movie.GetEof()
 }
 
-func processMovies(data [][]byte, response *pb.ReportResponse) {
+func processMovies(data []byte, rr *internal.ReportRegistry) {
 
 	answer1 := pb.Answer1{}
 
-	for _, d := range data {
-		var movie pb.MovieSanit
-		_ = proto.Unmarshal(d, &movie)
+	var movie pb.MovieSanit
+	_ = proto.Unmarshal(data, &movie)
 
-		entry := pb.MovieEntry{
-			Id:     movie.Id,
-			Title:  movie.Title,
-			Genres: movie.Genres,
-		}
-
-		answer1.Movies = append(answer1.Movies, &entry)
+	entry := pb.MovieEntry{
+		Id:     movie.Id,
+		Title:  movie.Title,
+		Genres: movie.Genres,
 	}
 
-	response.Answer1 = &answer1
+	answer1.Movies = append(answer1.Movies, &entry)
+
+	logger.Infof("Adding answer1 for client %s: %v", movie.GetClientId(), &answer1)
+	rr.AddAnswer1(movie.GetClientId(), &answer1)
 }
 
 func isTop5EOF(data []byte) bool {
@@ -135,24 +122,23 @@ func isTop5EOF(data []byte) bool {
 	return country.GetEof()
 }
 
-func processTop5(data [][]byte, response *pb.ReportResponse) {
+func processTop5(data []byte, rr *internal.ReportRegistry) {
 	answer2 := pb.Answer2{}
 
-	for _, d := range data {
-		var country pb.Top5Country
-		_ = proto.Unmarshal(d, &country)
+	var top5 pb.Top5Country
+	_ = proto.Unmarshal(data, &top5)
 
-		for i := 0; i < len(country.ProductionCountries); i++ {
-			entry := pb.CountryEntry{
-				Name:   &country.ProductionCountries[i],
-				Budget: &country.Budget[i],
-			}
-
-			answer2.Countries = append(answer2.Countries, &entry)
+	for i := 0; i < len(top5.ProductionCountries); i++ {
+		entry := pb.CountryEntry{
+			Name:   &top5.ProductionCountries[i],
+			Budget: &top5.Budget[i],
 		}
+
+		answer2.Countries = append(answer2.Countries, &entry)
 	}
 
-	response.Answer2 = &answer2
+	logger.Infof("Adding answer2 for client %s: %v", top5.GetClientId(), &answer2)
+	rr.AddAnswer2(top5.GetClientId(), &answer2)
 }
 
 func isTopAndBottomEOF(data []byte) bool {
@@ -161,31 +147,30 @@ func isTopAndBottomEOF(data []byte) bool {
 	return d.GetEof()
 }
 
-func processTopAndBottom(data [][]byte, response *pb.ReportResponse) {
+func processTopAndBottom(data []byte, rr *internal.ReportRegistry) {
 	answer3 := pb.Answer3{}
 
-	for _, d := range data {
-		var ratingAvg pb.TopAndBottomRatingAvg
-		_ = proto.Unmarshal(d, &ratingAvg)
+	var ratingAvg pb.TopAndBottomRatingAvg
+	_ = proto.Unmarshal(data, &ratingAvg)
 
-		minRating := pb.MovieRating{
-			Id:     proto.Int32(0),
-			Title:  ratingAvg.TitleTop,
-			Rating: ratingAvg.RatingAvgTop,
-		}
-
-		answer3.Min = &minRating
-
-		maxRating := pb.MovieRating{
-			Id:     proto.Int32(1),
-			Title:  ratingAvg.TitleBottom,
-			Rating: ratingAvg.RatingAvgBottom,
-		}
-
-		answer3.Max = &maxRating
+	minRating := pb.MovieRating{
+		Id:     proto.Int32(0),
+		Title:  ratingAvg.TitleTop,
+		Rating: ratingAvg.RatingAvgTop,
 	}
 
-	response.Answer3 = &answer3
+	answer3.Min = &minRating
+
+	maxRating := pb.MovieRating{
+		Id:     proto.Int32(1),
+		Title:  ratingAvg.TitleBottom,
+		Rating: ratingAvg.RatingAvgBottom,
+	}
+
+	answer3.Max = &maxRating
+
+	logger.Infof("Adding answer3 for client %s: %v", ratingAvg.GetClientId(), &answer3)
+	rr.AddAnswer3(ratingAvg.GetClientId(), &answer3)
 }
 
 func isTop10EOF(data []byte) bool {
@@ -194,25 +179,24 @@ func isTop10EOF(data []byte) bool {
 	return d.GetEof()
 }
 
-func processTop10(data [][]byte, response *pb.ReportResponse) {
+func processTop10(data []byte, rr *internal.ReportRegistry) {
 	answer4 := pb.Answer4{}
 
-	for _, d := range data {
-		var top10 pb.Top10
-		_ = proto.Unmarshal(d, &top10)
+	var top10 pb.Top10
+	_ = proto.Unmarshal(data, &top10)
 
-		for i := 0; i < len(top10.GetNames()); i++ {
-			entry := pb.ActorEntry{
-				Id:    proto.Int64(int64(i)),
-				Name:  proto.String(top10.Names[i]),
-				Count: proto.Int64(top10.CountMovies[i]),
-			}
-
-			answer4.Actors = append(answer4.Actors, &entry)
+	for i := 0; i < len(top10.GetNames()); i++ {
+		entry := pb.ActorEntry{
+			Id:    proto.Int64(int64(i)),
+			Name:  proto.String(top10.Names[i]),
+			Count: proto.Int64(top10.CountMovies[i]),
 		}
+
+		answer4.Actors = append(answer4.Actors, &entry)
 	}
 
-	response.Answer4 = &answer4
+	logger.Infof("Adding answer4 for client %s: %v", top10.GetClientId(), &answer4)
+	rr.AddAnswer4(top10.GetClientId(), &answer4)
 }
 
 func isMetricsEOF(data []byte) bool {
@@ -221,27 +205,26 @@ func isMetricsEOF(data []byte) bool {
 	return d.GetEof()
 }
 
-func processMetrics(data [][]byte, response *pb.ReportResponse) {
+func processMetrics(data []byte, rr *internal.ReportRegistry) {
 	answer5 := pb.Answer5{}
 
-	for _, d := range data {
-		var metrics pb.Metrics
-		_ = proto.Unmarshal(d, &metrics)
+	var metrics pb.Metrics
+	_ = proto.Unmarshal(data, &metrics)
 
-		positive := pb.SentimentScore{
-			Type:  proto.String("positive"),
-			Score: proto.Float32(float32(metrics.GetAvgRevenueOverBudgetPositive())),
-		}
-		answer5.Positive = &positive
-
-		negative := pb.SentimentScore{
-			Type:  proto.String("negative"),
-			Score: proto.Float32(float32(metrics.GetAvgRevenueOverBudgetNegative())),
-		}
-		answer5.Positive = &negative
+	positive := pb.SentimentScore{
+		Type:  proto.String("positive"),
+		Score: proto.Float32(float32(metrics.GetAvgRevenueOverBudgetPositive())),
 	}
+	answer5.Positive = &positive
 
-	response.Answer5 = &answer5
+	negative := pb.SentimentScore{
+		Type:  proto.String("negative"),
+		Score: proto.Float32(float32(metrics.GetAvgRevenueOverBudgetNegative())),
+	}
+	answer5.Positive = &negative
+
+	logger.Infof("Adding answer5 for client %s: %v", metrics.GetClientId(), &answer5)
+	rr.AddAnswer5(metrics.GetClientId(), &answer5)
 }
 
 func main() {
@@ -249,21 +232,29 @@ func main() {
 	if err != nil {
 		logger.Fatalf("Failed to connect to RabbitMQ: %v", err)
 	}
-	defer conn.Close()
+	defer rabbitmq.ShutdownConnection(conn)
 
 	ch, err := conn.Channel()
 	if err != nil {
 		logger.Fatalf("Failed to open RabbitMQ channel: %v", err)
 	}
-	defer ch.Close()
+	defer rabbitmq.ShutdownChannel(ch)
 
-	lis, err := net.Listen("tcp", ":50052")
+	err = rabbitmq.DeclareDirectQueues(ch, globalconfig.ReportQueues...)
 	if err != nil {
-		panic(fmt.Errorf("failed to listen: %v", err))
+		logger.Fatalf("Failed to declare movies: %v", err)
 	}
 
 	grpcServer := grpc.NewServer()
-	pb.RegisterReportServiceServer(grpcServer, NewReportGenerator(ch))
+	reportGenerator := NewReportGenerator(ch, internal.NewReportRegistry())
+	pb.RegisterReportServiceServer(grpcServer, reportGenerator)
+
+	reportGenerator.StartConsuming()
+
+	lis, err := net.Listen("tcp", ":50052")
+	if err != nil {
+		logger.Fatalf("Failed to listen: %v", err)
+	}
 
 	logger.Infof("Report generator listening on :50052")
 	if err := grpcServer.Serve(lis); err != nil {
