@@ -33,29 +33,32 @@ func UpdateMetrics(avgRevenueOverBudgetNegative *map[string]float64, avgRevenueO
 	}
 }
 
-func CreateMetricsReport(clientID string, avgRevenueOverBudgetNegative *map[string]float64, avgRevenueOverBudgetPositive *map[string]float64) (error, *protopb.Metrics) {
+func CreateMetricsReport(clientID string, avgRevenueOverBudgetNegative *map[string]float64, avgRevenueOverBudgetPositive *map[string]float64) (*protopb.Metrics, error) {
 	avgROBNeg, okNeg := (*avgRevenueOverBudgetNegative)[clientID]
 	avgROBPos, okPos := (*avgRevenueOverBudgetPositive)[clientID]
 	if okNeg && okPos {
-		return nil, &protopb.Metrics{
+		return &protopb.Metrics{
 			AvgRevenueOverBudgetNegative: proto.Float64(avgROBNeg),
 			AvgRevenueOverBudgetPositive: proto.Float64(avgROBPos),
-		}
+			ClientId:                     proto.String(clientID),
+		}, nil
 	}
-	return errors.New(MSG_REPORT_NOT_READY), nil
+	return nil, errors.New(MSG_REPORT_NOT_READY)
 }
 
-func CreateMetricResult(clientID string, isNegative bool, countMap *map[string]int64, sumAvgMap *map[string]float64) (error, *MetricResultClient) {
+func CreateMetricResult(clientID string, isNegative bool, countMap *map[string]int64, sumAvgMap *map[string]float64) (*MetricResultClient, error) {
 	count, okCount := (*countMap)[clientID]
 	sumAvg, okSumAvg := (*sumAvgMap)[clientID]
 	if okCount && okSumAvg {
 		var avgRevenueOverBudget float64
 		if count != 0 {
 			avgRevenueOverBudget = sumAvg / float64(count)
+		} else {
+			avgRevenueOverBudget = 0
 		}
-		return nil, NewMetricResultClient(clientID, avgRevenueOverBudget, isNegative)
+		return NewMetricResultClient(clientID, avgRevenueOverBudget, isNegative), nil
 	}
-	return errors.New(MSG_ERROR_ON_CREATE_RESULT), nil
+	return nil, errors.New(MSG_ERROR_ON_CREATE_RESULT)
 }
 
 func InitCount() int64 {
