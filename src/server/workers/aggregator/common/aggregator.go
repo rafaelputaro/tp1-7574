@@ -6,7 +6,6 @@ import (
 	protoUtils "tp1/protobuf/utils"
 	"tp1/rabbitmq"
 	rabbitUtils "tp1/rabbitmq"
-
 	"tp1/server/workers/aggregator/common/utils"
 
 	"github.com/op/go-logging"
@@ -194,9 +193,11 @@ func (aggregator *Aggregator) aggregateTop5() {
 	if err != nil {
 		aggregator.Log.Fatalf("%s '%s': %v", MSG_FAILED_CONSUME, aggregator.Config.InputQueue, err)
 	}
+
 	// Count EOF and globalTop5 for all clients
 	amountEOF := make(map[string]int)
 	globalTop5 := make(map[string]*protopb.Top5Country)
+
 	// Message loop
 	for msg := range msgs {
 		var top5 protopb.Top5Country
@@ -204,6 +205,7 @@ func (aggregator *Aggregator) aggregateTop5() {
 			aggregator.Log.Errorf("[aggregator_%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_UNMARSHAL, err)
 			continue
 		}
+
 		clientID := top5.GetClientId()
 		aggregator.Log.Debugf("[aggregator_%s client_%s] %s: %s", aggregator.Config.AggregatorType, clientID, MSG_RECEIVED, protoUtils.Top5ToString(&top5))
 		// get the last global top 5 or init for a client
@@ -216,12 +218,12 @@ func (aggregator *Aggregator) aggregateTop5() {
 				// Prepare to send report
 				data, err := proto.Marshal(lastGlobalTop5Cli)
 				if err != nil {
-					aggregator.Log.Fatalf("[aggregator_%s client_%s] %s: %v", aggregator.Config.AggregatorType, clientID, MSG_FAILED_TO_MARSHAL, err)
+					aggregator.Log.Fatalf("[client_id:%s] %s: %v", clientID, MSG_FAILED_TO_MARSHAL, err)
 					continue
 				}
 				// send top5 to report
 				aggregator.publishData(data)
-				aggregator.Log.Debugf("[aggregator_%s client_%s] %s: %s", aggregator.Config.AggregatorType, clientID, MSG_SENT_TO_REPORT, protoUtils.Top5ToString(lastGlobalTop5Cli))
+				aggregator.Log.Debugf("[client_id:%s] %s: %s", clientID, MSG_SENT_TO_REPORT, protoUtils.Top5ToString(lastGlobalTop5Cli))
 				// submit the EOF to report
 				dataEof, errEof := protoUtils.CreateEofMessageTop5Country(clientID)
 				aggregator.checkErrorAndPublish(clientID, dataEof, errEof)
@@ -508,7 +510,7 @@ func (aggregator *Aggregator) consumeQueue(queueName string) (<-chan amqp.Delive
 	if err != nil {
 		aggregator.Log.Fatalf("%s '%s': %v", MSG_FAILED_CONSUME, queueName, err)
 	}
-	aggregator.Log.Infof("[aggregator_%s] Waiting for messages in queue %s ...", aggregator.Config.AggregatorType, queueName)
+	aggregator.Log.Infof("waiting for messages in queue %s ...", queueName)
 	return msgs, err
 }
 

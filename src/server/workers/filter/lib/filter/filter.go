@@ -270,9 +270,10 @@ func (f *Filter) processTop5InvestorsFilter() {
 			top5 := &protopb.Top5Country{
 				Budget:              []int32{},
 				ProductionCountries: []string{},
+				ClientId:            movie.ClientId,
 			}
-			eof := true
-			top5.Eof = &eof
+			// eof := true
+			// top5.Eof = &eof
 
 			for i := 0; i < len(sorted) && i < 5; i++ {
 				top5.ProductionCountries = append(top5.ProductionCountries, sorted[i].Country)
@@ -295,6 +296,33 @@ func (f *Filter) processTop5InvestorsFilter() {
 				amqp.Publishing{
 					ContentType: "application/protobuf",
 					Body:        data,
+				},
+			)
+			if err != nil {
+				f.log.Errorf("[%s] Failed to publish Top5Country: %v", filterName, err)
+			}
+
+			eofData := &protopb.Top5Country{
+				Budget:              []int32{},
+				ProductionCountries: []string{},
+				Eof:                 proto.Bool(true),
+				ClientId:            movie.ClientId,
+			}
+
+			eofDataBytes, err := proto.Marshal(eofData)
+			if err != nil {
+				f.log.Errorf("[%s] Failed to marshal Top5Country EOF: %v", filterName, err)
+				continue
+			}
+
+			err = f.channel.Publish(
+				"",
+				outputQueue,
+				false,
+				false,
+				amqp.Publishing{
+					ContentType: "application/protobuf",
+					Body:        eofDataBytes,
 				},
 			)
 			if err != nil {
