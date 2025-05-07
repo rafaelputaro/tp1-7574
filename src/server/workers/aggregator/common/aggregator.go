@@ -155,7 +155,7 @@ func (aggregator *Aggregator) publishData(data []byte) {
 // Check error and publish
 func (aggregator *Aggregator) checkErrorAndPublish(clientID string, data []byte, err error) {
 	if err != nil {
-		aggregator.Log.Fatalf("[aggregator_%s client_%s] %s: %v", aggregator.Config.AggregatorType, clientID, MSG_FAILED_TO_MARSHAL, err)
+		aggregator.Log.Fatalf("[client_id:%s] %s: %v", clientID, MSG_FAILED_TO_MARSHAL, err)
 	} else {
 		aggregator.publishData(data)
 	}
@@ -356,12 +356,14 @@ func (aggregator *Aggregator) aggregateMetrics() {
 		// prepare report
 		data, err := proto.Marshal(report)
 		if err != nil {
-			aggregator.Log.Fatalf("[aggregator_%s client_%s] %s: %v", aggregator.Config.AggregatorType, clientID, MSG_FAILED_TO_MARSHAL, err)
+			aggregator.Log.Fatalf("[client_id:%s] %s: %v", clientID, MSG_FAILED_TO_MARSHAL, err)
 			continue
 		}
+
 		// send report
 		aggregator.publishData(data)
-		aggregator.Log.Debugf("[aggregator_%s client_%s] %s: %s", aggregator.Config.AggregatorType, clientID, MSG_SENT_TO_REPORT, protoUtils.MetricsToString(report))
+		aggregator.Log.Debugf("[client_id:%s] %s: %v", clientID, MSG_SENT_TO_REPORT, report)
+
 		// submit the EOF to report
 		dataEof, errEof := protoUtils.CreateEofMessageMetrics(clientID)
 		aggregator.checkErrorAndPublish(clientID, dataEof, errEof)

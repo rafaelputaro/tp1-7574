@@ -252,7 +252,7 @@ func processMetrics(data []byte, rr *internal.ReportRegistry) {
 		Type:  proto.String("negative"),
 		Score: proto.Float32(float32(metrics.GetAvgRevenueOverBudgetNegative())),
 	}
-	answer5.Positive = &negative
+	answer5.Negative = &negative
 
 	logger.Infof("[client_id:%s] adding answer5: %v", metrics.GetClientId(), &answer5)
 	rr.AddAnswer5(metrics.GetClientId(), &answer5)
