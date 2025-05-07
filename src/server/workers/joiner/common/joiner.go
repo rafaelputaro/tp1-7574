@@ -20,10 +20,7 @@ const G_B_M_ID_CREDITS string = "group_by_movie_id_credits"
 const MSG_START = "Starting job for ID"
 const MSG_FAILED_CONSUME = "Failed to consume messages from"
 const MSG_JOB_FINISHED = "Job finished"
-const MSG_FAILED_TO_UNMARSHAL = "Failed to unmarshal message"
 const MSG_RECEIVED_EOF_MARKER = "Received EOF marker"
-const MSG_JOINED = "Joined"
-const MSG_FAILED_TO_MARSHAL = "Failed to marshal message"
 const MSG_FAILED_TO_PUBLISH_ON_OUTPUT_QUEUE = "Failed to publish on outputqueue"
 
 // Joiner which can be of types "group_by_movie_id_ratings" or "group_by_movie_id_credits".
@@ -248,131 +245,148 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 	inputExchange := "ar_movies_2000_and_later_exchange"
 
-	err := joiner.Channel.ExchangeDeclare(
-		inputExchange,
-		"direct",
-		true,  // durable
-		false, // auto-deleted
-		false, // internal
-		false, // no-wait
-		nil,   // args
-	)
+	err := rabbitmq.DeclareDirectExchanges(joiner.Channel, inputExchange)
 	if err != nil {
-		joiner.Log.Fatalf("[%s] Failed to declare exchange %s: %v", joiner.Config.JoinerType, inputExchange, err)
+		Shutdown(joiner.Log, joiner.Connection, joiner.Channel, "failed to declare exchange", err)
 	}
 
-	// Declare temporal queue used to read from the exchange
-	_, err = joiner.Channel.QueueDeclare(
-		joiner.Config.InputQueueName, // empty = temporal queue with generated name
-		true,                         // durable
-		false,                        // auto-delete when unused
-		false,                        // exclusive
-		false,                        // no-wait
-		nil,
-	)
+	err = rabbitmq.DeclareDirectQueues(joiner.Channel, joiner.Config.InputQueueName)
 	if err != nil {
-		joiner.Log.Fatalf("[%s] Failed to declare temporary queue: %v", joiner.Config.JoinerType, err)
+		Shutdown(joiner.Log, joiner.Connection, joiner.Channel, "failed to declare queue", err)
 	}
 
-	// Bind the queue to the exchange
-	err = joiner.Channel.QueueBind(
-		joiner.Config.InputQueueName, // queue name
-		joiner.Config.ID,             // routing key (empty on a fanout)
-		inputExchange,                // exchange
-		false,
-		nil,
-	)
+	err = rabbitmq.BindQueueToExchange(joiner.Channel, joiner.Config.InputQueueName, inputExchange, joiner.Config.ID)
 	if err != nil {
-		joiner.Log.Fatalf("[%s] Failed to bind queue to exchange: %v", joiner.Config.JoinerType, err)
+		Shutdown(joiner.Log, joiner.Connection, joiner.Channel, "failed to bind queue to exchange", err)
 	}
 
 	err = rabbitmq.DeclareFanoutExchanges(joiner.Channel, globalconfig.RatingsExchange)
 	if err != nil {
-		joiner.Log.Fatalf("[%s] Failed to declare exchange: %v", joiner.Config.JoinerType, err)
+		Shutdown(joiner.Log, joiner.Connection, joiner.Channel, "failed to declare fanout exchange", err)
 	}
 
-	// Declare temporal queue used to read from the exchange
-	inputQueue, err := joiner.Channel.QueueDeclare(
-		"",    // empty = temporal queue with generated name
-		false, // durable
-		true,  // auto-delete when unused
-		true,  // exclusive
-		false, // no-wait
-		nil,
-	)
+	inputQueue, err := rabbitmq.DeclareTemporaryQueue(joiner.Channel)
 	if err != nil {
-		joiner.Log.Fatalf("[%s] Failed to declare temporary queue: %v", joiner.Config.JoinerType, err)
+		Shutdown(joiner.Log, joiner.Connection, joiner.Channel, "failed to declare temporary queue", err)
 	}
 
-	// Bind the queue to the exchange
-	err = joiner.Channel.QueueBind(
-		inputQueue.Name,              // queue name
-		"",                           // routing key (empty on a fanout)
-		globalconfig.RatingsExchange, // exchange
-		false,
-		nil,
-	)
+	err = rabbitmq.BindQueueToExchange(joiner.Channel, inputQueue.Name, globalconfig.RatingsExchange, "")
 	if err != nil {
-		joiner.Log.Fatalf("[%s] Failed to bind queue to exchange: %v", joiner.Config.JoinerType, err)
+		Shutdown(joiner.Log, joiner.Connection, joiner.Channel, "failed to bind temporary queue to exchange", err)
 	}
 
-	msgs, err := joiner.consumeQueue(joiner.Config.InputQueueName)
-	if err == nil {
-		totalizer := utils.NewRatingTotalizer()
-		// read all movies
-		for msg := range msgs {
+	// Store client-specific data
+	type clientState struct {
+		totalizer *utils.RatingTotalizer
+		movieEOF  bool
+		ratingEOF bool
+	}
+	clientStates := make(map[string]*clientState)
+
+	// Send report when both EOFs are received for a client
+	sendReportIfReady := func(clientID string, state *clientState) {
+		if state.movieEOF && state.ratingEOF {
+			// Get top and bottom ratings
+			topAndBottom := state.totalizer.GetTopAndBottom(clientID)
+
+			// Prepare report
+			joiner.Log.Debugf("[client_id:%s] send top and bottom: %s", clientID, utils.TopAndBottomToString(topAndBottom))
+			data, err := proto.Marshal(topAndBottom)
+			if err != nil {
+				joiner.Log.Fatalf("[client_id:%s] failed to marshall top and bottom: %v", clientID, err)
+				return
+			}
+
+			// Send report
+			joiner.publishData(data)
+
+			// Send EOF for the client
+			eof := utils.CreateTopAndBottomRatingAvgEof(clientID)
+			data, err = proto.Marshal(eof)
+			if err != nil {
+				joiner.Log.Fatalf("[client_id:%s] failed to marshall top and bottom EOF: %v", clientID, err)
+			}
+			joiner.publishData(data)
+
+			// Remove client state to free resources
+			// delete(clientStates, clientID)
+		}
+	}
+
+	// Message processing function
+	processMessage := func(msg amqp.Delivery, isRating bool) {
+		var clientID string
+		if isRating {
+			var rating protopb.RatingSanit
+			if err := proto.Unmarshal(msg.Body, &rating); err != nil {
+				joiner.Log.Errorf("failed to unmarshal rating: %v", err)
+				return
+			}
+			clientID = rating.GetClientId()
+
+			// Initialize client state if not exists
+			if _, exists := clientStates[clientID]; !exists {
+				clientStates[clientID] = &clientState{totalizer: utils.NewRatingTotalizer()}
+			}
+			state := clientStates[clientID]
+
+			if rating.GetEof() {
+				state.ratingEOF = true
+				joiner.Log.Infof("[client_id:%s][queue:%s] recevied EOF", clientID, joiner.Config.InputQueueSecName)
+			} else {
+				state.totalizer.Sum(&rating)
+			}
+			sendReportIfReady(clientID, state)
+
+		} else {
 			var movie protopb.MovieSanit
 			if err := proto.Unmarshal(msg.Body, &movie); err != nil {
-				joiner.Log.Errorf("[%s] %s: %v", joiner.Config.JoinerType, MSG_FAILED_TO_UNMARSHAL, err)
-				continue
+				joiner.Log.Errorf("failed to unmarshal movie: %v", err)
+				return
 			}
-			// EOF
-			if movie.Eof != nil && *movie.Eof {
-				joiner.logEofQueue(joiner.Config.InputQueueName)
-				break
+			clientID = movie.GetClientId()
+
+			// Initialize client state if not exists
+			if _, exists := clientStates[clientID]; !exists {
+				clientStates[clientID] = &clientState{totalizer: utils.NewRatingTotalizer()}
 			}
-			// append movie
-			totalizer.AppendMovie(&movie)
+			state := clientStates[clientID]
+
+			if movie.GetEof() {
+				state.movieEOF = true
+				joiner.Log.Infof("[client_id:%s][queue:%s] recevied EOF", clientID, joiner.Config.InputQueueName)
+			} else {
+				state.totalizer.AppendMovie(&movie)
+			}
+			sendReportIfReady(clientID, state)
+		}
+	}
+
+	// Start message consumers
+	go func() {
+		msgs, err := joiner.consumeQueue(joiner.Config.InputQueueName)
+		if err != nil {
+			joiner.Log.Fatalf("[queue:%s] failed to consume: %v", joiner.Config.InputQueueName, err)
 		}
 
-		msgs, err = joiner.consumeQueue(inputQueue.Name)
-		if err == nil {
-			// read all ratings
-			for msg := range msgs {
-				var rating protopb.RatingSanit
-				if err := proto.Unmarshal(msg.Body, &rating); err != nil {
-					joiner.Log.Errorf("[%s] %s: %v", joiner.Config.JoinerType, MSG_FAILED_TO_UNMARSHAL, err)
-					continue
-				}
-				// EOF
-				if rating.Eof != nil && *rating.Eof {
-					joiner.logEofQueue(joiner.Config.InputQueueSecName)
-					break
-				}
-				// sum rating
-				totalizer.Sum(&rating)
-			}
+		for msg := range msgs {
+			processMessage(msg, false) // Movie messages
 		}
-		// get top and bottom
-		topAndBottom := *totalizer.GetTopAndBottom()
-		// prepare report
-		joiner.Log.Debugf("[%s] %s: %s", joiner.Config.JoinerType, MSG_JOINED, utils.TopAndBottomToString(&topAndBottom))
-		data, err := proto.Marshal(&topAndBottom)
+	}()
+
+	go func() {
+		msgs, err := joiner.consumeQueue(inputQueue.Name)
 		if err != nil {
-			joiner.Log.Fatalf("[%s] %s: %v", joiner.Config.JoinerType, MSG_FAILED_TO_MARSHAL, err)
-			return
+			joiner.Log.Fatalf("[queue:%s] failed to consume: %v", inputQueue.Name, err)
 		}
-		// send report
-		joiner.publishData(data)
-		// send eof
-		eof := *utils.CreateTopAndBottomRatingAvgEof()
-		data, err = proto.Marshal(&eof)
-		if err != nil {
-			joiner.Log.Fatalf("[%s] %s: %v", joiner.Config.JoinerType, MSG_FAILED_TO_MARSHAL, err)
+
+		for msg := range msgs {
+			processMessage(msg, true) // Rating messages
 		}
-		// send eof
-		joiner.publishData(data)
-	}
+	}()
+
+	// Keep the joiner running indefinitely
+	select {}
 }
 
 func (joiner *Joiner) consumeQueue(name string) (<-chan amqp.Delivery, error) {

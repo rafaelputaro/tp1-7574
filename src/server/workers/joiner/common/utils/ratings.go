@@ -58,13 +58,14 @@ func (totalizer *RatingTotalizer) Sum(rating *protopb.RatingSanit) {
 	}
 }
 
-func CreateTopAndBottomRatingAvgEof() *protopb.TopAndBottomRatingAvg {
+func CreateTopAndBottomRatingAvgEof(clientID string) *protopb.TopAndBottomRatingAvg {
 	return &protopb.TopAndBottomRatingAvg{
 		TitleTop:        proto.String("Dummy1"),
 		TitleBottom:     proto.String("Dummy2"),
 		RatingAvgTop:    proto.Float64(0.0),
 		RatingAvgBottom: proto.Float64(0.0),
 		Eof:             proto.Bool(true),
+		ClientId:        proto.String(clientID),
 	}
 }
 
@@ -107,7 +108,7 @@ func (totalizer *RatingTotalizer) sort() {
 	slices.SortFunc(totalizer.Movies, cmpMovieData)
 }
 
-func (totalizer *RatingTotalizer) GetTopAndBottom() *protopb.TopAndBottomRatingAvg {
+func (totalizer *RatingTotalizer) GetTopAndBottom(clientID string) *protopb.TopAndBottomRatingAvg {
 	totalizer.sort()
 	last := totalizer.Movies[len(totalizer.Movies)-1]
 	return &protopb.TopAndBottomRatingAvg{
@@ -115,5 +116,6 @@ func (totalizer *RatingTotalizer) GetTopAndBottom() *protopb.TopAndBottomRatingA
 		TitleBottom:     &last.Title,
 		RatingAvgTop:    &totalizer.Movies[0].RatingAvg,
 		RatingAvgBottom: &last.RatingAvg,
+		ClientId:        proto.String(clientID),
 	}
 }
