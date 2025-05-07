@@ -102,72 +102,34 @@ func (joiner *Joiner) publishData(data []byte) {
 func (joiner *Joiner) joiner_g_b_m_id_credits() {
 	inputExchange := "ar_movies_after_2000_exchange"
 
-	err := joiner.Channel.ExchangeDeclare(
-		inputExchange,
-		"direct",
-		true,  // durable
-		false, // auto-deleted
-		false, // internal
-		false, // no-wait
-		nil,   // args
-	)
+	err := rabbitmq.DeclareDirectExchanges(joiner.Channel, inputExchange)
 	if err != nil {
-		joiner.Log.Fatalf("[%s] Failed to declare exchange %s: %v", joiner.Config.JoinerType, inputExchange, err)
+		Shutdown(joiner.Log, joiner.Connection, joiner.Channel, "failed to declare exchange", err)
 	}
 
-	// Declare temporal queue used to read from the exchange
-	_, err = joiner.Channel.QueueDeclare(
-		joiner.Config.InputQueueName, // empty = temporal queue with generated name
-		true,                         // durable
-		false,                        // auto-delete when unused
-		false,                        // exclusive
-		false,                        // no-wait
-		nil,
-	)
+	err = rabbitmq.DeclareDirectQueues(joiner.Channel, joiner.Config.InputQueueName)
 	if err != nil {
-		joiner.Log.Fatalf("[%s] Failed to declare temporary queue: %v", joiner.Config.JoinerType, err)
+		Shutdown(joiner.Log, joiner.Connection, joiner.Channel, "failed to declare queue", err)
 	}
 
-	// Bind the queue to the exchange
-	err = joiner.Channel.QueueBind(
-		joiner.Config.InputQueueName, // queue name
-		joiner.Config.ID,             // routing key (empty on a fanout)
-		inputExchange,                // exchange
-		false,
-		nil,
-	)
+	err = rabbitmq.BindQueueToExchange(joiner.Channel, joiner.Config.InputQueueName, inputExchange, joiner.Config.ID)
 	if err != nil {
-		joiner.Log.Fatalf("[%s] Failed to bind queue to exchange: %v", joiner.Config.JoinerType, err)
+		Shutdown(joiner.Log, joiner.Connection, joiner.Channel, "failed to bind queue to exchange", err)
 	}
 
 	err = rabbitmq.DeclareFanoutExchanges(joiner.Channel, globalconfig.CreditsExchange)
 	if err != nil {
-		joiner.Log.Fatalf("[%s] Failed to declare exchange: %v", joiner.Config.JoinerType, err)
+		Shutdown(joiner.Log, joiner.Connection, joiner.Channel, "failed to declare fanout exchange", err)
 	}
 
-	// Declare temporal queue used to read from the exchange
-	inputQueue, err := joiner.Channel.QueueDeclare(
-		"",    // empty = temporal queue with generated name
-		false, // durable
-		true,  // auto-delete when unused
-		true,  // exclusive
-		false, // no-wait
-		nil,
-	)
+	inputQueue, err := rabbitmq.DeclareTemporaryQueue(joiner.Channel)
 	if err != nil {
-		joiner.Log.Fatalf("[%s] Failed to declare temporary queue: %v", joiner.Config.JoinerType, err)
+		Shutdown(joiner.Log, joiner.Connection, joiner.Channel, "failed to declare temporary queue", err)
 	}
 
-	// Bind the queue to the exchange
-	err = joiner.Channel.QueueBind(
-		inputQueue.Name,              // queue name
-		"",                           // routing key (empty on a fanout)
-		globalconfig.CreditsExchange, // exchange
-		false,
-		nil,
-	)
+	err = rabbitmq.BindQueueToExchange(joiner.Channel, inputQueue.Name, globalconfig.CreditsExchange, "")
 	if err != nil {
-		joiner.Log.Fatalf("[%s] Failed to bind queue to exchange: %v", joiner.Config.JoinerType, err)
+		Shutdown(joiner.Log, joiner.Connection, joiner.Channel, "failed to bind temporary queue to exchange", err)
 	}
 
 	msgs, err := joiner.consumeQueue(joiner.Config.InputQueueName)

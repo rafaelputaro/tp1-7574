@@ -46,6 +46,22 @@ func DeclareDirectQueues(channel *amqp.Channel, queues ...string) error {
 	return nil
 }
 
+func DeclareTemporaryQueue(channel *amqp.Channel) (amqp.Queue, error) {
+	queue, err := channel.QueueDeclare(
+		"",
+		false,
+		true,
+		true,
+		false,
+		nil,
+	)
+	if err != nil {
+		return amqp.Queue{}, err
+	}
+
+	return queue, nil
+}
+
 func DeclareFanoutExchanges(channel *amqp.Channel, exchanges ...string) error {
 	for _, name := range exchanges {
 		err := channel.ExchangeDeclare(

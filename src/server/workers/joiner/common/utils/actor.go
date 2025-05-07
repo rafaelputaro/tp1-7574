@@ -76,6 +76,7 @@ func CreateActorEof() *protopb.Actor {
 		CountMovies: proto.Int64(0),
 		ProfilePath: proto.String("DUMMY"),
 		Eof:         proto.Bool(true),
+		// ClientId:    proto.String(clientID),
 	}
 }
 
