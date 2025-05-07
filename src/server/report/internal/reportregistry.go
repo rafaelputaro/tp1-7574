@@ -19,11 +19,11 @@ func NewReportRegistry() *ReportRegistry {
 	}
 }
 
-func (rr *ReportRegistry) WaitForReport(clientID string, timeout time.Duration) *pb.ReportResponse {
-	ticker := time.NewTicker(5 * time.Second)
+func (rr *ReportRegistry) WaitForReport(clientID string) *pb.ReportResponse {
+	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
-	timeoutChan := time.After(timeout)
+	timeoutChan := time.After(120 * time.Second)
 
 	for {
 		select {

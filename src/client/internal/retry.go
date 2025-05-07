@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"google.golang.org/grpc"
 	"math/rand"
 	"time"
 )
@@ -29,4 +30,10 @@ func RetryWithBackoff[T any](operation StreamOpener[T]) (T, error) {
 	}
 
 	return stream, err
+}
+
+func ShutdownGRPCConnection(conn *grpc.ClientConn) {
+	if conn != nil {
+		_ = conn.Close()
+	}
 }

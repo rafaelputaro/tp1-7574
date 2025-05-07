@@ -53,7 +53,7 @@ func (c *Controller) StreamMovies(stream pb.MovieService_StreamMoviesServer) err
 				logger.Errorf("failed to publish movie EOF message: %v", err)
 				return err
 			}
-			logger.Infof("StreamMovies: published %d movies", count)
+			logger.Infof("[client_id:%s] StreamMovies: published %d movies", clientID, count)
 			return stream.SendAndClose(&emptypb.Empty{})
 		}
 		if err != nil {
@@ -96,7 +96,7 @@ func (c *Controller) StreamRatings(stream pb.RatingService_StreamRatingsServer) 
 				logger.Errorf("failed to publish rating EOF message: %v", err)
 				return err
 			}
-			logger.Infof("StreamRatings: published %d ratings", count)
+			logger.Infof("[client_id:%s] StreamRatings: published %d ratings", clientID, count)
 			return stream.SendAndClose(&emptypb.Empty{})
 		}
 		if err != nil {
@@ -139,7 +139,7 @@ func (c *Controller) StreamCredits(stream pb.CreditService_StreamCreditsServer) 
 				logger.Errorf("failed to publish credit EOF message: %v", err)
 				return err
 			}
-			logger.Infof("StreamCredits: published %d credits", count)
+			logger.Infof("[client_id:%s] StreamCredits: published %d credits", clientID, count)
 			return stream.SendAndClose(&emptypb.Empty{})
 		}
 		if err != nil {
@@ -172,10 +172,14 @@ func (c *Controller) GetReport(ctx context.Context, _ *emptypb.Empty) (*pb.Repor
 		return nil, status.Errorf(codes.Internal, "failed to get client id: %v", err)
 	}
 
+	logger.Infof("[client_id:%s] getting report", clientID)
+
 	report, err := c.reportClient.GetReport(context.Background(), &pb.ReportRequest{ClientId: &clientID})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to get report: %v", err)
 	}
+
+	logger.Infof("[client_id:%s] returning report: %v", clientID, report)
 	return report, nil
 }
 

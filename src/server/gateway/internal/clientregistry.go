@@ -5,18 +5,19 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
+	"strconv"
 	"strings"
 	"sync"
 )
 
 type ClientRegistry struct {
 	mu     sync.Mutex
-	lookup map[string]int32
-	nextID int32
+	lookup map[string]int
+	nextID int
 }
 
 func NewClientRegistry() *ClientRegistry {
-	return &ClientRegistry{lookup: make(map[string]int32)}
+	return &ClientRegistry{lookup: make(map[string]int)}
 }
 
 func (cr *ClientRegistry) GetOrCreateClientID(ctx context.Context) (string, error) {
@@ -33,9 +34,9 @@ func (cr *ClientRegistry) getOrCreateClientID(ip string) string {
 	defer cr.mu.Unlock()
 
 	if id, ok := cr.lookup[ip]; ok {
-		return string(id)
+		return strconv.Itoa(id)
 	}
 	cr.nextID++
 	cr.lookup[ip] = cr.nextID
-	return string(cr.nextID)
+	return strconv.Itoa(cr.nextID)
 }

@@ -71,7 +71,7 @@ func main() {
 	if err != nil {
 		logger.Fatalf("Failed to connect to controller after retries: %v", err)
 	}
-	defer controllerConn.Close()
+	defer internal.ShutdownGRPCConnection(controllerConn)
 
 	moviesClient := pb.NewMovieServiceClient(controllerConn)
 	creditsClient := pb.NewCreditServiceClient(controllerConn)
@@ -84,6 +84,10 @@ func main() {
 	controllerReportClient := pb.NewControllerClient(controllerConn)
 
 	resp, err := controllerReportClient.GetReport(ctx, &emptypb.Empty{})
+
+	if err != nil {
+		logger.Fatalf("Failed to get report: %v", err)
+	}
 
 	logger.Infof("Received report response: %+v", resp)
 

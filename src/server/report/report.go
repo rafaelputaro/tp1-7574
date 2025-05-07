@@ -9,7 +9,6 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"net"
-	"time"
 	"tp1/globalconfig"
 	pb "tp1/protobuf/protopb"
 	"tp1/rabbitmq"
@@ -67,8 +66,7 @@ func (r *ReportGenerator) StartConsuming() {
 
 			for d := range msgsCh {
 				if config.IsEOF(d.Body, r.rr) {
-					logger.Infof("received EOF for %s", config.Name)
-					// break
+					continue
 				}
 				config.Process(d.Body, r.rr)
 			}
@@ -78,10 +76,12 @@ func (r *ReportGenerator) StartConsuming() {
 }
 
 func (r *ReportGenerator) GetReport(_ context.Context, req *pb.ReportRequest) (*pb.ReportResponse, error) {
-	report := r.rr.WaitForReport(req.GetClientId(), 21*time.Second)
+	logger.Infof("[client_id:%s] waiting for report", req.GetClientId())
+	report := r.rr.WaitForReport(req.GetClientId())
 	if report == nil {
 		return nil, status.Error(codes.DeadlineExceeded, "report not ready")
 	}
+	logger.Infof("[client_id:%s] returning response: %v", req.GetClientId(), report)
 	return report, nil
 }
 
@@ -97,6 +97,7 @@ func isMoviesEOF(data []byte, rr *internal.ReportRegistry) bool {
 
 	eof := movie.GetEof()
 	if eof {
+		logger.Infof("[client_id:%s] received answer1 EOF", movie.GetClientId())
 		rr.DoneAnswer(movie.GetClientId())
 	}
 
@@ -114,7 +115,7 @@ func processMovies(data []byte, rr *internal.ReportRegistry) {
 		Genres: movie.Genres,
 	}
 
-	logger.Infof("Adding answer1 for client %s: %v", movie.GetClientId(), &entry)
+	logger.Infof("[client_id:%s] adding answer1: %v", movie.GetClientId(), &entry)
 	rr.AddToAnswer1(movie.GetClientId(), &entry)
 }
 
@@ -124,6 +125,7 @@ func isTop5EOF(data []byte, rr *internal.ReportRegistry) bool {
 
 	eof := country.GetEof()
 	if eof {
+		logger.Infof("[client_id:%s] received answer2 EOF", country.GetClientId())
 		rr.DoneAnswer(country.GetClientId())
 	}
 
@@ -145,7 +147,7 @@ func processTop5(data []byte, rr *internal.ReportRegistry) {
 		answer2.Countries = append(answer2.Countries, &entry)
 	}
 
-	logger.Infof("Adding answer2 for client %s: %v", top5.GetClientId(), &answer2)
+	logger.Infof("[client_id:%s] Adding answer2: %v", top5.GetClientId(), &answer2)
 	rr.AddAnswer2(top5.GetClientId(), &answer2)
 }
 
@@ -155,6 +157,7 @@ func isTopAndBottomEOF(data []byte, rr *internal.ReportRegistry) bool {
 
 	eof := ratingAvg.GetEof()
 	if eof {
+		logger.Infof("[client_id:%s] received answer3 EOF", ratingAvg.GetClientId())
 		rr.DoneAnswer(ratingAvg.GetClientId())
 	}
 
@@ -183,7 +186,7 @@ func processTopAndBottom(data []byte, rr *internal.ReportRegistry) {
 
 	answer3.Max = &maxRating
 
-	logger.Infof("Adding answer3 for client %s: %v", ratingAvg.GetClientId(), &answer3)
+	logger.Infof("[client_id:%s] adding answer3: %v", ratingAvg.GetClientId(), &answer3)
 	rr.AddAnswer3(ratingAvg.GetClientId(), &answer3)
 }
 
@@ -193,6 +196,7 @@ func isTop10EOF(data []byte, rr *internal.ReportRegistry) bool {
 
 	eof := top10.GetEof()
 	if eof {
+		logger.Infof("[client_id:%s] received answer4 EOF", top10.GetClientId())
 		rr.DoneAnswer(top10.GetClientId())
 	}
 
@@ -215,7 +219,7 @@ func processTop10(data []byte, rr *internal.ReportRegistry) {
 		answer4.Actors = append(answer4.Actors, &entry)
 	}
 
-	logger.Infof("Adding answer4 for client %s: %v", top10.GetClientId(), &answer4)
+	logger.Infof("[client_id:%s] adding answer4: %v", top10.GetClientId(), &answer4)
 	rr.AddAnswer4(top10.GetClientId(), &answer4)
 }
 
@@ -225,6 +229,7 @@ func isMetricsEOF(data []byte, rr *internal.ReportRegistry) bool {
 
 	eof := metrics.GetEof()
 	if eof {
+		logger.Infof("[client_id:%s] received answer5 EOF", metrics.GetClientId())
 		rr.DoneAnswer(metrics.GetClientId())
 	}
 
@@ -249,7 +254,7 @@ func processMetrics(data []byte, rr *internal.ReportRegistry) {
 	}
 	answer5.Positive = &negative
 
-	logger.Infof("Adding answer5 for client %s: %v", metrics.GetClientId(), &answer5)
+	logger.Infof("[client_id:%s] adding answer5: %v", metrics.GetClientId(), &answer5)
 	rr.AddAnswer5(metrics.GetClientId(), &answer5)
 }
 
