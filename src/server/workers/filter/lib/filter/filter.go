@@ -356,9 +356,8 @@ func (f *Filter) processYearFilters() {
 		"movies_after_2000":     func(year uint32) bool { return year > 2000 },
 		"movies_2000_and_later": func(year uint32) bool { return year >= 2000 },
 	}
-	filterName := "year_branch_filter"
 
-	f.log.Infof("[%s] Starting job for ID: %d", filterName, f.config.ID)
+	f.log.Infof("starting job for ID: %d", f.config.ID)
 
 	err := rabbitmq.DeclareDirectQueues(f.channel, globalconfig.Movies2Queue)
 	if err != nil {
@@ -368,30 +367,30 @@ func (f *Filter) processYearFilters() {
 	for outputQueue := range outputQueues {
 		err := rabbitmq.DeclareDirectQueues(f.channel, outputQueue)
 		if err != nil {
-			f.log.Fatalf("[%s] Failed to declare queue '%s': %v", filterName, outputQueue, err)
+			f.log.Fatalf("failed to declare queue '%s': %v", outputQueue, err)
 		}
 	}
 
 	msgs, err := rabbitmq.ConsumeFromQueue(f.channel, globalconfig.Movies2Queue)
 	if err != nil {
-		f.log.Fatalf("[%s] Failed to consume messages from '%s': %v", filterName, globalconfig.Movies2Queue, err)
+		f.log.Fatalf("failed to consume messages from '%s': %v", globalconfig.Movies2Queue, err)
 	}
 
-	f.log.Infof("[%s] Waiting for messages...", filterName)
+	f.log.Infof("waiting for messages...")
 
 	for msg := range msgs {
 		var movie protopb.MovieSanit
 		if err := proto.Unmarshal(msg.Body, &movie); err != nil {
-			f.log.Errorf("[%s] Failed to unmarshal message: %v", filterName, err)
+			f.log.Errorf("failed to unmarshal message: %v", err)
 			continue
 		}
 
 		if movie.Eof != nil && *movie.Eof {
-			f.log.Infof("[%s] Received EOF marker", filterName)
+			f.log.Infof("[client_id:%s] received EOF marker", movie.GetClientId())
 
 			eofBytes, err := proto.Marshal(&movie)
 			if err != nil {
-				f.log.Errorf("[%s] Failed to marshal EOF marker: %v", filterName, err)
+				f.log.Errorf("failed to marshal EOF marker: %v", err)
 				break
 			}
 
@@ -401,38 +400,38 @@ func (f *Filter) processYearFilters() {
 					Body:        eofBytes,
 				})
 				if err != nil {
-					f.log.Errorf("[%s] Failed to publish EOF to '%s': %v", filterName, queueName, err)
-				} else {
-					f.log.Infof("[%s] Propagated EOF to '%s'", filterName, queueName)
+					f.log.Fatalf("failed to publish EOF to '%s': %v", queueName, err)
 				}
+
+				f.log.Infof("[client_id:%s] propagated EOF to %s", movie.GetClientId(), queueName)
 			}
 
-			break
+			continue
 		}
 
 		releaseYear := movie.GetReleaseYear()
 
 		data, err := proto.Marshal(&movie)
 		if err != nil {
-			f.log.Errorf("[%s] Failed to marshal message: %v", filterName, err)
+			f.log.Errorf("failed to marshal message: %v", err)
 			continue
 		}
 
 		for queueName, condition := range outputQueues {
 			if condition(releaseYear) {
-				f.log.Debugf("[%s] -> [%s] %s (%d)", filterName, queueName, movie.GetTitle(), releaseYear)
+				// f.log.Debugf("[%s] %s (%d)", queueName, movie.GetTitle(), releaseYear)
 				err = f.channel.Publish("", queueName, false, false, amqp.Publishing{
 					ContentType: "application/protobuf",
 					Body:        data,
 				})
 				if err != nil {
-					f.log.Errorf("[%s] Failed to publish to '%s': %v", filterName, queueName, err)
+					f.log.Errorf("failed to publish to '%s': %v", queueName, err)
 				}
 			}
 		}
 	}
 
-	f.log.Infof("[%s] Job finished", filterName)
+	f.log.Infof("job finished")
 }
 
 func (f *Filter) processArFilter() {
