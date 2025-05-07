@@ -57,16 +57,23 @@ func NewFilter(config *FilterConfig, log *logging.Logger) *Filter {
 }
 
 func (f *Filter) StartFilterLoop() {
+	f.log.Infof("Starting filter loop with type: %s", f.config.Type)
+
 	switch f.config.Type {
 	case "2000s_filter":
+		f.log.Infof("Selected filter: 2000s_filter")
 		f.processYearFilters()
 	case "ar_es_filter":
+		f.log.Infof("Selected filter: ar_es_filter")
 		f.processArEsFilter()
 	case "ar_filter":
+		f.log.Infof("Selected filter: ar_filter")
 		f.processArFilter()
 	case "single_country_origin_filter":
+		f.log.Infof("Selected filter: single_country_origin_filter")
 		f.processSingleCountryOriginFilter()
 	case "top_5_investors_filter":
+		f.log.Infof("Selected filter: top_5_investors_filter")
 		f.processTop5InvestorsFilter()
 	default:
 		f.log.Errorf("Unknown filter type: %s", f.config.Type)
@@ -75,11 +82,11 @@ func (f *Filter) StartFilterLoop() {
 
 func (f *Filter) Close() {
 	if f.channel != nil {
-		f.channel.Close()
+		_ = f.channel.Close()
 	}
 
 	if f.conn != nil {
-		f.conn.Close()
+		_ = f.conn.Close()
 	}
 }
 
@@ -403,7 +410,6 @@ func (f *Filter) processYearFilters() {
 func (f *Filter) processArFilter() {
 	inputQueues := [2]string{"movies_2000_and_later", "movies_after_2000"}
 	outputExchanges := [2]string{"ar_movies_2000_and_later_exchange", "ar_movies_after_2000_exchange"}
-	filterName := "ar_filter"
 
 	filterFunc := func(movie *protopb.MovieSanit) bool {
 		productionCountries := movie.GetProductionCountries()
@@ -420,20 +426,20 @@ func (f *Filter) processArFilter() {
 
 	go func() {
 		defer wg.Done()
-		f.runShardedFilter(inputQueues[0], true, outputExchanges[0], filterName, filterFunc, shardingFunc)
+		f.runShardedFilter(inputQueues[0], true, outputExchanges[0], filterFunc, shardingFunc)
 	}()
 
 	go func() {
 		defer wg.Done()
-		f.runShardedFilter(inputQueues[1], true, outputExchanges[1], filterName, filterFunc, shardingFunc)
+		f.runShardedFilter(inputQueues[1], true, outputExchanges[1], filterFunc, shardingFunc)
 	}()
 
 	wg.Wait()
 }
 
 func (f *Filter) processSingleCountryOriginFilter() {
+	f.log.Infof("Runing filter...")
 	outputExchange := "single_country_origin_exchange"
-	filterName := "single_country_origin_filter"
 
 	filterFunc := func(movie *protopb.MovieSanit) bool {
 		productionCountries := movie.GetProductionCountries()
@@ -455,23 +461,17 @@ func (f *Filter) processSingleCountryOriginFilter() {
 		return (int(hasher.Sum32()) % f.config.Shards) + 1
 	}
 
-	f.runShardedFilter(globalconfig.Movies1Queue, true, outputExchange, filterName, filterFunc, shardingFunc)
+	f.log.Infof("Runing filter...")
+	f.runShardedFilter(globalconfig.Movies1Queue, true, outputExchange, filterFunc, shardingFunc)
 }
 
 // Creates a direct exchange using sharding with routing keys
-func (f *Filter) runShardedFilter(
-	inputQueue string,
-	declareInput bool,
-	outputExchange string,
-	filterName string,
-	filterFunc func(movie *protopb.MovieSanit) bool,
-	shardingFunc func(movie *protopb.MovieSanit) int,
-) {
+func (f *Filter) runShardedFilter(inputQueue string, declareInput bool, outputExchange string, filterFunc func(movie *protopb.MovieSanit) bool, shardingFunc func(movie *protopb.MovieSanit) int) {
 	// TODO: sacar esta lógica de acá
 	if declareInput {
 		err := rabbitmq.DeclareDirectQueues(f.channel, inputQueue)
 		if err != nil {
-			f.log.Fatalf("Failed to declare queue '%s': %v", inputQueue, err)
+			f.log.Fatalf("failed to declare queue '%s': %v", inputQueue, err)
 		}
 	}
 
@@ -486,7 +486,7 @@ func (f *Filter) runShardedFilter(
 		nil,            // arguments
 	)
 	if err != nil {
-		f.log.Fatalf("Failed to declare exchange: %v", err)
+		f.log.Fatalf("failed to declare exchange %s: %v", outputExchange, err)
 	}
 
 	// Declare and bind sharded queues to the exchange
@@ -498,7 +498,7 @@ func (f *Filter) runShardedFilter(
 		err := rabbitmq.DeclareDirectQueues(f.channel, queueName)
 		f.log.Debugf("Declaring %v", queueName)
 		if err != nil {
-			f.log.Fatalf("Failed to declare queue '%s': %v", queueName, err)
+			f.log.Fatalf("failed to declare queue '%s': %v", queueName, err)
 		}
 
 		err = f.channel.QueueBind(
@@ -509,29 +509,31 @@ func (f *Filter) runShardedFilter(
 			nil,            // args
 		)
 		if err != nil {
-			f.log.Fatalf("Failed to bind queue '%s' to exchange '%s': %v", queueName, outputExchange, err)
+			f.log.Fatalf("failed to bind queue '%s' to exchange '%s': %v", queueName, outputExchange, err)
 		}
 	}
 
 	msgs, err := rabbitmq.ConsumeFromQueue(f.channel, inputQueue)
 	if err != nil {
-		f.log.Fatalf("[%s] Failed to consume messages from '%s': %v", filterName, inputQueue, err)
+		f.log.Fatalf("failed to consume messages from '%s': %v", inputQueue, err)
 	}
 
-	f.log.Infof("[%s] Waiting for messages...", filterName)
+	f.log.Infof("Waiting for messages...")
 
 	for msg := range msgs {
 		var movie protopb.MovieSanit
 		if err := proto.Unmarshal(msg.Body, &movie); err != nil {
-			f.log.Errorf("[%s] Failed to unmarshal message: %v", filterName, err)
+			f.log.Errorf("failed to unmarshal message: %v", err)
 			continue
 		}
 
-		if movie.Eof != nil && *movie.Eof {
-			f.log.Infof("[%s] Received EOF marker", filterName)
+		if movie.GetEof() {
+			clientID := movie.GetClientId()
+
+			f.log.Infof("[client_id:%s] received EOF marker", clientID)
 			eofBytes, err := proto.Marshal(&movie)
 			if err != nil {
-				f.log.Errorf("[%s] Failed to marshal EOF marker: %v", filterName, err)
+				f.log.Errorf("failed to marshal EOF marker: %v", err)
 				break
 			}
 
@@ -549,20 +551,22 @@ func (f *Filter) runShardedFilter(
 					},
 				)
 				if err != nil {
-					f.log.Errorf("[%s] Failed to publish EOF to %s shard %d: %v", filterName, outputExchange, i, err)
+					f.log.Errorf("failed to publish EOF to %s shard %d: %v", outputExchange, i, err)
 				} else {
-					f.log.Infof("[%s] Propagated EOF to %s shard %d", filterName, outputExchange, i)
+					f.log.Infof("[client_id:%s] propagated EOF to %s shard %d", clientID, outputExchange, i)
 				}
 			}
 			break
 		}
 
 		if filterFunc(&movie) {
-			f.log.Debugf("[%s] Accepted: %s - %s (%d)", filterName, movie.GetTitle(), movie.GetProductionCountries(), movie.GetReleaseYear())
+			clientID := movie.GetClientId()
+
+			f.log.Debugf("[client_id:%s] accepted: %s - %s", clientID, movie.GetTitle(), movie.GetProductionCountries())
 
 			data, err := proto.Marshal(&movie)
 			if err != nil {
-				f.log.Errorf("[%s] Failed to marshal message: %v", filterName, err)
+				f.log.Errorf("failed to marshal message: %v", err)
 				continue
 			}
 
@@ -579,11 +583,11 @@ func (f *Filter) runShardedFilter(
 					Body:        data,
 				})
 			if err != nil {
-				f.log.Errorf("[%s] Failed to publish filtered message: %v", filterName, err)
+				f.log.Errorf("failed to publish filtered message: %v", err)
 			}
 
 			queueName := fmt.Sprintf("%s_shard_%d", outputExchange, shard)
-			f.log.Debugf("[%s] Message published to queue: %s (routing key: %s)", filterName, queueName, routingKey)
+			f.log.Debugf("[client_id:%s] message published to queue: %s (routing key: %s)", clientID, queueName, routingKey)
 		}
 	}
 }
