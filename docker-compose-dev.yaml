@@ -31,6 +31,32 @@ services:
       rabbitmq:
         condition: service_healthy
 
+  2000s-filter-2:
+    container_name: 2000s-filter-2
+    image: filter:latest
+    environment:
+      - FILTER_TYPE=2000s_filter
+      - FILTER_NUM=2
+      - SHARDS=1
+    networks:
+      - tp1_net
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  2000s-filter-3:
+    container_name: 2000s-filter-3
+    image: filter:latest
+    environment:
+      - FILTER_TYPE=2000s_filter
+      - FILTER_NUM=3
+      - SHARDS=1
+    networks:
+      - tp1_net
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
 
 
   ar-es-filter-1:
@@ -302,6 +328,8 @@ services:
       - joiner_group_by_movie_id_ratings
       - report
       - 2000s-filter-1
+      - 2000s-filter-2
+      - 2000s-filter-3
       - ar-es-filter-1
       - ar-filter-1
       - top-5-investors-filter-1
@@ -334,6 +362,25 @@ services:
 
   client-2:
     container_name: client-2
+    image: client:latest
+    build:
+      context: .
+      dockerfile: src/client/Dockerfile
+    networks:
+      - tp1_net
+    depends_on:
+      - controller
+    volumes:
+      - ./src/client/datasets:/app/datasets
+      - ./reports:/app
+    entrypoint: /client
+    command:
+      - /app/datasets/movies.csv
+      - /app/datasets/ratings.csv
+      - /app/datasets/credits.csv
+
+  client-3:
+    container_name: client-3
     image: client:latest
     build:
       context: .
