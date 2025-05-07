@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/op/go-logging"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"math/rand"
 	"os"
 	"os/signal"
 	"syscall"
@@ -22,7 +23,7 @@ const (
 )
 
 func main() {
-	time.Sleep(30 * time.Second)
+	time.Sleep(30*time.Second + time.Duration(rand.Intn(10))*time.Second)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -132,7 +133,7 @@ func printReport(report *pb.ReportResponse) {
 	fmt.Println(output)
 
 	// Save to file
-	timestamp := time.Now().Format("20060102_150405")
+	timestamp := time.Now().Format("02-01-2006 15:04:05")
 	filename := fmt.Sprintf("/app/report_%s.txt", timestamp)
 	err := os.WriteFile(filename, []byte(output), 0644)
 	if err != nil {

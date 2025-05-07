@@ -18,6 +18,7 @@ def main():
         nlp_nodes=int(default_config["NLP_NODES"]),
         shards=int(default_config["SHARDS"]),
         top_5_investors_filter_nodes=int(default_config["SHARDS"]),
+        client_nodes=int(default_config["CLIENT_NODES"]),
     )
 
     with open("docker-compose-dev.yaml", "w") as f:

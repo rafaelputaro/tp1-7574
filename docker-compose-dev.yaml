@@ -312,8 +312,9 @@ services:
       - nlp-4
       - nlp-5
 
-  client:
-    container_name: client
+
+  client-1:
+    container_name: client-1
     image: client:latest
     build:
       context: .
@@ -330,6 +331,27 @@ services:
       - /app/datasets/movies.csv
       - /app/datasets/ratings.csv
       - /app/datasets/credits.csv
+
+  client-2:
+    container_name: client-2
+    image: client:latest
+    build:
+      context: .
+      dockerfile: src/client/Dockerfile
+    networks:
+      - tp1_net
+    depends_on:
+      - controller
+    volumes:
+      - ./src/client/datasets:/app/datasets
+      - ./reports:/app
+    entrypoint: /client
+    command:
+      - /app/datasets/movies.csv
+      - /app/datasets/ratings.csv
+      - /app/datasets/credits.csv
+
+
 
   report:
     build:

@@ -264,8 +264,9 @@ services:
       - nlp-{{ i }}
 {%- endfor %}
 
-  client:
-    container_name: client
+{% for i in range(1, client_nodes + 1) %}
+  client-{{ i }}:
+    container_name: client-{{ i }}
     image: client:latest
     build:
       context: .
@@ -282,6 +283,8 @@ services:
       - /app/datasets/movies.csv
       - /app/datasets/ratings.csv
       - /app/datasets/credits.csv
+{% endfor %}
+
 
   report:
     build:
