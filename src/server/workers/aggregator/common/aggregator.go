@@ -37,6 +37,7 @@ const MSG_SENT_TO_REPORT = "Sent to report"
 const MSG_FAILED_TO_MARSHAL = "Failed to marshal message"
 const MSG_FAILED_TO_PUBLISH_ON_OUTPUT_QUEUE = "Failed to publish on outputqueue"
 const MSG_FAILED_TO_GENERATE_A_METRIC = "Failure to generate a metric"
+const MSG_NO_BUDGET_MOVIE = "No budget movie"
 
 // Aggregator which can be of types "movies", "top_5", "top_10", "top_and_bottom" and "metrices".
 // In the case of type "metrics" works with two queues:
@@ -346,7 +347,7 @@ func (aggregator *Aggregator) aggregateMetrics() {
 		// get client id
 		clientID := result.ClientID
 		// try to report
-		errReport, report := utils.CreateMetricsReport(clientID, &avgRevenueOverBudgetNegative, &avgRevenueOverBudgetPositive)
+		report, errReport := utils.CreateMetricsReport(clientID, &avgRevenueOverBudgetNegative, &avgRevenueOverBudgetPositive)
 		if errReport != nil {
 			continue
 		}
@@ -402,13 +403,17 @@ func (aggregator *Aggregator) aggregateMetric(queueName string, channelResults c
 			amountEOF[clientID] = utils.GetOrInitKeyMap(&amountEOF, clientID, utils.InitEOFCount) + 1
 			// If all sources sent EOF calculate avg and send result to channel
 			if aggregator.checkEofSingleQueue(amountEOF[clientID]) {
-				errResult, result := utils.CreateMetricResult(clientID, isNegative, &count, &sumAvg)
+				result, errResult := utils.CreateMetricResult(clientID, isNegative, &count, &sumAvg)
 				if errResult != nil {
 					aggregator.Log.Errorf("[aggregator_%s client_%s] error: %s", aggregator.Config.AggregatorType, clientID, errResult)
 					continue
 				}
 				channelResults <- *result
 			}
+			continue
+		}
+		if *movie.Budget == 0 {
+			aggregator.Log.Errorf("[aggregator_%s client_%s] %s: %s", aggregator.Config.AggregatorType, clientID, MSG_NO_BUDGET_MOVIE, movie.GetTitle())
 			continue
 		}
 		// update sum and count

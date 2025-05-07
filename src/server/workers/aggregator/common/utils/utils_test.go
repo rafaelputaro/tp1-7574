@@ -119,6 +119,81 @@ func TestGetOrInitKeyMap(t *testing.T) {
 	}
 }
 
+func TestMetricsReport(t *testing.T) {
+	resultNegative := NewMetricResultClient("", 1, true)
+	resultPositive := NewMetricResultClient("", 2, false)
+	if resultNegative == nil && resultPositive == nil {
+		t.Fatal("Error on new metric")
+	}
+	avgRevenueOverBudgetNegative := make(map[string]float64)
+	avgRevenueOverBudgetPositive := make(map[string]float64)
+	var report *protopb.Metrics
+	_, err := CreateMetricsReport("", &avgRevenueOverBudgetNegative, &avgRevenueOverBudgetPositive)
+	if err == nil {
+		t.Fatal("Error on report not null")
+	}
+	UpdateMetrics(&avgRevenueOverBudgetNegative, &avgRevenueOverBudgetPositive, resultNegative)
+	_, err = CreateMetricsReport("", &avgRevenueOverBudgetNegative, &avgRevenueOverBudgetPositive)
+	if err == nil {
+		t.Fatal("Error on report not null")
+	}
+	UpdateMetrics(&avgRevenueOverBudgetNegative, &avgRevenueOverBudgetPositive, resultPositive)
+	if len(avgRevenueOverBudgetNegative) != 1 && len(avgRevenueOverBudgetPositive) != 1 {
+		t.Fatal("Error on len")
+	}
+	valueNeg, okNeg := avgRevenueOverBudgetNegative[""]
+	valuePos, okPos := avgRevenueOverBudgetPositive[""]
+	if !okPos || !okNeg {
+		t.Fatal("Error on map")
+	}
+	if valueNeg != resultNegative.AvgRevenueOverBudget || valuePos != resultPositive.AvgRevenueOverBudget {
+		fmt.Printf("%v", valueNeg)
+		t.Fatal("Error on value")
+	}
+	report, err = CreateMetricsReport("", &avgRevenueOverBudgetNegative, &avgRevenueOverBudgetPositive)
+	if report == nil {
+		t.Fatal("Error on report")
+	}
+	if err != nil {
+		t.Fatal("Error on report null")
+	}
+	value := protoUtils.MetricsToString(report)
+	if !strings.Contains(value, "Negative") || !strings.Contains(value, "Positive") ||
+		!strings.Contains(value, "2") || !strings.Contains(value, "1") {
+		t.Fatal("Error on report values")
+	}
+}
+
+func TestMetricsResult(t *testing.T) {
+	count := make(map[string]int64)
+	sumAvg := make(map[string]float64)
+	//var result *MetricResultClient
+	var err error
+	_, err = CreateMetricResult("", false, &count, &sumAvg)
+	if err == nil {
+		t.Fatal("Result not null")
+	}
+	revenueMovie := 1000.0
+	budgetMovie := 100
+	clientID := ""
+	// update sum and count
+	count[""] = GetOrInitKeyMap(&count, clientID, InitCount) + 1
+	avg := (revenueMovie) / float64(budgetMovie)
+	sumAvg[clientID] = GetOrInitKeyMap(&sumAvg, clientID, InitSumAvg) + avg
+	// try result
+	_, err = CreateMetricResult("", false, &count, &sumAvg)
+	if err != nil {
+		t.Fatal("Result null")
+	}
+	if count[""] != 1 {
+		t.Fatal("Error count")
+	}
+	if sumAvg[""] != 10 {
+		t.Fatal("Error sumAvg")
+	}
+
+}
+
 func TestGetOrInitKeyMapWithKey(t *testing.T) {
 	globalTop5 := make(map[string]*protopb.Top5Country)
 	found := GetOrInitKeyMapWithKey(&globalTop5, "", protoUtils.CreateMinimumTop5Country)
