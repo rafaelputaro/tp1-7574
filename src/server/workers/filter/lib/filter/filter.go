@@ -100,7 +100,6 @@ type MovieFilterFunc func(movie *protopb.MovieSanit) bool
 func (f *Filter) processArEsFilter() {
 	inputQueue := "movies_2000_to_2009"
 	outputQueue := "movies_ar_es_2000s"
-	filterName := "ar_es_filter"
 
 	filterFunc := func(movie *protopb.MovieSanit) bool {
 		productionCountries := movie.GetProductionCountries()
@@ -108,34 +107,32 @@ func (f *Filter) processArEsFilter() {
 		return slices.Contains(productionCountries, "Argentina") && slices.Contains(productionCountries, "Spain")
 	}
 
-	f.log.Infof("[%s] Starting job for ID: %d", filterName, f.config.ID)
-
 	err := rabbitmq.DeclareDirectQueues(f.channel, inputQueue, outputQueue)
 	if err != nil {
-		f.log.Fatalf("Failed to declare queues: %v", err)
+		f.log.Fatalf("failed to declare queues: %v", err)
 	}
 
 	msgs, err := rabbitmq.ConsumeFromQueue(f.channel, inputQueue)
 	if err != nil {
-		f.log.Fatalf("Failed to consume messages from '%s': %v", inputQueue, err)
+		f.log.Fatalf("failed to consume messages from '%s': %v", inputQueue, err)
 	}
 
-	f.log.Infof("[%s] Waiting for messages...", filterName)
+	f.log.Infof("waiting for messages...")
 
 	for msg := range msgs {
 		var movie protopb.MovieSanit
 		if err := proto.Unmarshal(msg.Body, &movie); err != nil {
-			f.log.Errorf("[%s] Failed to unmarshal message: %v", filterName, err)
+			f.log.Errorf("failed to unmarshal message: %v", err)
 			continue
 		}
 
 		// EOF
 		if movie.Eof != nil && *movie.Eof {
-			f.log.Infof("[%s] Received EOF marker", filterName)
+			f.log.Infof("[client_id:%s] received EOF marker", movie.GetClientId())
 
 			eofBytes, err := proto.Marshal(&movie)
 			if err != nil {
-				f.log.Errorf("[%s] Failed to marshal EOF marker: %v", filterName, err)
+				f.log.Errorf("[client_id:%s] failed to marshal EOF marker: %v", movie.GetClientId(), err)
 				break
 			}
 
@@ -145,19 +142,20 @@ func (f *Filter) processArEsFilter() {
 				Body:        eofBytes,
 			})
 			if err != nil {
-				f.log.Errorf("[%s] Failed to publish EOF marker: %v", filterName, err)
-			} else {
-				f.log.Infof("[%s] Propagated EOF marker to %s", filterName, outputQueue)
+				f.log.Fatalf("[client_id:%s] failed to publish EOF marker: %v", movie.GetClientId(), err)
 			}
-			break
+
+			f.log.Infof("[client_id:%s] propagated EOF marker to %s", movie.GetClientId(), outputQueue)
+
+			continue
 		}
 
 		if filterFunc(&movie) {
-			f.log.Debugf("[%s] Accepted: %s (%d)", filterName, movie.GetProductionCountries(), movie.GetReleaseYear())
+			// f.log.Debugf("[client_id:%s] accepted: %s (%d)", movie.GetClientId(), movie.GetProductionCountries(), movie.GetReleaseYear())
 
 			data, err := proto.Marshal(&movie)
 			if err != nil {
-				f.log.Errorf("[%s] Failed to marshal message: %v", filterName, err)
+				f.log.Errorf("[client_id:%s] failed to marshal message: %v", movie.GetClientId(), err)
 				continue
 			}
 
@@ -166,12 +164,12 @@ func (f *Filter) processArEsFilter() {
 				Body:        data,
 			})
 			if err != nil {
-				f.log.Errorf("[%s] Failed to publish filtered message: %v", filterName, err)
+				f.log.Errorf("[client_id:%s]failed to publish filtered message: %v", movie.GetClientId(), err)
 			}
 		}
 	}
 
-	f.log.Infof("[%s] Job finished", filterName)
+	f.log.Infof("job finished")
 }
 
 func (f *Filter) processTop5InvestorsFilter() {
