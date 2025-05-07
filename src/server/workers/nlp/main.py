@@ -47,24 +47,19 @@ def cached_sentiment(movie):
         return label
 
 
-message_count = 0
-
-
 def callback(ch, method, properties, body):
-    global message_count
     movie = movie_sanit_pb2.MovieSanit()
     movie.ParseFromString(body)
 
     if movie.HasField("eof") and movie.eof:
-        logger.info("Received EOF. Sending EOF message to all output queues...")
+        logger.info(f"[client_id:{movie.clientId}] received EOF")
 
         movie.eof = True
         eof_message = movie.SerializeToString()
         channel.basic_publish(exchange='sentiment_exchange', routing_key=POSITIVE_QUEUE, body=eof_message)
         channel.basic_publish(exchange='sentiment_exchange', routing_key=NEGATIVE_QUEUE, body=eof_message)
 
-        logger.info("EOF messages sent to all output queues. Stopping consumption.")
-        ch.stop_consuming()
+        # ch.stop_consuming()
         return
 
     label = cached_sentiment(movie)
@@ -76,8 +71,7 @@ def callback(ch, method, properties, body):
         body=movie.SerializeToString()
     )
 
-    message_count += 1
-    logger.info(f"Message published to {target_queue} - count {message_count}")
+    logger.info(f"[client_id:{movie.clientId}] message published to {target_queue}")
 
 
 def main():
