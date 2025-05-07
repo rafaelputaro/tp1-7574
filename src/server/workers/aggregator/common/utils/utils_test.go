@@ -99,7 +99,7 @@ func TestTop10(t *testing.T) {
 		})
 	}
 	toCheck := "Mark Rufallo(14) Rosario Dawson(6) Morena Baccarin(6) Hugh Grant(5) Mel Gibson(5) Franchella(5) Gina Carano(4) Vincent D'Onofrio(4) Julia Roberts(4) Ryan Reynolds(3)"
-	if !strings.Contains(protoUtils.Top10ToString(actorsData.GetTop10()), toCheck) {
+	if !strings.Contains(protoUtils.Top10ToString(actorsData.GetTop10("")), toCheck) {
 		t.Fatal("Error on reduce top10")
 	}
 }
@@ -235,7 +235,7 @@ func TestGetOrInitKeyMapWithKey(t *testing.T) {
 		CountMovies: proto.Int64(1000),
 		ClientId:    proto.String(""),
 	})
-	top10 := actorsDataClient.GetTop10()
+	top10 := actorsDataClient.GetTop10("")
 	if top10.CountMovies[0] != 2000 {
 		t.Fatal("Error on map")
 	}

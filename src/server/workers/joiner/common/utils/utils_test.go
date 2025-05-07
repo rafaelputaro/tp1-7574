@@ -20,7 +20,7 @@ func TestActor(t *testing.T) {
 	}
 	actors := []*protopb.Actor{}
 	for actorPath := range counter.Actors {
-		actors = append(actors, counter.GetActor(actorPath))
+		actors = append(actors, counter.GetActor(actorPath, ""))
 	}
 	fmt.Printf("%v", actors)
 }
@@ -35,7 +35,7 @@ func TestRatings(t *testing.T) {
 	for _, rating := range *ratings {
 		totalizer.Sum(rating)
 	}
-	report := totalizer.GetTopAndBottom()
+	report := totalizer.GetTopAndBottom("")
 	fmt.Printf("%v", report)
 	if *report.TitleTop != "Movie 19" || *report.TitleBottom != "Movie 0" {
 		t.Fatal("Error on top and bottom")
