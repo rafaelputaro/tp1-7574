@@ -168,7 +168,7 @@ func (aggregator *Aggregator) aggregateMovies() {
 		for msg := range msgs {
 			var movie protopb.MovieSanit
 			if err := proto.Unmarshal(msg.Body, &movie); err != nil {
-				aggregator.Log.Errorf("[aggregator_%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_UNMARSHAL, err)
+				aggregator.Log.Errorf("failed to unmarshal message %v", err)
 				continue
 			}
 			// EOF
@@ -181,7 +181,7 @@ func (aggregator *Aggregator) aggregateMovies() {
 					aggregator.checkErrorAndPublish(clientID, dataEof, errEof)
 				}
 			} else {
-				aggregator.Log.Debugf("[aggregator_%s client_%s] %s: %s (%d)", aggregator.Config.AggregatorType, movie.GetClientId(), MSG_AGGREGATED, *movie.Title, *movie.ReleaseYear)
+				aggregator.Log.Debugf("[client_%s] %s: %s (%d)", movie.GetClientId(), MSG_AGGREGATED, *movie.Title, *movie.ReleaseYear)
 				aggregator.publishData(msg.Body)
 			}
 		}

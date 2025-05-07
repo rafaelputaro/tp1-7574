@@ -327,7 +327,7 @@ func (f *Filter) processTop5InvestorsFilter() {
 				f.log.Errorf("[%s] Failed to publish Top5Country: %v", filterName, err)
 			}
 
-			break
+			continue
 		}
 
 		budget := movie.GetBudget()
@@ -576,22 +576,23 @@ func (f *Filter) runShardedFilter(inputQueue string, declareInput bool, outputEx
 					},
 				)
 				if err != nil {
-					f.log.Errorf("failed to publish EOF to %s shard %d: %v", outputExchange, i, err)
-				} else {
-					f.log.Infof("[client_id:%s] propagated EOF to %s shard %d", clientID, outputExchange, i)
+					f.log.Fatalf("failed to publish EOF to %s shard %d: %v", outputExchange, i, err)
 				}
+
+				f.log.Infof("[client_id:%s] propagated EOF to %s shard %d", clientID, outputExchange, i)
 			}
-			break
+
+			continue
 		}
 
 		if filterFunc(&movie) {
 			clientID := movie.GetClientId()
 
-			f.log.Debugf("[client_id:%s] accepted: %s - %s", clientID, movie.GetTitle(), movie.GetProductionCountries())
+			// f.log.Debugf("[client_id:%s] accepted: %s - %s", clientID, movie.GetTitle(), movie.GetProductionCountries())
 
 			data, err := proto.Marshal(&movie)
 			if err != nil {
-				f.log.Errorf("failed to marshal message: %v", err)
+				f.log.Errorf("[client_id:%s] failed to marshal message: %v", clientID, err)
 				continue
 			}
 
@@ -608,11 +609,11 @@ func (f *Filter) runShardedFilter(inputQueue string, declareInput bool, outputEx
 					Body:        data,
 				})
 			if err != nil {
-				f.log.Errorf("failed to publish filtered message: %v", err)
+				f.log.Errorf("[client_id:%s] failed to publish filtered message: %v", clientID, err)
 			}
 
-			queueName := fmt.Sprintf("%s_shard_%d", outputExchange, shard)
-			f.log.Debugf("[client_id:%s] message published to queue: %s (routing key: %s)", clientID, queueName, routingKey)
+			// queueName := fmt.Sprintf("%s_shard_%d", outputExchange, shard)
+			// f.log.Debugf("[client_id:%s] message published to queue: %s (routing key: %s)", clientID, queueName, routingKey)
 		}
 	}
 }
