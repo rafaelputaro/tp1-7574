@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"fmt"
 	"tp1/protobuf/protopb"
 
 	"google.golang.org/protobuf/proto"
@@ -61,26 +60,22 @@ func (counter *ActorsCounter) countActor(name string, profilePath string) {
 }
 
 // profilePath is valid
-func (counter *ActorsCounter) GetActor(profilePath string) *protopb.Actor {
+func (counter *ActorsCounter) GetActor(profilePath string, clientID string) *protopb.Actor {
 	founded := counter.Actors[profilePath]
 	return &protopb.Actor{
 		Name:        proto.String(founded.Name),
 		CountMovies: proto.Int64(founded.CountMovies),
 		ProfilePath: proto.String(profilePath),
+		ClientId:    proto.String(clientID),
 	}
 }
 
-func CreateActorEof() *protopb.Actor {
+func CreateActorEof(clientID string) *protopb.Actor {
 	return &protopb.Actor{
 		Name:        proto.String("DUMMY"),
 		CountMovies: proto.Int64(0),
 		ProfilePath: proto.String("DUMMY"),
 		Eof:         proto.Bool(true),
-		// ClientId:    proto.String(clientID),
+		ClientId:    proto.String(clientID),
 	}
-}
-
-// Returns string from actor count
-func ActorToString(actor *protopb.Actor) string {
-	return fmt.Sprintf("Name: %s | Path Profile %s (%v) ", *actor.Name, *actor.ProfilePath, actor.CountMovies)
 }

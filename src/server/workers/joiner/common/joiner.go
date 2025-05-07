@@ -132,64 +132,117 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 		Shutdown(joiner.Log, joiner.Connection, joiner.Channel, "failed to bind temporary queue to exchange", err)
 	}
 
-	msgs, err := joiner.consumeQueue(joiner.Config.InputQueueName)
-	if err == nil {
-		counter := utils.NewActorCounter()
-		// read all movies
-		for msg := range msgs {
+	// Store client-specific data
+	type clientState struct {
+		counter   *utils.ActorsCounter
+		movieEOF  bool
+		creditEOF bool
+	}
+	clientStates := make(map[string]*clientState)
+
+	// Function to send the report when both EOFs are received
+	sendReportIfReady := func(clientID string, state *clientState) {
+		if state.movieEOF && state.creditEOF {
+			// Send actor counts for the client
+			for actorPath := range state.counter.Actors {
+				actor := state.counter.GetActor(actorPath, clientID)
+				joiner.Log.Debugf("[client_id:%s] send actor count: %v", clientID, actor)
+				data, err := proto.Marshal(actor)
+				if err != nil {
+					joiner.Log.Fatalf("[client_id:%s] failed to marshal actor data: %v", clientID, err)
+				}
+				joiner.publishData(data)
+			}
+
+			// Send EOF for the client
+			eof := utils.CreateActorEof(clientID)
+			data, err := proto.Marshal(eof)
+			if err != nil {
+				joiner.Log.Fatalf("[client_id:%s] failed to marshal actor data eof: %v", clientID, err)
+			}
+			joiner.publishData(data)
+
+			// Remove processed client to free resources
+			// delete(clientStates, clientID)
+		}
+	}
+
+	// Generic message processing function
+	processMessage := func(msg amqp.Delivery, isCredit bool) {
+		var clientID string
+		if isCredit {
+			var credit protopb.CreditSanit
+			if err := proto.Unmarshal(msg.Body, &credit); err != nil {
+				joiner.Log.Errorf("failed to unmarshal credit: %v", err)
+				return
+			}
+
+			clientID = credit.GetClientId()
+
+			// Initialize client state if not exists
+			if _, exists := clientStates[clientID]; !exists {
+				clientStates[clientID] = &clientState{counter: utils.NewActorCounter()}
+			}
+			state := clientStates[clientID]
+
+			// Process EOF or count actors
+			if credit.GetEof() {
+				state.creditEOF = true
+				joiner.Log.Infof("[client_id:%s][queue:%s] recevied EOF", clientID, joiner.Config.InputQueueSecName)
+			} else {
+				state.counter.Count(&credit)
+			}
+			sendReportIfReady(clientID, state)
+		} else {
 			var movie protopb.MovieSanit
 			if err := proto.Unmarshal(msg.Body, &movie); err != nil {
-				joiner.Log.Errorf("[%s] %s: %v", joiner.Config.JoinerType, MSG_FAILED_TO_UNMARSHAL, err)
-				continue
+				joiner.Log.Errorf("failed to unmarshal movie: %v", err)
+				return
 			}
-			// EOF
-			if movie.Eof != nil && *movie.Eof {
-				joiner.logEofQueue(joiner.Config.InputQueueName)
-				break
-			}
-			// append movie
-			counter.AppendMovie(&movie)
-		}
+			clientID = movie.GetClientId()
 
-		msgs, err = joiner.consumeQueue(inputQueue.Name)
-		if err == nil {
-			// read all credits
-			for msg := range msgs {
-				var credit protopb.CreditSanit
-				if err := proto.Unmarshal(msg.Body, &credit); err != nil {
-					joiner.Log.Errorf("[%s] %s: %v", joiner.Config.JoinerType, MSG_FAILED_TO_UNMARSHAL, err)
-					continue
-				}
-				// EOF
-				if credit.Eof != nil && *credit.Eof {
-					joiner.logEofQueue(joiner.Config.InputQueueSecName)
-					break
-				}
-				// count credit
-				counter.Count(&credit)
+			// Initialize client state if not exists
+			if _, exists := clientStates[clientID]; !exists {
+				clientStates[clientID] = &clientState{counter: utils.NewActorCounter()}
 			}
-		}
-		// send actors count
-		for actorPath := range counter.Actors {
-			actor := *counter.GetActor(actorPath)
-			joiner.Log.Debugf("[%s] %s: %s", joiner.Config.JoinerType, MSG_JOINED, utils.ActorToString(&actor))
-			data, err := proto.Marshal(&actor)
-			if err != nil {
-				joiner.Log.Fatalf("[%s] %s: %v", joiner.Config.JoinerType, MSG_FAILED_TO_MARSHAL, err)
-				break
+			state := clientStates[clientID]
+
+			// Process EOF or append movie
+			if movie.GetEof() {
+				state.movieEOF = true
+				joiner.Log.Infof("[client_id:%s][queue:%s] recevied EOF", clientID, joiner.Config.InputQueueName)
+			} else {
+				state.counter.AppendMovie(&movie)
 			}
-			// send actor
-			joiner.publishData(data)
+			sendReportIfReady(clientID, state)
 		}
-		// send eof
-		eof := *utils.CreateActorEof()
-		data, err := proto.Marshal(&eof)
-		if err != nil {
-			joiner.Log.Fatalf("[%s] %s: %v", joiner.Config.JoinerType, MSG_FAILED_TO_MARSHAL, err)
-		}
-		// send eof
-		joiner.publishData(data)
 	}
+
+	// Start message consumers in separate goroutines
+	go func() {
+		msgs, err := joiner.consumeQueue(joiner.Config.InputQueueName)
+		if err == nil {
+			for msg := range msgs {
+				processMessage(msg, false)
+			}
+		} else {
+			joiner.Log.Fatalf("[queue:%s] failed to consume: %v", joiner.Config.InputQueueName, err)
+		}
+	}()
+
+	go func() {
+		msgs, err := joiner.consumeQueue(inputQueue.Name)
+		if err == nil {
+			for msg := range msgs {
+				processMessage(msg, true)
+			}
+		} else {
+			joiner.Log.Fatalf("[queue:%s] failed to consume: %v", joiner.Config.InputQueueName, err)
+		}
+	}()
+
+	// Keep the joiner running indefinitely
+	select {}
 }
 
 func (joiner *Joiner) joiner_g_b_m_id_ratings() {
