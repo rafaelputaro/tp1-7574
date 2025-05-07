@@ -7,12 +7,16 @@ import (
 )
 
 type ReportRegistry struct {
-	mu      sync.Mutex
-	reports map[string]*pb.ReportResponse
+	mu          sync.Mutex
+	reports     map[string]*pb.ReportResponse
+	doneReports map[string]int
 }
 
 func NewReportRegistry() *ReportRegistry {
-	return &ReportRegistry{reports: make(map[string]*pb.ReportResponse)}
+	return &ReportRegistry{
+		reports:     make(map[string]*pb.ReportResponse),
+		doneReports: make(map[string]int),
+	}
 }
 
 func (rr *ReportRegistry) WaitForReport(clientID string, timeout time.Duration) *pb.ReportResponse {
@@ -42,21 +46,45 @@ func (rr *ReportRegistry) GetReport(clientID string) *pb.ReportResponse {
 		return nil
 	}
 
+	d, ok := rr.doneReports[clientID]
+	if !ok {
+		return nil
+	}
+
 	if r.Answer1 == nil || r.Answer2 == nil || r.Answer3 == nil || r.Answer4 == nil || r.Answer5 == nil {
+		return nil
+	}
+
+	if d < 5 {
 		return nil
 	}
 
 	return r
 }
 
-func (rr *ReportRegistry) AddAnswer1(clientID string, answer1 *pb.Answer1) {
+func (rr *ReportRegistry) DoneAnswer(clientID string) {
+	rr.mu.Lock()
+	defer rr.mu.Unlock()
+
+	if _, ok := rr.doneReports[clientID]; !ok {
+		rr.doneReports[clientID] = 0
+	}
+	rr.doneReports[clientID]++
+}
+
+func (rr *ReportRegistry) AddToAnswer1(clientID string, entry *pb.MovieEntry) {
 	rr.mu.Lock()
 	defer rr.mu.Unlock()
 
 	if _, ok := rr.reports[clientID]; !ok {
 		rr.reports[clientID] = &pb.ReportResponse{}
 	}
-	rr.reports[clientID].Answer1 = answer1
+
+	if rr.reports[clientID].Answer1 == nil {
+		rr.reports[clientID].Answer1 = &pb.Answer1{}
+	}
+
+	rr.reports[clientID].Answer1.Movies = append(rr.reports[clientID].Answer1.Movies, entry)
 }
 
 func (rr *ReportRegistry) AddAnswer2(clientID string, answer2 *pb.Answer2) {

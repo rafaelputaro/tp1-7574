@@ -66,10 +66,10 @@ func (r *ReportGenerator) StartConsuming() {
 			}
 
 			for d := range msgsCh {
-				/*if config.IsEOF(d.Body) {
+				if config.IsEOF(d.Body, r.rr) {
 					logger.Infof("received EOF for %s", config.Name)
 					// break
-				}*/
+				}
 				config.Process(d.Body, r.rr)
 			}
 
@@ -87,19 +87,23 @@ func (r *ReportGenerator) GetReport(_ context.Context, req *pb.ReportRequest) (*
 
 type queueConfig struct {
 	Name    string
-	IsEOF   func([]byte) bool
+	IsEOF   func([]byte, *internal.ReportRegistry) bool
 	Process func([]byte, *internal.ReportRegistry)
 }
 
-func isMoviesEOF(data []byte) bool {
+func isMoviesEOF(data []byte, rr *internal.ReportRegistry) bool {
 	var movie pb.MovieSanit
 	_ = proto.Unmarshal(data, &movie)
-	return movie.GetEof()
+
+	eof := movie.GetEof()
+	if eof {
+		rr.DoneAnswer(movie.GetClientId())
+	}
+
+	return eof
 }
 
 func processMovies(data []byte, rr *internal.ReportRegistry) {
-
-	answer1 := pb.Answer1{}
 
 	var movie pb.MovieSanit
 	_ = proto.Unmarshal(data, &movie)
@@ -110,16 +114,20 @@ func processMovies(data []byte, rr *internal.ReportRegistry) {
 		Genres: movie.Genres,
 	}
 
-	answer1.Movies = append(answer1.Movies, &entry)
-
-	logger.Infof("Adding answer1 for client %s: %v", movie.GetClientId(), &answer1)
-	rr.AddAnswer1(movie.GetClientId(), &answer1)
+	logger.Infof("Adding answer1 for client %s: %v", movie.GetClientId(), &entry)
+	rr.AddToAnswer1(movie.GetClientId(), &entry)
 }
 
-func isTop5EOF(data []byte) bool {
+func isTop5EOF(data []byte, rr *internal.ReportRegistry) bool {
 	var country pb.Top5Country
 	_ = proto.Unmarshal(data, &country)
-	return country.GetEof()
+
+	eof := country.GetEof()
+	if eof {
+		rr.DoneAnswer(country.GetClientId())
+	}
+
+	return eof
 }
 
 func processTop5(data []byte, rr *internal.ReportRegistry) {
@@ -141,10 +149,16 @@ func processTop5(data []byte, rr *internal.ReportRegistry) {
 	rr.AddAnswer2(top5.GetClientId(), &answer2)
 }
 
-func isTopAndBottomEOF(data []byte) bool {
-	var d pb.TopAndBottomRatingAvg
-	_ = proto.Unmarshal(data, &d)
-	return d.GetEof()
+func isTopAndBottomEOF(data []byte, rr *internal.ReportRegistry) bool {
+	var ratingAvg pb.TopAndBottomRatingAvg
+	_ = proto.Unmarshal(data, &ratingAvg)
+
+	eof := ratingAvg.GetEof()
+	if eof {
+		rr.DoneAnswer(ratingAvg.GetClientId())
+	}
+
+	return eof
 }
 
 func processTopAndBottom(data []byte, rr *internal.ReportRegistry) {
@@ -173,10 +187,16 @@ func processTopAndBottom(data []byte, rr *internal.ReportRegistry) {
 	rr.AddAnswer3(ratingAvg.GetClientId(), &answer3)
 }
 
-func isTop10EOF(data []byte) bool {
-	var d pb.Top10
-	_ = proto.Unmarshal(data, &d)
-	return d.GetEof()
+func isTop10EOF(data []byte, rr *internal.ReportRegistry) bool {
+	var top10 pb.Top10
+	_ = proto.Unmarshal(data, &top10)
+
+	eof := top10.GetEof()
+	if eof {
+		rr.DoneAnswer(top10.GetClientId())
+	}
+
+	return eof
 }
 
 func processTop10(data []byte, rr *internal.ReportRegistry) {
@@ -199,10 +219,16 @@ func processTop10(data []byte, rr *internal.ReportRegistry) {
 	rr.AddAnswer4(top10.GetClientId(), &answer4)
 }
 
-func isMetricsEOF(data []byte) bool {
-	var d pb.Metrics
-	_ = proto.Unmarshal(data, &d)
-	return d.GetEof()
+func isMetricsEOF(data []byte, rr *internal.ReportRegistry) bool {
+	var metrics pb.Metrics
+	_ = proto.Unmarshal(data, &metrics)
+
+	eof := metrics.GetEof()
+	if eof {
+		rr.DoneAnswer(metrics.GetClientId())
+	}
+
+	return eof
 }
 
 func processMetrics(data []byte, rr *internal.ReportRegistry) {
