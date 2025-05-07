@@ -259,7 +259,7 @@ func (aggregator *Aggregator) aggregateTop10() {
 			amountEOF[clientID] = utils.GetOrInitKeyMap(&amountEOF, clientID, utils.InitEOFCount) + 1
 			// If all sources sent EOF, send top 10 and submit the EOF to report
 			if aggregator.checkEofSingleQueue(amountEOF[clientID]) {
-				top10 := actorsDataClient.GetTop10()
+				top10 := actorsDataClient.GetTop10(clientID)
 				data, err := proto.Marshal(top10)
 				if err != nil {
 					aggregator.Log.Fatalf("[aggregator_%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_MARSHAL, err)
