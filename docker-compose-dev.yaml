@@ -24,7 +24,7 @@ services:
     environment:
       - FILTER_TYPE=2000s_filter
       - FILTER_NUM=1
-      - SHARDS=1
+      - SHARDS=3
     networks:
       - tp1_net
     depends_on:
@@ -37,7 +37,7 @@ services:
     environment:
       - FILTER_TYPE=2000s_filter
       - FILTER_NUM=2
-      - SHARDS=1
+      - SHARDS=3
     networks:
       - tp1_net
     depends_on:
@@ -50,7 +50,7 @@ services:
     environment:
       - FILTER_TYPE=2000s_filter
       - FILTER_NUM=3
-      - SHARDS=1
+      - SHARDS=3
     networks:
       - tp1_net
     depends_on:
@@ -65,7 +65,7 @@ services:
     environment:
       - FILTER_TYPE=ar_es_filter
       - FILTER_NUM=1
-      - SHARDS=1
+      - SHARDS=3
     networks:
       - tp1_net
     depends_on:
@@ -78,7 +78,7 @@ services:
     environment:
       - FILTER_TYPE=ar_es_filter
       - FILTER_NUM=2
-      - SHARDS=1
+      - SHARDS=3
     networks:
       - tp1_net
     depends_on:
@@ -93,7 +93,7 @@ services:
     environment:
       - FILTER_TYPE=ar_filter
       - FILTER_NUM=1
-      - SHARDS=1
+      - SHARDS=3
     networks:
       - tp1_net
     depends_on:
@@ -106,7 +106,7 @@ services:
     environment:
       - FILTER_TYPE=ar_filter
       - FILTER_NUM=2
-      - SHARDS=1
+      - SHARDS=3
     networks:
       - tp1_net
     depends_on:
@@ -121,7 +121,7 @@ services:
     environment:
       - FILTER_TYPE=single_country_origin_filter
       - FILTER_NUM=1
-      - SHARDS=1
+      - SHARDS=3
     networks:
       - tp1_net
     depends_on:
@@ -134,7 +134,7 @@ services:
     environment:
       - FILTER_TYPE=single_country_origin_filter
       - FILTER_NUM=2
-      - SHARDS=1
+      - SHARDS=3
     networks:
       - tp1_net
     depends_on:
@@ -147,7 +147,7 @@ services:
     environment:
       - FILTER_TYPE=single_country_origin_filter
       - FILTER_NUM=3
-      - SHARDS=1
+      - SHARDS=3
     networks:
       - tp1_net
     depends_on:
@@ -162,7 +162,33 @@ services:
     environment:
       - FILTER_TYPE=top_5_investors_filter
       - FILTER_NUM=1
-      - SHARDS=1
+      - SHARDS=3
+    networks:
+      - tp1_net
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  top-5-investors-filter-2:
+    container_name: top-5-investors-filter-2
+    image: filter:latest
+    environment:
+      - FILTER_TYPE=top_5_investors_filter
+      - FILTER_NUM=2
+      - SHARDS=3
+    networks:
+      - tp1_net
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  top-5-investors-filter-3:
+    container_name: top-5-investors-filter-3
+    image: filter:latest
+    environment:
+      - FILTER_TYPE=top_5_investors_filter
+      - FILTER_NUM=3
+      - SHARDS=3
     networks:
       - tp1_net
     depends_on:
@@ -188,6 +214,40 @@ services:
     links:
       - rabbitmq
 
+  joiner_group_by_movie_id_ratings-2:
+    container_name: joiner_group_by_movie_id_ratings-2
+    image: joiner:latest
+    environment:
+      - JOINER_TYPE=group_by_movie_id_ratings
+      - JOINER_ID=2
+      - JOINER_INPUT_QUEUE_BASE_NAME=ar_movies_2000_and_later
+      - JOINER_INPUT_QUEUE_SEC_NAME=ratings
+      - JOINER_OUTPUT_QUEUE_NAME=movies_top_and_bottom
+    networks:
+      - tp1_net
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    links:
+      - rabbitmq
+
+  joiner_group_by_movie_id_ratings-3:
+    container_name: joiner_group_by_movie_id_ratings-3
+    image: joiner:latest
+    environment:
+      - JOINER_TYPE=group_by_movie_id_ratings
+      - JOINER_ID=3
+      - JOINER_INPUT_QUEUE_BASE_NAME=ar_movies_2000_and_later
+      - JOINER_INPUT_QUEUE_SEC_NAME=ratings
+      - JOINER_OUTPUT_QUEUE_NAME=movies_top_and_bottom
+    networks:
+      - tp1_net
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    links:
+      - rabbitmq
+
 
 
   joiner_group_by_movie_id_credits-1:
@@ -196,6 +256,40 @@ services:
     environment:
       - JOINER_TYPE=group_by_movie_id_credits
       - JOINER_ID=1
+      - JOINER_INPUT_QUEUE_BASE_NAME=ar_movies_after_2000
+      - JOINER_INPUT_QUEUE_SEC_NAME=credits
+      - JOINER_OUTPUT_QUEUE_NAME=actor_movies_count
+    networks:
+      - tp1_net
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    links:
+      - rabbitmq
+
+  joiner_group_by_movie_id_credits-2:
+    container_name: joiner_group_by_movie_id_credits-2
+    image: joiner:latest
+    environment:
+      - JOINER_TYPE=group_by_movie_id_credits
+      - JOINER_ID=2
+      - JOINER_INPUT_QUEUE_BASE_NAME=ar_movies_after_2000
+      - JOINER_INPUT_QUEUE_SEC_NAME=credits
+      - JOINER_OUTPUT_QUEUE_NAME=actor_movies_count
+    networks:
+      - tp1_net
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    links:
+      - rabbitmq
+
+  joiner_group_by_movie_id_credits-3:
+    container_name: joiner_group_by_movie_id_credits-3
+    image: joiner:latest
+    environment:
+      - JOINER_TYPE=group_by_movie_id_credits
+      - JOINER_ID=3
       - JOINER_INPUT_QUEUE_BASE_NAME=ar_movies_after_2000
       - JOINER_INPUT_QUEUE_SEC_NAME=credits
       - JOINER_OUTPUT_QUEUE_NAME=actor_movies_count
@@ -231,7 +325,7 @@ services:
     environment:
       - AGGREGATOR_TYPE=top_5
       - AGGREGATOR_ID=2
-      - AGGREGATOR_AMOUNT_SOURCES=1
+      - AGGREGATOR_AMOUNT_SOURCES=3
       - AGGREGATOR_INPUT_QUEUE_NAME=movies_top_5_investors
       - AGGREGATOR_OUTPUT_QUEUE_NAME=top_5_report
     networks:
@@ -248,7 +342,7 @@ services:
     environment:
       - AGGREGATOR_TYPE=top_10
       - AGGREGATOR_ID=3
-      - AGGREGATOR_AMOUNT_SOURCES=1
+      - AGGREGATOR_AMOUNT_SOURCES=3
       - AGGREGATOR_INPUT_QUEUE_NAME=actor_movies_count
       - AGGREGATOR_OUTPUT_QUEUE_NAME=top_10_report
     networks:
@@ -265,7 +359,7 @@ services:
     environment:
       - AGGREGATOR_TYPE=top_and_bottom
       - AGGREGATOR_ID=4
-      - AGGREGATOR_AMOUNT_SOURCES=1
+      - AGGREGATOR_AMOUNT_SOURCES=3
       - AGGREGATOR_INPUT_QUEUE_NAME=movies_top_and_bottom
       - AGGREGATOR_OUTPUT_QUEUE_NAME=top_and_bottom_report
     networks:
@@ -300,7 +394,7 @@ services:
     image: nlp:latest
     environment:
       - NODE_NUM=1
-      - SHARDS=1
+      - SHARDS=3
     networks:
       - tp1_net
     depends_on:
@@ -314,7 +408,7 @@ services:
     image: nlp:latest
     environment:
       - NODE_NUM=2
-      - SHARDS=1
+      - SHARDS=3
     networks:
       - tp1_net
     depends_on:
@@ -328,7 +422,7 @@ services:
     image: nlp:latest
     environment:
       - NODE_NUM=3
-      - SHARDS=1
+      - SHARDS=3
     networks:
       - tp1_net
     depends_on:
@@ -342,7 +436,7 @@ services:
     image: nlp:latest
     environment:
       - NODE_NUM=4
-      - SHARDS=1
+      - SHARDS=3
     networks:
       - tp1_net
     depends_on:
@@ -356,7 +450,7 @@ services:
     image: nlp:latest
     environment:
       - NODE_NUM=5
-      - SHARDS=1
+      - SHARDS=3
     networks:
       - tp1_net
     depends_on:
@@ -389,6 +483,8 @@ services:
       - ar-filter-1
       - ar-filter-2
       - top-5-investors-filter-1
+      - top-5-investors-filter-2
+      - top-5-investors-filter-3
       - single-country-origin-filter-1
       - single-country-origin-filter-2
       - single-country-origin-filter-3
@@ -399,6 +495,10 @@ services:
       - nlp-5
       - joiner_group_by_movie_id_credits-1
       - joiner_group_by_movie_id_ratings-1
+      - joiner_group_by_movie_id_credits-2
+      - joiner_group_by_movie_id_ratings-2
+      - joiner_group_by_movie_id_credits-3
+      - joiner_group_by_movie_id_ratings-3
 
 
   client-1:
