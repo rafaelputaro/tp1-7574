@@ -3,6 +3,8 @@ import sys
 import time
 import socket
 from os import getenv
+import threading
+from collections import defaultdict
 
 import pika
 from transformers import pipeline
@@ -23,8 +25,11 @@ COORDINATION_EXCHANGE = "coordination_exchange"
 COORDINATION_KEY = "nlp"
 NODE_ID = socket.gethostname()
 
+ack_received = defaultdict(set)
+ack_events = defaultdict(threading.Event)
 
-def connect_rabbitmq_with_retries(logger: logging.Logger, retries=20, delay=3):
+
+def connect_rabbitmq_with_retries(retries=20, delay=3):
     for attempt in range(1, retries + 1):
         try:
             conn = pika.BlockingConnection(pika.URLParameters(RABBITMQ_URL))
@@ -38,6 +43,13 @@ def connect_rabbitmq_with_retries(logger: logging.Logger, retries=20, delay=3):
     sys.exit(1)
 
 
+def collect_ack(client_id, node_id):
+    ack_received[client_id].add(node_id)
+    logger.info(f"[client_id:{client_id}][Leader] Received ACK from node {node_id}")
+    if len(ack_received[client_id]) == expected_acks():
+        ack_events[client_id].set()
+
+
 def cached_sentiment(movie):
     cached = cache.get(movie)
     if cached:
@@ -47,6 +59,31 @@ def cached_sentiment(movie):
         label = result[0]["label"]
         cache.set(movie, label)
         return label
+
+
+def expected_acks():
+    return int(getenv("NLP_NODES")) - 1
+
+
+def wait_for_acks(client_id, timeout=10):
+    ack_events[client_id].wait(timeout)
+    if len(ack_received[client_id]) == expected_acks():
+        logger.info(f"[client_id:{client_id}][Leader] All ACKs received")
+        return True
+    else:
+        logger.warning(f"[client_id:{client_id}][Leader] Timeout waiting for ACKs")
+        return False
+
+
+def coordination_callback(ch, method, properties, body):
+    message = coordination_pb2.CoordinationMessage()
+    message.ParseFromString(body)
+    if message.type == coordination_pb2.ACK:
+        collect_ack(message.client_id, message.node_id)
+    elif message.type == coordination_pb2.LEADER:
+        if message.node_id != NODE_ID:
+            logger.info(f"[Node] Received LEADER from {message.node_id} for client_id={message.client_id}")
+            send_ack(message.client_id)
 
 
 def broadcast_leader_message(client_id):
@@ -59,7 +96,7 @@ def broadcast_leader_message(client_id):
         routing_key=COORDINATION_KEY,
         body=message.SerializeToString()
     )
-    logger.info(f"[client_id:{client_id}][Leader] broadcast LEADER message")
+    logger.info(f"[client_id:{client_id}][Leader] Broadcast LEADER message")
 
 
 def send_ack(client_id):
@@ -72,7 +109,7 @@ def send_ack(client_id):
         routing_key=COORDINATION_KEY,
         body=message.SerializeToString()
     )
-    logger.info(f"[client_id:{client_id}][Node] sent ACK message")
+    logger.info(f"[client_id:{client_id}][Node] Sent ACK message")
 
 
 def callback(_, __, ___, body):
@@ -80,12 +117,17 @@ def callback(_, __, ___, body):
     movie.ParseFromString(body)
 
     if movie.HasField("eof") and movie.eof:
-        logger.info(f"[client_id:{movie.clientId}] received EOF")
+        logger.info(f"[client_id:{movie.clientId}][Leader] Received EOF")
+
         broadcast_leader_message(movie.clientId)
+        wait_for_acks(movie.clientId)
+
         movie.eof = True
         eof_message = movie.SerializeToString()
         channel.basic_publish(exchange=SENTIMENT_EXCHANGE, routing_key=POSITIVE_QUEUE, body=eof_message)
         channel.basic_publish(exchange=SENTIMENT_EXCHANGE, routing_key=NEGATIVE_QUEUE, body=eof_message)
+
+        ack_events[movie.clientId].clear()
         return
 
     label = cached_sentiment(movie)
@@ -104,18 +146,22 @@ def main():
     global sentiment_analyzer, channel
 
     logger.info("Connecting to RabbitMQ...")
-    connection = connect_rabbitmq_with_retries(logger)
+    connection = connect_rabbitmq_with_retries()
     channel = connection.channel()
 
     channel.basic_qos(prefetch_count=1)
 
     channel.queue_declare(queue=QUEUE_NAME, durable=True)
     channel.exchange_declare(exchange=SENTIMENT_EXCHANGE, exchange_type='direct', durable=True)
-    channel.exchange_declare(exchange=COORDINATION_EXCHANGE, exchange_type='fanout', durable=True)
     channel.queue_declare(queue=POSITIVE_QUEUE, durable=True)
     channel.queue_declare(queue=NEGATIVE_QUEUE, durable=True)
     channel.queue_bind(exchange=SENTIMENT_EXCHANGE, queue=POSITIVE_QUEUE, routing_key=POSITIVE_QUEUE)
     channel.queue_bind(exchange=SENTIMENT_EXCHANGE, queue=NEGATIVE_QUEUE, routing_key=NEGATIVE_QUEUE)
+
+    channel.exchange_declare(exchange=COORDINATION_EXCHANGE, exchange_type='fanout', durable=True)
+    queue = channel.queue_declare("", exclusive=True, auto_delete=True)
+    channel.queue_bind(exchange=COORDINATION_EXCHANGE, queue=queue.method.queue, routing_key=COORDINATION_KEY)
+    channel.basic_consume(queue=queue.method.queue, on_message_callback=coordination_callback, auto_ack=True)
 
     logger.info("Loading sentiment analysis model...")
     sentiment_analyzer = pipeline(

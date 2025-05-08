@@ -395,6 +395,7 @@ services:
     environment:
       - NODE_NUM=1
       - SHARDS=3
+      - NLP_NODES=5
     networks:
       - tp1_net
     depends_on:
@@ -409,6 +410,7 @@ services:
     environment:
       - NODE_NUM=2
       - SHARDS=3
+      - NLP_NODES=5
     networks:
       - tp1_net
     depends_on:
@@ -423,6 +425,7 @@ services:
     environment:
       - NODE_NUM=3
       - SHARDS=3
+      - NLP_NODES=5
     networks:
       - tp1_net
     depends_on:
@@ -437,6 +440,7 @@ services:
     environment:
       - NODE_NUM=4
       - SHARDS=3
+      - NLP_NODES=5
     networks:
       - tp1_net
     depends_on:
@@ -451,6 +455,7 @@ services:
     environment:
       - NODE_NUM=5
       - SHARDS=3
+      - NLP_NODES=5
     networks:
       - tp1_net
     depends_on:

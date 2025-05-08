@@ -223,6 +223,7 @@ services:
     environment:
       - NODE_NUM={{ i }}
       - SHARDS={{ shards }}
+      - NLP_NODES={{ nlp_nodes }}
     networks:
       - tp1_net
     depends_on:
