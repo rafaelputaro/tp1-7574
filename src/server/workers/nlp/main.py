@@ -27,12 +27,24 @@ COORDINATION_EXCHANGE = "coordination_exchange"
 COORDINATION_KEY = "nlp"
 NODE_ID = socket.gethostname()
 
-ack_received = defaultdict(set)
-ack_events = defaultdict(threading.Event)
+ack_received = dict()
+ack_events = dict()
 
 leading_for = set()
 not_leading_for = set()
 sent_ack = set()
+
+
+def get_event(client_id):
+    if client_id not in ack_events:
+        ack_events[client_id] = threading.Event()
+    return ack_events[client_id]
+
+
+def get_ack_received(client_id):
+    if client_id not in ack_received:
+        ack_received[client_id] = set()
+    return ack_received[client_id]
 
 
 def connect_rabbitmq_with_retries(retries=20, delay=3):
@@ -50,10 +62,10 @@ def connect_rabbitmq_with_retries(retries=20, delay=3):
 
 
 def collect_ack(client_id, node_id):
-    ack_received[client_id].add(node_id)
+    get_ack_received(client_id).add(node_id)
     logger.info(f"[client_id:{client_id}][Leader] Received ACK from node {node_id}")
-    if len(ack_received[client_id]) == expected_acks():
-        ack_events[client_id].set()
+    if len(get_ack_received(client_id)) == expected_acks():
+        get_event(client_id).set()
 
 
 def cached_sentiment(movie):
@@ -71,12 +83,16 @@ def expected_acks():
     return int(getenv("NLP_NODES")) - 1
 
 
-def wait_for_acks(client_id, timeout=20):
-    ack_events[client_id].wait(timeout)
-    if len(ack_received[client_id]) == expected_acks():
-        logger.info(f"[client_id:{client_id}][Leader] All ACKs received")
-    else:
-        logger.warning(f"[client_id:{client_id}][Leader] Timeout waiting for ACKs {ack_received}")
+def wait_for_acks(client_id, timeout=10):
+    def ack_waiter():
+        logger.info(f"[client_id:{client_id}][Leader] Waiting for ACKs")
+        if get_event(client_id).wait(timeout):
+            logger.info(f"[client_id:{client_id}][Leader] All ACKs received")
+        else:
+            logger.warning(f"[client_id:{client_id}][Leader] Timeout waiting for ACKs {get_ack_received(client_id)}")
+
+    # Start the waiter in a new thread
+    threading.Thread(target=ack_waiter).start()
 
 
 def coordination_callback(ch, method, properties, body):
