@@ -4,7 +4,7 @@ default: docker-image
 
 deps:
 	protoc -I=./src/protobuf --go_out=./src/protobuf --go-grpc_out=./src/protobuf ./src/protobuf/*.proto
-	protoc -I=./src/protobuf --python_out=./src/server/workers/nlp ./src/protobuf/movie_sanit.proto
+	protoc -I=./src/protobuf --python_out=./src/server/workers/nlp ./src/protobuf/movie_sanit.proto ./src/protobuf/coordination.proto
 	cd src && go mod tidy
 	cd src && go mod vendor
 .PHONY: deps

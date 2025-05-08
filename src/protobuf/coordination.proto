@@ -1,0 +1,16 @@
+syntax = "proto2";
+
+option go_package = "./protopb";
+
+package coordination;
+
+message CoordinationMessage {
+  required string client_id = 1;
+  required string node_id = 2;
+  required MessageType type = 3;
+}
+
+enum MessageType {
+  LEADER = 0;
+  ACK = 1;
+}
