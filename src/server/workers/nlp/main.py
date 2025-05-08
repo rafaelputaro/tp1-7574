@@ -15,6 +15,8 @@ import coordination_pb2
 
 logging.getLogger("pika").setLevel(logging.ERROR)
 logging.getLogger("pika").propagate = False
+logging.getLogger("google.protobuf").setLevel(logging.ERROR)
+logging.getLogger("google.protobuf").propagate = False
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("sentiment")
 
