@@ -62,12 +62,69 @@ Comparación entre clientes:
 5) Metrics: Da lo mismo.
 
 Por ahora:
-    1) Bajar shards arregla Metrics. -----> AggegatorMetrics no cambia con la cantidad de shards-> debe ser un problema con los filtros
+    1) Bajar shards no se arregla.
     2) Problemas con las inversiones países que no se arregla con 1 shard.
 
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+[DEFAULT]
+# --------------- FILTERS ---------------
+# Year filter (query1, query3, query4)
+2000S_FILTER_NODES = 3
+
+# Country filter (query1)
+AR_ES_FILTER_NODES = 2
+
+# Country filter (query3, query4)
+AR_FILTER_NODES = 2
+
+# Country filter (query2)
+SINGLE_COUNTRY_ORIGIN_FILTER_NODES = 1
+
+# Overview filter (query5)
+NLP_NODES = 4
+
+# --------------- SHARDS ---------------
+SHARDS = 1
+
+# --------------- CLIENTS ---------------
+CLIENT_NODES = 3
+
+1) Movies: Ok
+2) Budgets by Country: Diferentes países y en los que coíncide diferentes cifras.
+3) Rating Extremes: Ok. Pero hay que ver que se hace con las películas sin rating al momento de preparar el reporte en el Aggregator.
+4) Frequent Actors: Actors: Ok. Pero hay que establecer un orden de comparación cuando tienen la misma frecuencia, por ejemplo por el nombre.
+5) Metrics: Da distinto.
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+[DEFAULT]
+# --------------- FILTERS ---------------
+# Year filter (query1, query3, query4)
+2000S_FILTER_NODES = 1
+
+# Country filter (query1)
+AR_ES_FILTER_NODES = 2
+
+# Country filter (query3, query4)
+AR_FILTER_NODES = 1
+
+# Country filter (query2)
+SINGLE_COUNTRY_ORIGIN_FILTER_NODES = 1
+
+# Overview filter (query5)
+NLP_NODES = 4
+
+# --------------- SHARDS ---------------
+SHARDS = 1
+
+# --------------- CLIENTS ---------------
+CLIENT_NODES = 3
 
 
-
-
+1) Movies: Ok
+2) Budgets by Country: Diferentes países y en los que coíncide diferentes cifras.
+3) Rating Extremes: Ok. Pero hay que ver que se hace con las películas sin rating al momento de preparar el reporte en el Aggregator.
+4) Frequent Actors: Actors: Ok. Pero hay que establecer un orden de comparación cuando tienen la misma frecuencia, por ejemplo por el nombre.
+5) Metrics: Da distinto.
 
 
