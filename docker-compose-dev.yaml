@@ -100,6 +100,19 @@ services:
       rabbitmq:
         condition: service_healthy
 
+  ar-filter-2:
+    container_name: ar-filter-2
+    image: filter:latest
+    environment:
+      - FILTER_TYPE=ar_filter
+      - FILTER_NUM=2
+      - SHARDS=1
+    networks:
+      - tp1_net
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
 
 
   single-country-origin-filter-1:
@@ -108,6 +121,32 @@ services:
     environment:
       - FILTER_TYPE=single_country_origin_filter
       - FILTER_NUM=1
+      - SHARDS=1
+    networks:
+      - tp1_net
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  single-country-origin-filter-2:
+    container_name: single-country-origin-filter-2
+    image: filter:latest
+    environment:
+      - FILTER_TYPE=single_country_origin_filter
+      - FILTER_NUM=2
+      - SHARDS=1
+    networks:
+      - tp1_net
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  single-country-origin-filter-3:
+    container_name: single-country-origin-filter-3
+    image: filter:latest
+    environment:
+      - FILTER_TYPE=single_country_origin_filter
+      - FILTER_NUM=3
       - SHARDS=1
     networks:
       - tp1_net
@@ -348,8 +387,11 @@ services:
       - ar-es-filter-1
       - ar-es-filter-2
       - ar-filter-1
+      - ar-filter-2
       - top-5-investors-filter-1
       - single-country-origin-filter-1
+      - single-country-origin-filter-2
+      - single-country-origin-filter-3
       - nlp-1
       - nlp-2
       - nlp-3
