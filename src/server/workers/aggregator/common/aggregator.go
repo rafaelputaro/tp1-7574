@@ -25,12 +25,9 @@ const MSG_ERROR_CONFIG = "Configuration could not be read from config file. Usin
 const MSG_ERROR_DIAL = "Error on dial rabbitmq"
 const MSG_ERROR_ON_CREATE_CHANNEL = "Error on create rabbitmq channel"
 const MSG_ERROR_ON_DECLARE_QUEUE = "Error on declare queue"
-const MSG_START = "Starting job for ID"
 const MSG_FAILED_CONSUME = "Failed to consume messages from"
-const MSG_JOB_FINISHED = "Job finished"
 const MSG_FAILED_TO_UNMARSHAL = "Failed to unmarshal message"
 const MSG_RECEIVED_EOF_MARKER = "Received EOF marker"
-const MSG_AGGREGATED = "Accepted"
 const MSG_RECEIVED = "Received"
 const MSG_SENT_TO_REPORT = "Sent to report"
 const MSG_FAILED_TO_MARSHAL = "Failed to marshal message"
@@ -119,7 +116,7 @@ func NewAggregator(log *logging.Logger) (*Aggregator, error) {
 
 // Init aggregator loop
 func (aggregator *Aggregator) Start() {
-	aggregator.Log.Infof("[aggregator_%s] %s: %s", aggregator.Config.AggregatorType, MSG_START, aggregator.Config.ID)
+	aggregator.Log.Infof("starting job for ID: %s", aggregator.Config.ID)
 	switch aggregator.Config.AggregatorType {
 	case MOVIES:
 		aggregator.aggregateMovies()
@@ -132,7 +129,7 @@ func (aggregator *Aggregator) Start() {
 	case METRICS:
 		aggregator.aggregateMetrics()
 	}
-	aggregator.Log.Infof("[aggregator_%s] %s", aggregator.Config.AggregatorType, MSG_JOB_FINISHED)
+	aggregator.Log.Infof("job finished")
 }
 
 // Check EOF condition
@@ -174,14 +171,19 @@ func (aggregator *Aggregator) aggregateMovies() {
 			// EOF
 			if movie.GetEof() {
 				clientID := movie.GetClientId()
+
+				aggregator.Log.Infof("[client_id:%s] received eof marker", clientID)
+
 				amountEOF[clientID] = utils.GetOrInitKeyMap(&amountEOF, clientID, utils.InitEOFCount) + 1
+
 				// If all sources sent EOF, submit the EOF to report
 				if aggregator.checkEofSingleQueue(amountEOF[movie.GetClientId()]) {
 					dataEof, errEof := protoUtils.CreateEofMessageMovieSanit(movie.GetClientId())
 					aggregator.checkErrorAndPublish(clientID, dataEof, errEof)
+					aggregator.Log.Infof("[client_id:%s] sent eof marker", clientID)
 				}
 			} else {
-				aggregator.Log.Debugf("[client_%s] %s: %s (%d)", movie.GetClientId(), MSG_AGGREGATED, *movie.Title, *movie.ReleaseYear)
+				aggregator.Log.Debugf("[client_id:%s] accepted: %s (%d)", movie.GetClientId(), movie.GetTitle(), movie.GetReleaseYear())
 				aggregator.publishData(msg.Body)
 			}
 		}

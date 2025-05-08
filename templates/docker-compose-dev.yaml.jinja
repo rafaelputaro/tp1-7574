@@ -98,7 +98,7 @@ services:
     image: joiner:latest
     environment:
       - JOINER_TYPE=group_by_movie_id_ratings
-      - JOINER_ID= {{ i }}
+      - JOINER_ID={{ i }}
       - JOINER_INPUT_QUEUE_BASE_NAME=ar_movies_2000_and_later
       - JOINER_INPUT_QUEUE_SEC_NAME=ratings
       - JOINER_OUTPUT_QUEUE_NAME=movies_top_and_bottom
@@ -117,7 +117,7 @@ services:
     image: joiner:latest
     environment:
       - JOINER_TYPE=group_by_movie_id_credits
-      - JOINER_ID= {{ i }}
+      - JOINER_ID={{ i }}
       - JOINER_INPUT_QUEUE_BASE_NAME=ar_movies_after_2000
       - JOINER_INPUT_QUEUE_SEC_NAME=credits
       - JOINER_OUTPUT_QUEUE_NAME=actor_movies_count
@@ -136,7 +136,7 @@ services:
     environment:
       - AGGREGATOR_TYPE=movies
       - AGGREGATOR_ID=1
-      - AGGREGATOR_AMOUNT_SOURCES={{ ar_es_filter_nodes }}
+      - AGGREGATOR_AMOUNT_SOURCES=1
       - AGGREGATOR_INPUT_QUEUE_NAME=movies_ar_es_2000s
       - AGGREGATOR_OUTPUT_QUEUE_NAME=movies_report
     networks:

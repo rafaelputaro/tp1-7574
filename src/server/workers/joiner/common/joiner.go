@@ -92,7 +92,7 @@ func (joiner *Joiner) publishData(data []byte) {
 		Body:        data,
 	})
 	if err != nil {
-		joiner.Log.Errorf("[%s] %s: %v", joiner.Config.JoinerType, MSG_FAILED_TO_PUBLISH_ON_OUTPUT_QUEUE, err)
+		joiner.Log.Fatalf("[%s] %s: %v", joiner.Config.JoinerType, MSG_FAILED_TO_PUBLISH_ON_OUTPUT_QUEUE, err)
 	}
 }
 
@@ -143,12 +143,12 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 			// Send actor counts for the client
 			for actorPath := range state.counter.Actors {
 				actor := state.counter.GetActor(actorPath, clientID)
-				joiner.Log.Debugf("[client_id:%s] send actor count: %v", clientID, actor)
 				data, err := proto.Marshal(actor)
 				if err != nil {
 					joiner.Log.Fatalf("[client_id:%s] failed to marshal actor data: %v", clientID, err)
 				}
 				joiner.publishData(data)
+				joiner.Log.Debugf("[client_id:%s] sent actor count: %v", clientID, actor)
 			}
 
 			// Send EOF for the client
@@ -158,6 +158,7 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 				joiner.Log.Fatalf("[client_id:%s] failed to marshal actor data eof: %v", clientID, err)
 			}
 			joiner.publishData(data)
+			joiner.Log.Debugf("[client_id:%s] sent eof marker", clientID)
 
 			// Remove processed client to free resources
 			// delete(clientStates, clientID)

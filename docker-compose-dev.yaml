@@ -72,6 +72,19 @@ services:
       rabbitmq:
         condition: service_healthy
 
+  ar-es-filter-2:
+    container_name: ar-es-filter-2
+    image: filter:latest
+    environment:
+      - FILTER_TYPE=ar_es_filter
+      - FILTER_NUM=2
+      - SHARDS=1
+    networks:
+      - tp1_net
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
 
 
   ar-filter-1:
@@ -118,8 +131,9 @@ services:
         condition: service_healthy
 
 
-  joiner_group_by_movie_id_ratings:
-    container_name: joiner_group_by_movie_id_ratings
+
+  joiner_group_by_movie_id_ratings-1:
+    container_name: joiner_group_by_movie_id_ratings-1
     image: joiner:latest
     environment:
       - JOINER_TYPE=group_by_movie_id_ratings
@@ -135,8 +149,10 @@ services:
     links:
       - rabbitmq
 
-  joiner_group_by_movie_id_credits:
-    container_name: joiner_group_by_movie_id_credits
+
+
+  joiner_group_by_movie_id_credits-1:
+    container_name: joiner_group_by_movie_id_credits-1
     image: joiner:latest
     environment:
       - JOINER_TYPE=group_by_movie_id_credits
@@ -151,6 +167,7 @@ services:
         condition: service_healthy
     links:
       - rabbitmq
+
 
   aggregator_movies:
     container_name: aggregator_movies
@@ -324,13 +341,12 @@ services:
       - aggregator_top_10
       - aggregator_top_5
       - aggregator_movies
-      - joiner_group_by_movie_id_credits
-      - joiner_group_by_movie_id_ratings
       - report
       - 2000s-filter-1
       - 2000s-filter-2
       - 2000s-filter-3
       - ar-es-filter-1
+      - ar-es-filter-2
       - ar-filter-1
       - top-5-investors-filter-1
       - single-country-origin-filter-1
@@ -339,6 +355,8 @@ services:
       - nlp-3
       - nlp-4
       - nlp-5
+      - joiner_group_by_movie_id_credits-1
+      - joiner_group_by_movie_id_ratings-1
 
 
   client-1:
