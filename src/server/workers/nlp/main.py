@@ -13,6 +13,8 @@ import movie_sanit_pb2
 from cache import SentimentCache
 import coordination_pb2
 
+logging.getLogger("pika").setLevel(logging.ERROR)
+logging.getLogger("pika").propagate = False
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("sentiment")
 
@@ -27,6 +29,10 @@ NODE_ID = socket.gethostname()
 
 ack_received = defaultdict(set)
 ack_events = defaultdict(threading.Event)
+
+leading_for = set()
+not_leading_for = set()
+sent_ack = set()
 
 
 def connect_rabbitmq_with_retries(retries=20, delay=3):
@@ -65,25 +71,23 @@ def expected_acks():
     return int(getenv("NLP_NODES")) - 1
 
 
-def wait_for_acks(client_id, timeout=10):
+def wait_for_acks(client_id, timeout=20):
     ack_events[client_id].wait(timeout)
     if len(ack_received[client_id]) == expected_acks():
         logger.info(f"[client_id:{client_id}][Leader] All ACKs received")
-        return True
     else:
-        logger.warning(f"[client_id:{client_id}][Leader] Timeout waiting for ACKs")
-        return False
+        logger.warning(f"[client_id:{client_id}][Leader] Timeout waiting for ACKs {ack_received}")
 
 
 def coordination_callback(ch, method, properties, body):
     message = coordination_pb2.CoordinationMessage()
     message.ParseFromString(body)
-    if message.type == coordination_pb2.ACK:
+    if message.type == coordination_pb2.ACK and message.client_id in leading_for:
         collect_ack(message.client_id, message.node_id)
     elif message.type == coordination_pb2.LEADER:
         if message.node_id != NODE_ID:
-            logger.info(f"[Node] Received LEADER from {message.node_id} for client_id={message.client_id}")
-            send_ack(message.client_id)
+            logger.info(f"[client_id:{message.client_id}][Node] Received LEADER from {message.node_id}")
+            not_leading_for.add(message.client_id)
 
 
 def broadcast_leader_message(client_id):
@@ -96,6 +100,7 @@ def broadcast_leader_message(client_id):
         routing_key=COORDINATION_KEY,
         body=message.SerializeToString()
     )
+    leading_for.add(client_id)
     logger.info(f"[client_id:{client_id}][Leader] Broadcast LEADER message")
 
 
@@ -126,8 +131,6 @@ def callback(_, __, ___, body):
         eof_message = movie.SerializeToString()
         channel.basic_publish(exchange=SENTIMENT_EXCHANGE, routing_key=POSITIVE_QUEUE, body=eof_message)
         channel.basic_publish(exchange=SENTIMENT_EXCHANGE, routing_key=NEGATIVE_QUEUE, body=eof_message)
-
-        ack_events[movie.clientId].clear()
         return
 
     label = cached_sentiment(movie)
@@ -138,6 +141,11 @@ def callback(_, __, ___, body):
         routing_key=target_queue,
         body=movie.SerializeToString()
     )
+
+    if movie.clientId not in not_leading_for:
+        for client_id in not_leading_for:
+            send_ack(client_id)
+        not_leading_for.clear()
 
     # logger.info(f"[client_id:{movie.clientId}] message published to {target_queue}")
 
