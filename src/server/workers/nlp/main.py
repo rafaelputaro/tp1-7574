@@ -92,11 +92,12 @@ def main():
     channel.queue_bind(exchange='sentiment_exchange', queue=NEGATIVE_QUEUE, routing_key=NEGATIVE_QUEUE)
 
     logger.info("Loading sentiment analysis model...")
-    sentiment_analyzer = pipeline(task='sentiment-analysis',
-                                  model='distilbert-base-uncased-finetuned-sst-2-english',
-                                  max_length=64,
-                                  truncation=True,
-                                  )
+    sentiment_analyzer = pipeline(
+        task='sentiment-analysis',
+        model='distilbert-base-uncased-finetuned-sst-2-english',
+        max_length=64,
+        truncation=True,
+    )
 
     try:
         with SentimentCache(getenv("NODE_NUM")) as c:
