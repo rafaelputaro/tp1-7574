@@ -17,14 +17,19 @@ func NormalizeJSON(input string) string {
 		return input
 	}
 
-	cleaned := strings.ReplaceAll(input, "'", `"`)
-	if isValid(cleaned) {
-		return cleaned
+	cleaned1 := strings.ReplaceAll(input, "'", `"`)
+	if isValid(cleaned1) {
+		return cleaned1
 	}
 
-	cleaned = reNoneLiteral.ReplaceAllString(cleaned, `: null$1`)
+	cleaned2 := reNoneLiteral.ReplaceAllString(input, `: null$1`)
+	if isValid(cleaned2) {
+		return cleaned2
+	}
 
-	return cleaned
+	cleaned3 := reNoneLiteral.ReplaceAllString(cleaned1, `: null$1`)
+
+	return cleaned3
 }
 
 // isValid checks if a string is a valid JSON object.

@@ -24,30 +24,15 @@ const (
 
 type Movie struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
-	Adult               *bool                  `protobuf:"varint,1,req,name=adult" json:"adult,omitempty"`
-	BelongsToCollection *string                `protobuf:"bytes,2,opt,name=belongs_to_collection,json=belongsToCollection" json:"belongs_to_collection,omitempty"`
 	Budget              *int32                 `protobuf:"varint,3,req,name=budget" json:"budget,omitempty"`
 	Genres              *string                `protobuf:"bytes,4,req,name=genres" json:"genres,omitempty"`
-	Homepage            *string                `protobuf:"bytes,5,opt,name=homepage" json:"homepage,omitempty"`
 	Id                  *int32                 `protobuf:"varint,6,req,name=id" json:"id,omitempty"`
-	ImdbId              *string                `protobuf:"bytes,7,req,name=imdb_id,json=imdbId" json:"imdb_id,omitempty"`
-	OriginalLanguage    *string                `protobuf:"bytes,8,req,name=original_language,json=originalLanguage" json:"original_language,omitempty"`
-	OriginalTitle       *string                `protobuf:"bytes,9,req,name=original_title,json=originalTitle" json:"original_title,omitempty"`
 	Overview            *string                `protobuf:"bytes,10,req,name=overview" json:"overview,omitempty"`
-	Popularity          *float32               `protobuf:"fixed32,11,req,name=popularity" json:"popularity,omitempty"`
-	PosterPath          *string                `protobuf:"bytes,12,req,name=poster_path,json=posterPath" json:"poster_path,omitempty"`
-	ProductionCompanies *string                `protobuf:"bytes,13,req,name=production_companies,json=productionCompanies" json:"production_companies,omitempty"`
 	ProductionCountries *string                `protobuf:"bytes,14,req,name=production_countries,json=productionCountries" json:"production_countries,omitempty"`
 	ReleaseDate         *string                `protobuf:"bytes,15,req,name=release_date,json=releaseDate" json:"release_date,omitempty"`
 	Revenue             *float64               `protobuf:"fixed64,16,req,name=revenue" json:"revenue,omitempty"`
-	Runtime             *float64               `protobuf:"fixed64,17,req,name=runtime" json:"runtime,omitempty"`
 	SpokenLanguages     *string                `protobuf:"bytes,18,req,name=spoken_languages,json=spokenLanguages" json:"spoken_languages,omitempty"`
-	Status              *string                `protobuf:"bytes,19,req,name=status" json:"status,omitempty"`
-	Tagline             *string                `protobuf:"bytes,20,opt,name=tagline" json:"tagline,omitempty"`
 	Title               *string                `protobuf:"bytes,21,req,name=title" json:"title,omitempty"`
-	Video               *bool                  `protobuf:"varint,22,req,name=video" json:"video,omitempty"`
-	VoteAverage         *float64               `protobuf:"fixed64,23,req,name=vote_average,json=voteAverage" json:"vote_average,omitempty"`
-	VoteCount           *int32                 `protobuf:"varint,24,req,name=vote_count,json=voteCount" json:"vote_count,omitempty"`
 	ClientId            *string                `protobuf:"bytes,25,opt,name=clientId" json:"clientId,omitempty"`
 	Eof                 *bool                  `protobuf:"varint,26,opt,name=eof" json:"eof,omitempty"`
 	unknownFields       protoimpl.UnknownFields
@@ -84,20 +69,6 @@ func (*Movie) Descriptor() ([]byte, []int) {
 	return file_movie_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *Movie) GetAdult() bool {
-	if x != nil && x.Adult != nil {
-		return *x.Adult
-	}
-	return false
-}
-
-func (x *Movie) GetBelongsToCollection() string {
-	if x != nil && x.BelongsToCollection != nil {
-		return *x.BelongsToCollection
-	}
-	return ""
-}
-
 func (x *Movie) GetBudget() int32 {
 	if x != nil && x.Budget != nil {
 		return *x.Budget
@@ -112,13 +83,6 @@ func (x *Movie) GetGenres() string {
 	return ""
 }
 
-func (x *Movie) GetHomepage() string {
-	if x != nil && x.Homepage != nil {
-		return *x.Homepage
-	}
-	return ""
-}
-
 func (x *Movie) GetId() int32 {
 	if x != nil && x.Id != nil {
 		return *x.Id
@@ -126,51 +90,9 @@ func (x *Movie) GetId() int32 {
 	return 0
 }
 
-func (x *Movie) GetImdbId() string {
-	if x != nil && x.ImdbId != nil {
-		return *x.ImdbId
-	}
-	return ""
-}
-
-func (x *Movie) GetOriginalLanguage() string {
-	if x != nil && x.OriginalLanguage != nil {
-		return *x.OriginalLanguage
-	}
-	return ""
-}
-
-func (x *Movie) GetOriginalTitle() string {
-	if x != nil && x.OriginalTitle != nil {
-		return *x.OriginalTitle
-	}
-	return ""
-}
-
 func (x *Movie) GetOverview() string {
 	if x != nil && x.Overview != nil {
 		return *x.Overview
-	}
-	return ""
-}
-
-func (x *Movie) GetPopularity() float32 {
-	if x != nil && x.Popularity != nil {
-		return *x.Popularity
-	}
-	return 0
-}
-
-func (x *Movie) GetPosterPath() string {
-	if x != nil && x.PosterPath != nil {
-		return *x.PosterPath
-	}
-	return ""
-}
-
-func (x *Movie) GetProductionCompanies() string {
-	if x != nil && x.ProductionCompanies != nil {
-		return *x.ProductionCompanies
 	}
 	return ""
 }
@@ -196,30 +118,9 @@ func (x *Movie) GetRevenue() float64 {
 	return 0
 }
 
-func (x *Movie) GetRuntime() float64 {
-	if x != nil && x.Runtime != nil {
-		return *x.Runtime
-	}
-	return 0
-}
-
 func (x *Movie) GetSpokenLanguages() string {
 	if x != nil && x.SpokenLanguages != nil {
 		return *x.SpokenLanguages
-	}
-	return ""
-}
-
-func (x *Movie) GetStatus() string {
-	if x != nil && x.Status != nil {
-		return *x.Status
-	}
-	return ""
-}
-
-func (x *Movie) GetTagline() string {
-	if x != nil && x.Tagline != nil {
-		return *x.Tagline
 	}
 	return ""
 }
@@ -229,27 +130,6 @@ func (x *Movie) GetTitle() string {
 		return *x.Title
 	}
 	return ""
-}
-
-func (x *Movie) GetVideo() bool {
-	if x != nil && x.Video != nil {
-		return *x.Video
-	}
-	return false
-}
-
-func (x *Movie) GetVoteAverage() float64 {
-	if x != nil && x.VoteAverage != nil {
-		return *x.VoteAverage
-	}
-	return 0
-}
-
-func (x *Movie) GetVoteCount() int32 {
-	if x != nil && x.VoteCount != nil {
-		return *x.VoteCount
-	}
-	return 0
 }
 
 func (x *Movie) GetClientId() string {
@@ -270,37 +150,18 @@ var File_movie_proto protoreflect.FileDescriptor
 
 const file_movie_proto_rawDesc = "" +
 	"\n" +
-	"\vmovie.proto\x1a\x1bgoogle/protobuf/empty.proto\"\xad\x06\n" +
-	"\x05Movie\x12\x14\n" +
-	"\x05adult\x18\x01 \x02(\bR\x05adult\x122\n" +
-	"\x15belongs_to_collection\x18\x02 \x01(\tR\x13belongsToCollection\x12\x16\n" +
+	"\vmovie.proto\x1a\x1bgoogle/protobuf/empty.proto\"\xc2\x02\n" +
+	"\x05Movie\x12\x16\n" +
 	"\x06budget\x18\x03 \x02(\x05R\x06budget\x12\x16\n" +
-	"\x06genres\x18\x04 \x02(\tR\x06genres\x12\x1a\n" +
-	"\bhomepage\x18\x05 \x01(\tR\bhomepage\x12\x0e\n" +
-	"\x02id\x18\x06 \x02(\x05R\x02id\x12\x17\n" +
-	"\aimdb_id\x18\a \x02(\tR\x06imdbId\x12+\n" +
-	"\x11original_language\x18\b \x02(\tR\x10originalLanguage\x12%\n" +
-	"\x0eoriginal_title\x18\t \x02(\tR\roriginalTitle\x12\x1a\n" +
+	"\x06genres\x18\x04 \x02(\tR\x06genres\x12\x0e\n" +
+	"\x02id\x18\x06 \x02(\x05R\x02id\x12\x1a\n" +
 	"\boverview\x18\n" +
-	" \x02(\tR\boverview\x12\x1e\n" +
-	"\n" +
-	"popularity\x18\v \x02(\x02R\n" +
-	"popularity\x12\x1f\n" +
-	"\vposter_path\x18\f \x02(\tR\n" +
-	"posterPath\x121\n" +
-	"\x14production_companies\x18\r \x02(\tR\x13productionCompanies\x121\n" +
+	" \x02(\tR\boverview\x121\n" +
 	"\x14production_countries\x18\x0e \x02(\tR\x13productionCountries\x12!\n" +
 	"\frelease_date\x18\x0f \x02(\tR\vreleaseDate\x12\x18\n" +
-	"\arevenue\x18\x10 \x02(\x01R\arevenue\x12\x18\n" +
-	"\aruntime\x18\x11 \x02(\x01R\aruntime\x12)\n" +
-	"\x10spoken_languages\x18\x12 \x02(\tR\x0fspokenLanguages\x12\x16\n" +
-	"\x06status\x18\x13 \x02(\tR\x06status\x12\x18\n" +
-	"\atagline\x18\x14 \x01(\tR\atagline\x12\x14\n" +
-	"\x05title\x18\x15 \x02(\tR\x05title\x12\x14\n" +
-	"\x05video\x18\x16 \x02(\bR\x05video\x12!\n" +
-	"\fvote_average\x18\x17 \x02(\x01R\vvoteAverage\x12\x1d\n" +
-	"\n" +
-	"vote_count\x18\x18 \x02(\x05R\tvoteCount\x12\x1a\n" +
+	"\arevenue\x18\x10 \x02(\x01R\arevenue\x12)\n" +
+	"\x10spoken_languages\x18\x12 \x02(\tR\x0fspokenLanguages\x12\x14\n" +
+	"\x05title\x18\x15 \x02(\tR\x05title\x12\x1a\n" +
 	"\bclientId\x18\x19 \x01(\tR\bclientId\x12\x10\n" +
 	"\x03eof\x18\x1a \x01(\bR\x03eof2@\n" +
 	"\fMovieService\x120\n" +

@@ -151,7 +151,7 @@ func (f *Filter) processArEsFilter() {
 		}
 
 		if filterFunc(&movie) {
-			// f.log.Debugf("[client_id:%s] accepted: %s (%d)", movie.GetClientId(), movie.GetProductionCountries(), movie.GetReleaseYear())
+			f.log.Debugf("[client_id:%s] accepted: %s (%d)", movie.GetClientId(), movie.GetProductionCountries(), movie.GetReleaseYear())
 
 			data, err := proto.Marshal(&movie)
 			if err != nil {
@@ -417,7 +417,7 @@ func (f *Filter) processYearFilters() {
 
 		for queueName, condition := range outputQueues {
 			if condition(releaseYear) {
-				// f.log.Debugf("[%s] %s (%d)", queueName, movie.GetTitle(), releaseYear)
+				f.log.Debugf("[%s] %s (%d)", queueName, movie.GetTitle(), releaseYear)
 				err = f.channel.Publish("", queueName, false, false, amqp.Publishing{
 					ContentType: "application/protobuf",
 					Body:        data,

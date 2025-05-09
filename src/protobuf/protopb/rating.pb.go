@@ -24,12 +24,11 @@ const (
 
 type Rating struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        *int64                 `protobuf:"varint,1,req,name=userId" json:"userId,omitempty"`
-	MovieId       *int64                 `protobuf:"varint,2,req,name=movieId" json:"movieId,omitempty"`
-	Rating        *float32               `protobuf:"fixed32,3,req,name=rating" json:"rating,omitempty"`
-	Timestamp     *int64                 `protobuf:"varint,4,req,name=timestamp" json:"timestamp,omitempty"`
-	ClientId      *string                `protobuf:"bytes,5,opt,name=clientId" json:"clientId,omitempty"`
-	Eof           *bool                  `protobuf:"varint,6,opt,name=eof" json:"eof,omitempty"`
+	MovieId       *int64                 `protobuf:"varint,1,req,name=movieId" json:"movieId,omitempty"`
+	Rating        *float32               `protobuf:"fixed32,2,req,name=rating" json:"rating,omitempty"`
+	Timestamp     *int64                 `protobuf:"varint,3,req,name=timestamp" json:"timestamp,omitempty"`
+	ClientId      *string                `protobuf:"bytes,4,opt,name=clientId" json:"clientId,omitempty"`
+	Eof           *bool                  `protobuf:"varint,5,opt,name=eof" json:"eof,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -62,13 +61,6 @@ func (x *Rating) ProtoReflect() protoreflect.Message {
 // Deprecated: Use Rating.ProtoReflect.Descriptor instead.
 func (*Rating) Descriptor() ([]byte, []int) {
 	return file_rating_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *Rating) GetUserId() int64 {
-	if x != nil && x.UserId != nil {
-		return *x.UserId
-	}
-	return 0
 }
 
 func (x *Rating) GetMovieId() int64 {
@@ -110,14 +102,13 @@ var File_rating_proto protoreflect.FileDescriptor
 
 const file_rating_proto_rawDesc = "" +
 	"\n" +
-	"\frating.proto\x1a\x1bgoogle/protobuf/empty.proto\"\x9e\x01\n" +
-	"\x06Rating\x12\x16\n" +
-	"\x06userId\x18\x01 \x02(\x03R\x06userId\x12\x18\n" +
-	"\amovieId\x18\x02 \x02(\x03R\amovieId\x12\x16\n" +
-	"\x06rating\x18\x03 \x02(\x02R\x06rating\x12\x1c\n" +
-	"\ttimestamp\x18\x04 \x02(\x03R\ttimestamp\x12\x1a\n" +
-	"\bclientId\x18\x05 \x01(\tR\bclientId\x12\x10\n" +
-	"\x03eof\x18\x06 \x01(\bR\x03eof2C\n" +
+	"\frating.proto\x1a\x1bgoogle/protobuf/empty.proto\"\x86\x01\n" +
+	"\x06Rating\x12\x18\n" +
+	"\amovieId\x18\x01 \x02(\x03R\amovieId\x12\x16\n" +
+	"\x06rating\x18\x02 \x02(\x02R\x06rating\x12\x1c\n" +
+	"\ttimestamp\x18\x03 \x02(\x03R\ttimestamp\x12\x1a\n" +
+	"\bclientId\x18\x04 \x01(\tR\bclientId\x12\x10\n" +
+	"\x03eof\x18\x05 \x01(\bR\x03eof2C\n" +
 	"\rRatingService\x122\n" +
 	"\rStreamRatings\x12\a.Rating\x1a\x16.google.protobuf.Empty(\x01B\vZ\t./protopb"
 

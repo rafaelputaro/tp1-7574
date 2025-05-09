@@ -25,10 +25,9 @@ const (
 type Credit struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Cast          *string                `protobuf:"bytes,1,req,name=cast" json:"cast,omitempty"`
-	Crew          *string                `protobuf:"bytes,2,req,name=crew" json:"crew,omitempty"`
-	Id            *int64                 `protobuf:"varint,3,req,name=id" json:"id,omitempty"`
-	ClientId      *string                `protobuf:"bytes,4,opt,name=clientId" json:"clientId,omitempty"`
-	Eof           *bool                  `protobuf:"varint,5,opt,name=eof" json:"eof,omitempty"`
+	Id            *int64                 `protobuf:"varint,2,req,name=id" json:"id,omitempty"`
+	ClientId      *string                `protobuf:"bytes,3,opt,name=clientId" json:"clientId,omitempty"`
+	Eof           *bool                  `protobuf:"varint,4,opt,name=eof" json:"eof,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -70,13 +69,6 @@ func (x *Credit) GetCast() string {
 	return ""
 }
 
-func (x *Credit) GetCrew() string {
-	if x != nil && x.Crew != nil {
-		return *x.Crew
-	}
-	return ""
-}
-
 func (x *Credit) GetId() int64 {
 	if x != nil && x.Id != nil {
 		return *x.Id
@@ -102,13 +94,12 @@ var File_credit_proto protoreflect.FileDescriptor
 
 const file_credit_proto_rawDesc = "" +
 	"\n" +
-	"\fcredit.proto\x1a\x1bgoogle/protobuf/empty.proto\"n\n" +
+	"\fcredit.proto\x1a\x1bgoogle/protobuf/empty.proto\"Z\n" +
 	"\x06Credit\x12\x12\n" +
-	"\x04cast\x18\x01 \x02(\tR\x04cast\x12\x12\n" +
-	"\x04crew\x18\x02 \x02(\tR\x04crew\x12\x0e\n" +
-	"\x02id\x18\x03 \x02(\x03R\x02id\x12\x1a\n" +
-	"\bclientId\x18\x04 \x01(\tR\bclientId\x12\x10\n" +
-	"\x03eof\x18\x05 \x01(\bR\x03eof2C\n" +
+	"\x04cast\x18\x01 \x02(\tR\x04cast\x12\x0e\n" +
+	"\x02id\x18\x02 \x02(\x03R\x02id\x12\x1a\n" +
+	"\bclientId\x18\x03 \x01(\tR\bclientId\x12\x10\n" +
+	"\x03eof\x18\x04 \x01(\bR\x03eof2C\n" +
 	"\rCreditService\x122\n" +
 	"\rStreamCredits\x12\a.Credit\x1a\x16.google.protobuf.Empty(\x01B\vZ\t./protopb"
 

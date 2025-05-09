@@ -258,6 +258,35 @@ func (c *Controller) publishRatingEof(clientID string) error {
 }
 
 func sanitizeMovie(m *pb.Movie, clientID string) (*pb.MovieSanit, error) {
+	// Clean up
+	if m.Id == nil || m.GetId() <= 0 {
+		return nil, fmt.Errorf("invalid movie id")
+	}
+	if m.Overview == nil || m.GetOverview() == "" {
+		return nil, fmt.Errorf("invalid movie overview")
+	}
+	/*if m.Title == nil {
+		return nil, fmt.Errorf("invalid movie title")
+	}
+	if m.Genres == nil {
+		return nil, fmt.Errorf("invalid movie genres")
+	}
+	if m.ReleaseDate == nil {
+		return nil, fmt.Errorf("invalid movie release date")
+	}
+	if m.ProductionCountries == nil {
+		return nil, fmt.Errorf("invalid movie production countries")
+	}
+	if m.SpokenLanguages == nil {
+		return nil, fmt.Errorf("invalid movie spoken languages")
+	}
+	if m.Budget == nil || m.GetBudget() <= 0 {
+		return nil, fmt.Errorf("invalid movie budget")
+	}
+	if m.Revenue == nil || m.GetRevenue() <= 0 {
+		return nil, fmt.Errorf("invalid movie revenue")
+	}*/
+
 	// Release Year
 	var releaseYear uint32
 	if date := m.GetReleaseDate(); date != "" {
@@ -315,6 +344,17 @@ func sanitizeMovie(m *pb.Movie, clientID string) (*pb.MovieSanit, error) {
 }
 
 func sanitizeRating(r *pb.Rating, clientId string) (*pb.RatingSanit, error) {
+	// Clean up
+	if r.MovieId == nil || r.GetMovieId() <= 0 {
+		return nil, fmt.Errorf("invalid movie id")
+	}
+	if r.Rating == nil || r.GetRating() < 0.0 || r.GetRating() > 5.0 {
+		return nil, fmt.Errorf("invalid rating value")
+	}
+	if r.Timestamp == nil || r.GetTimestamp() <= 0 {
+		return nil, fmt.Errorf("invalid timestamp")
+	}
+
 	if r.GetRating() < 0.0 || r.GetRating() > 5.0 {
 		return nil, fmt.Errorf("invalid rating value: %v", r.GetRating())
 	}
@@ -328,6 +368,11 @@ func sanitizeRating(r *pb.Rating, clientId string) (*pb.RatingSanit, error) {
 }
 
 func sanitizeCredit(c *pb.Credit, clientId string) (*pb.CreditSanit, error) {
+	// Clean up
+	if c.Id == nil || c.GetId() <= 0 {
+		return nil, fmt.Errorf("invalid movie id")
+	}
+
 	castJson := NormalizeJSON(c.GetCast())
 	var parsedCast []struct {
 		Name        string `json:"name"`

@@ -54,7 +54,6 @@ func CreateEofMessageCreditSanit(clientId string) ([]byte, error) {
 func CreateDummyCredit(clientId string, eof bool) *protopb.Credit {
 	return &protopb.Credit{
 		Cast:     proto.String(""),
-		Crew:     proto.String(""),
 		Id:       proto.Int64(0),
 		ClientId: &clientId,
 		Eof:      proto.Bool(eof),
@@ -115,30 +114,15 @@ func CreateEofMessageMovieSanit(clientId string) ([]byte, error) {
 
 func CreateDummyMovie(clientId string, eof bool) *protopb.Movie {
 	return &protopb.Movie{
-		Adult:               proto.Bool(false),
-		BelongsToCollection: proto.String("{}"),
 		Budget:              proto.Int32(0),
 		Genres:              proto.String("[]"),
-		Homepage:            proto.String("Dummy"),
 		Id:                  proto.Int32(0),
-		ImdbId:              proto.String("dummyImdbId"),
-		OriginalLanguage:    proto.String("dummyLang"),
-		OriginalTitle:       proto.String("Dummy"),
 		Overview:            proto.String("A dummy movie"),
-		Popularity:          proto.Float32(0.0),
-		PosterPath:          proto.String("Dummy.jpg"),
-		ProductionCompanies: proto.String("[]"),
 		ProductionCountries: proto.String("[]"),
 		ReleaseDate:         proto.String("1-1-1"),
 		Revenue:             proto.Float64(0),
-		Runtime:             proto.Float64(0.0),
 		SpokenLanguages:     proto.String("[]"),
-		Status:              proto.String("Released"),
-		Tagline:             proto.String(""),
 		Title:               proto.String("Dummy"),
-		Video:               proto.Bool(false),
-		VoteAverage:         proto.Float64(0.0),
-		VoteCount:           proto.Int32(0),
 		ClientId:            &clientId,
 		Eof:                 proto.Bool(eof),
 	}
@@ -171,7 +155,6 @@ func CreateEofMessageRatingSanit(clientId string) ([]byte, error) {
 
 func CreateDummyRating(clientId string, eof bool) *protopb.Rating {
 	return &protopb.Rating{
-		UserId:    proto.Int64(0),
 		MovieId:   proto.Int64(0),
 		Rating:    proto.Float32(0),
 		Timestamp: proto.Int64(0),

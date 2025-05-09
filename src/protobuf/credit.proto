@@ -6,10 +6,9 @@ import "google/protobuf/empty.proto";
 
 message Credit {
   required string cast = 1;
-  required string crew = 2;
-  required int64 id = 3;
-  optional string clientId = 4;
-  optional bool eof = 5;
+  required int64 id = 2;
+  optional string clientId = 3;
+  optional bool eof = 4;
 }
 
 service CreditService {

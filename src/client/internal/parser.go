@@ -66,7 +66,7 @@ func newBatchCSVParser[T any](path string, fn func([]string) (*T, error), size i
 	// skip header
 	_, err = reader.Read()
 	if err != nil {
-		file.Close()
+		_ = file.Close()
 		return nil, fmt.Errorf("failed to read header: %w", err)
 	}
 
@@ -100,48 +100,27 @@ func ShutdownParser[T any](p Parser[T]) {
 func parseMovie(record []string) (*pb.Movie, error) {
 	budget, _ := strconv.Atoi(record[2])
 	id, _ := strconv.Atoi(record[5])
-	popularity, _ := strconv.ParseFloat(record[10], 32)
 	revenue, _ := strconv.ParseFloat(record[15], 64)
-	runtime, _ := strconv.ParseFloat(record[16], 64)
-	voteAverage, _ := strconv.ParseFloat(record[22], 64)
-	voteCount, _ := strconv.Atoi(record[23])
 
 	return &pb.Movie{
-		Adult:               proto.Bool(record[0] == "True"),
-		BelongsToCollection: proto.String(record[1]),
 		Budget:              proto.Int32(int32(budget)),
 		Genres:              proto.String(record[3]),
-		Homepage:            proto.String(record[4]),
 		Id:                  proto.Int32(int32(id)),
-		ImdbId:              proto.String(record[6]),
-		OriginalLanguage:    proto.String(record[7]),
-		OriginalTitle:       proto.String(record[8]),
 		Overview:            proto.String(record[9]),
-		Popularity:          proto.Float32(float32(popularity)),
-		PosterPath:          proto.String(record[11]),
-		ProductionCompanies: proto.String(record[12]),
 		ProductionCountries: proto.String(record[13]),
 		ReleaseDate:         proto.String(record[14]),
 		Revenue:             proto.Float64(revenue),
-		Runtime:             proto.Float64(runtime),
 		SpokenLanguages:     proto.String(record[17]),
-		Status:              proto.String(record[18]),
-		Tagline:             proto.String(record[19]),
 		Title:               proto.String(record[20]),
-		Video:               proto.Bool(record[21] == "True"),
-		VoteAverage:         proto.Float64(voteAverage),
-		VoteCount:           proto.Int32(int32(voteCount)),
 	}, nil
 }
 
 func parseRating(record []string) (*pb.Rating, error) {
-	userID, _ := strconv.ParseInt(record[0], 10, 64)
 	movieID, _ := strconv.ParseInt(record[1], 10, 64)
 	rating, _ := strconv.ParseFloat(record[2], 32)
 	timestamp, _ := strconv.ParseInt(record[3], 10, 64)
 
 	return &pb.Rating{
-		UserId:    proto.Int64(userID),
 		MovieId:   proto.Int64(movieID),
 		Rating:    proto.Float32(float32(rating)),
 		Timestamp: proto.Int64(timestamp),
@@ -153,7 +132,6 @@ func parseCredit(record []string) (*pb.Credit, error) {
 
 	return &pb.Credit{
 		Cast: proto.String(record[0]),
-		Crew: proto.String(record[1]),
 		Id:   proto.Int64(id),
 	}, nil
 }

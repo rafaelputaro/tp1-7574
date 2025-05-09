@@ -18,7 +18,8 @@ import (
 )
 
 const (
-	batchSize          = 100
+	batchSize          = 1000
+	ratingsBatchSize   = 10000
 	controllerGrpcAddr = "controller:50051"
 )
 
@@ -57,7 +58,7 @@ func main() {
 	}
 	defer internal.ShutdownParser[pb.Credit](creditsParser)
 
-	ratingsParser, err := internal.NewRatingsParser(ratingsPath, batchSize)
+	ratingsParser, err := internal.NewRatingsParser(ratingsPath, ratingsBatchSize)
 	if err != nil {
 		logger.Fatalf("Failed to create ratings parser: %v", err)
 	}
@@ -113,9 +114,9 @@ func printReport(report *pb.ReportResponse) {
 
 	// Answer 3: Rating Extremes
 	output += "\n[3] Rating Extremes:\n"
-	output += fmt.Sprintf(" - Lowest: ID %d | Title: %s | Rating: %.2f\n",
-		report.Answer3.GetMin().GetId(), report.Answer3.GetMin().GetTitle(), report.Answer3.GetMin().GetRating())
 	output += fmt.Sprintf(" - Highest: ID %d | Title: %s | Rating: %.2f\n",
+		report.Answer3.GetMin().GetId(), report.Answer3.GetMin().GetTitle(), report.Answer3.GetMin().GetRating())
+	output += fmt.Sprintf(" - Lowest: ID %d | Title: %s | Rating: %.2f\n",
 		report.Answer3.GetMax().GetId(), report.Answer3.GetMax().GetTitle(), report.Answer3.GetMax().GetRating())
 
 	// Answer 4: Actors
@@ -133,7 +134,7 @@ func printReport(report *pb.ReportResponse) {
 	fmt.Println(output)
 
 	// Save to file
-	timestamp := time.Now().Format("02-01-2006 15:04:05")
+	timestamp := time.Now().Format("2006-01-02 15:04:05")
 	filename := fmt.Sprintf("/app/report_%s.txt", timestamp)
 	err := os.WriteFile(filename, []byte(output), 0644)
 	if err != nil {

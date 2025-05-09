@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"slices"
 	"sync"
 	"time"
 	pb "tp1/protobuf/protopb"
@@ -59,6 +60,7 @@ func (rr *ReportRegistry) GetReport(clientID string) *pb.ReportResponse {
 		return nil
 	}
 
+	SortReport(r)
 	return r
 }
 
@@ -125,4 +127,22 @@ func (rr *ReportRegistry) AddAnswer5(clientID string, answer5 *pb.Answer5) {
 		rr.reports[clientID] = &pb.ReportResponse{}
 	}
 	rr.reports[clientID].Answer5 = answer5
+}
+
+func SortReport(report *pb.ReportResponse) {
+
+	slices.SortFunc(report.Answer1.Movies, func(a, b *pb.MovieEntry) int {
+		return int(a.GetId() - b.GetId())
+	})
+
+	slices.SortFunc(report.Answer2.Countries, func(a, b *pb.CountryEntry) int {
+		return int(b.GetBudget() - a.GetBudget())
+	})
+
+	slices.SortFunc(report.Answer4.Actors, func(a, b *pb.ActorEntry) int {
+		if a.Count != b.Count {
+			return int(b.GetCount() - a.GetCount())
+		}
+		return int(a.GetId() - b.GetId())
+	})
 }
