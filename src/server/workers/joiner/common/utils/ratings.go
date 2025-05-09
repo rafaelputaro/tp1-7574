@@ -110,7 +110,16 @@ func (totalizer *RatingTotalizer) sort() {
 
 func (totalizer *RatingTotalizer) GetTopAndBottom(clientID string) *protopb.TopAndBottomRatingAvg {
 	totalizer.sort()
-	last := totalizer.Movies[len(totalizer.Movies)-1]
+
+	lastIndex := -1
+	for i := len(totalizer.Movies) - 1; i >= 0; i-- {
+		if totalizer.Movies[i].Count > 0 {
+			lastIndex = i
+			break
+		}
+	}
+	last := totalizer.Movies[lastIndex]
+
 	return &protopb.TopAndBottomRatingAvg{
 		TitleTop:        &totalizer.Movies[0].Title,
 		TitleBottom:     &last.Title,
