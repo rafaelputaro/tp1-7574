@@ -199,7 +199,7 @@ func (c *Controller) publishToQueues(data []byte, queues ...string) error {
 
 func (c *Controller) publishMovieEof(clientID string) error {
 	data, err := proto.Marshal(&pb.MovieSanit{
-		Budget:      proto.Int32(0),
+		Budget:      proto.Int64(0),
 		Id:          proto.Int32(0),
 		Overview:    proto.String(""),
 		ReleaseYear: proto.Uint32(0),

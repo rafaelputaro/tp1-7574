@@ -2,12 +2,12 @@ package filter
 
 import (
 	"fmt"
-	"hash/fnv"
 	"sort"
 	"strings"
 	"sync"
 	"tp1/globalconfig"
 	"tp1/protobuf/protopb"
+	protoUtils "tp1/protobuf/utils"
 	"tp1/rabbitmq"
 
 	"google.golang.org/protobuf/proto"
@@ -173,6 +173,7 @@ func (f *Filter) processArEsFilter() {
 }
 
 func (f *Filter) processTop5InvestorsFilter() {
+	// TODO: kill this filter and related
 	inputExchange := "single_country_origin_exchange"
 	shardID := f.config.ID
 
@@ -238,7 +239,7 @@ func (f *Filter) processTop5InvestorsFilter() {
 
 	f.log.Infof("[%s] Waiting for messages...", filterName)
 
-	countryBudget := make(map[string]int32)
+	countryBudget := make(map[string]int64)
 
 	for msg := range msgs {
 		var movie protopb.MovieSanit
@@ -252,7 +253,7 @@ func (f *Filter) processTop5InvestorsFilter() {
 
 			type entry struct {
 				Country string
-				Budget  int32
+				Budget  int64
 			}
 
 			var sorted []entry
@@ -266,7 +267,7 @@ func (f *Filter) processTop5InvestorsFilter() {
 
 			// Crear mensaje de respuesta
 			top5 := &protopb.Top5Country{
-				Budget:              []int32{},
+				Budget:              []int64{},
 				ProductionCountries: []string{},
 				ClientId:            movie.ClientId,
 			}
@@ -301,7 +302,7 @@ func (f *Filter) processTop5InvestorsFilter() {
 			}
 
 			eofData := &protopb.Top5Country{
-				Budget:              []int32{},
+				Budget:              []int64{},
 				ProductionCountries: []string{},
 				Eof:                 proto.Bool(true),
 				ClientId:            movie.ClientId,
@@ -357,9 +358,9 @@ func (f *Filter) processYearFilters() {
 
 	f.log.Infof("starting job for ID: %d", f.config.ID)
 
-	err := rabbitmq.DeclareDirectQueues(f.channel, globalconfig.Movies2Queue)
+	err := rabbitmq.DeclareDirectQueues(f.channel, globalconfig.Movies1Queue)
 	if err != nil {
-		f.log.Fatalf("Failed to declare queue '%s': %v", globalconfig.Movies2Queue, err)
+		f.log.Fatalf("Failed to declare queue '%s': %v", globalconfig.Movies1Queue, err)
 	}
 
 	for outputQueue := range outputQueues {
@@ -369,9 +370,9 @@ func (f *Filter) processYearFilters() {
 		}
 	}
 
-	msgs, err := rabbitmq.ConsumeFromQueue(f.channel, globalconfig.Movies2Queue)
+	msgs, err := rabbitmq.ConsumeFromQueue(f.channel, globalconfig.Movies1Queue)
 	if err != nil {
-		f.log.Fatalf("failed to consume messages from '%s': %v", globalconfig.Movies2Queue, err)
+		f.log.Fatalf("failed to consume messages from '%s': %v", globalconfig.Movies1Queue, err)
 	}
 
 	f.log.Infof("waiting for messages...")
@@ -464,30 +465,65 @@ func (f *Filter) processArFilter() {
 
 func (f *Filter) processSingleCountryOriginFilter() {
 	f.log.Infof("Runing filter...")
-	outputExchange := "single_country_origin_exchange"
+	inputQueue := globalconfig.Movies2Queue
+	outputQueue := "single_country_origin_movies" // TODO: to config
+
+	err := rabbitmq.DeclareDirectQueues(f.channel, inputQueue)
+	if err != nil {
+		f.log.Fatalf("Failed to declare queue: %v", err)
+	}
+
+	err = rabbitmq.DeclareDirectQueues(f.channel, outputQueue)
+	if err != nil {
+		f.log.Fatalf("failed to declare queue %v", err)
+	}
+
+	msgs, err := rabbitmq.ConsumeFromQueue(f.channel, inputQueue)
+	if err != nil {
+		f.log.Fatalf("failed to consume messages from: %v", err)
+	}
 
 	filterFunc := func(movie *protopb.MovieSanit) bool {
 		productionCountries := movie.GetProductionCountries()
 		return len(productionCountries) == 1
 	}
 
-	shardingFunc := func(movie *protopb.MovieSanit) int {
-		countries := movie.GetProductionCountries()
-		if len(countries) != 1 {
-			return -1 // Shouldn't happen
-		}
-
-		hasher := fnv.New32a()
-		_, err := hasher.Write([]byte(countries[0]))
+	for msg := range msgs {
+		var movie protopb.MovieSanit
+		err = proto.Unmarshal(msg.Body, &movie)
 		if err != nil {
-			return -1
+			f.log.Errorf("failed to unmarshal message: %v", err)
+			continue
 		}
 
-		return (int(hasher.Sum32()) % f.config.Shards) + 1
-	}
+		clientID := movie.GetClientId()
 
-	f.log.Infof("Runing filter...")
-	f.runShardedFilter(globalconfig.Movies1Queue, true, outputExchange, filterFunc, shardingFunc)
+		if movie.GetEof() {
+			// TODO: EOF leader logic
+
+			f.log.Infof("[client_id:%s] received EOF marker", clientID)
+
+			dataEof, err := protoUtils.CreateEofMessageMovieSanit(clientID)
+			if err != nil {
+				f.log.Fatalf("[client_id:%s] failed to marshal eof: %v", clientID, err)
+			}
+
+			err = rabbitmq.Publish(f.channel, "", outputQueue, dataEof)
+			if err != nil {
+				f.log.Fatalf("[client_id:%s] failed to publish eof: %v", clientID, err)
+			}
+
+			f.log.Infof("[client_id:%s] published eof", clientID)
+			continue
+		}
+
+		if filterFunc(&movie) {
+			err = rabbitmq.Publish(f.channel, "", outputQueue, msg.Body)
+			if err != nil {
+				f.log.Errorf("[client_id:%s] failed to publish movie: %v", clientID, err)
+			}
+		}
+	}
 }
 
 // Creates a direct exchange using sharding with routing keys

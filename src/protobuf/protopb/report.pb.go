@@ -249,7 +249,7 @@ func (x *Answer2) GetCountries() []*CountryEntry {
 type CountryEntry struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          *string                `protobuf:"bytes,1,req,name=name" json:"name,omitempty"`
-	Budget        *int32                 `protobuf:"varint,2,req,name=budget" json:"budget,omitempty"`
+	Budget        *int64                 `protobuf:"varint,2,req,name=budget" json:"budget,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -291,7 +291,7 @@ func (x *CountryEntry) GetName() string {
 	return ""
 }
 
-func (x *CountryEntry) GetBudget() int32 {
+func (x *CountryEntry) GetBudget() int64 {
 	if x != nil && x.Budget != nil {
 		return *x.Budget
 	}
@@ -684,7 +684,7 @@ const file_report_proto_rawDesc = "" +
 	"\tcountries\x18\x01 \x03(\v2\r.CountryEntryR\tcountries\":\n" +
 	"\fCountryEntry\x12\x12\n" +
 	"\x04name\x18\x01 \x02(\tR\x04name\x12\x16\n" +
-	"\x06budget\x18\x02 \x02(\x05R\x06budget\"I\n" +
+	"\x06budget\x18\x02 \x02(\x03R\x06budget\"I\n" +
 	"\aAnswer3\x12\x1e\n" +
 	"\x03min\x18\x01 \x02(\v2\f.MovieRatingR\x03min\x12\x1e\n" +
 	"\x03max\x18\x02 \x02(\v2\f.MovieRatingR\x03max\"K\n" +

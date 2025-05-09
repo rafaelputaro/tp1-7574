@@ -7,7 +7,7 @@ import (
 )
 
 type CountryBudget struct {
-	Budget             int32
+	Budget             int64
 	ProductionCountrie string
 }
 

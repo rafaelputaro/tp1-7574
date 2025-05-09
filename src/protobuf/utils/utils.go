@@ -91,7 +91,7 @@ func MetricsToString(metrics *protopb.Metrics) string {
 
 func CreateDummyMovieSanit(clientId string, eof bool) *protopb.MovieSanit {
 	return &protopb.MovieSanit{
-		Budget:              proto.Int32(0),
+		Budget:              proto.Int64(0),
 		Genres:              []string{"dummy_gen"},
 		Id:                  proto.Int32(0),
 		Overview:            proto.String("A dummy movie"),
@@ -114,7 +114,7 @@ func CreateEofMessageMovieSanit(clientId string) ([]byte, error) {
 
 func CreateDummyMovie(clientId string, eof bool) *protopb.Movie {
 	return &protopb.Movie{
-		Budget:              proto.Int32(0),
+		Budget:              proto.Int64(0),
 		Genres:              proto.String("[]"),
 		Id:                  proto.Int32(0),
 		Overview:            proto.String("A dummy movie"),
@@ -190,7 +190,7 @@ func CreateEofMessageRevenueOverBudget(clientId string) ([]byte, error) {
 
 func CreateDummyTop5Country(clientId string, eof bool) *protopb.Top5Country {
 	return &protopb.Top5Country{
-		Budget:              []int32{},
+		Budget:              []int64{},
 		ProductionCountries: []string{},
 		ClientId:            &clientId,
 		Eof:                 proto.Bool(eof),
@@ -199,7 +199,7 @@ func CreateDummyTop5Country(clientId string, eof bool) *protopb.Top5Country {
 
 func CreateMinimumTop5Country(clientId string) *protopb.Top5Country {
 	return &protopb.Top5Country{
-		Budget:              []int32{0, 0, 0, 0, 0},
+		Budget:              []int64{0, 0, 0, 0, 0},
 		ProductionCountries: []string{"Empty0", "Empty1", "Empty2", "Empty3", "Empty4"},
 		ClientId:            &clientId,
 	}

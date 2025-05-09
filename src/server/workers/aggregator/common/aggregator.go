@@ -1,6 +1,7 @@
 package common
 
 import (
+	"sort"
 	"sync"
 	"tp1/protobuf/protopb"
 	protoUtils "tp1/protobuf/utils"
@@ -190,53 +191,95 @@ func (aggregator *Aggregator) aggregateMovies() {
 	}
 }
 
-func (aggregator *Aggregator) aggregateTop5() {
-	msgs, err := aggregator.consumeQueue(aggregator.Config.InputQueue)
+func (a *Aggregator) aggregateTop5() {
+	// TODO: kill queue movies_top_5_investors and related
+	msgs, err := a.consumeQueue(a.Config.InputQueue)
 	if err != nil {
-		aggregator.Log.Fatalf("%s '%s': %v", MSG_FAILED_CONSUME, aggregator.Config.InputQueue, err)
+		a.Log.Fatalf("failed to consume messages: %v", err)
 	}
 
-	// Count EOF and globalTop5 for all clients
-	amountEOF := make(map[string]int)
-	globalTop5 := make(map[string]*protopb.Top5Country)
+	countriesByClient := make(map[string]map[string]int64)
 
-	// Message loop
 	for msg := range msgs {
-		var top5 protopb.Top5Country
-		if err := proto.Unmarshal(msg.Body, &top5); err != nil {
-			aggregator.Log.Errorf("[aggregator_%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_UNMARSHAL, err)
+		var movie protopb.MovieSanit
+		err := proto.Unmarshal(msg.Body, &movie)
+		if err != nil {
+			a.Log.Errorf("failed to unmarshal message: %v", err)
 			continue
 		}
 
-		clientID := top5.GetClientId()
-		aggregator.Log.Debugf("[aggregator_%s client_%s] %s: %s", aggregator.Config.AggregatorType, clientID, MSG_RECEIVED, protoUtils.Top5ToString(&top5))
-		// get the last global top 5 or init for a client
-		lastGlobalTop5Cli := utils.GetOrInitKeyMapWithKey(&globalTop5, clientID, protoUtils.CreateMinimumTop5Country)
-		// EOF
-		if top5.GetEof() {
-			amountEOF[clientID] = utils.GetOrInitKeyMap(&amountEOF, clientID, utils.InitEOFCount) + 1
-			// If all sources sent EOF, send top 5 and submit the EOF to report
-			if aggregator.checkEofSingleQueue(amountEOF[clientID]) {
-				// Prepare to send report
-				data, err := proto.Marshal(lastGlobalTop5Cli)
-				if err != nil {
-					aggregator.Log.Fatalf("[client_id:%s] %s: %v", clientID, MSG_FAILED_TO_MARSHAL, err)
-					continue
-				}
-				// send top5 to report
-				aggregator.publishData(data)
-				aggregator.Log.Debugf("[client_id:%s] %s: %s", clientID, MSG_SENT_TO_REPORT, protoUtils.Top5ToString(lastGlobalTop5Cli))
-				// submit the EOF to report
-				dataEof, errEof := protoUtils.CreateEofMessageTop5Country(clientID)
-				aggregator.checkErrorAndPublish(clientID, dataEof, errEof)
+		clientID := movie.GetClientId()
+
+		a.Log.Debugf("[client_id:%s] received: %v", clientID, &movie)
+
+		_, found := countriesByClient[clientID]
+		if !found {
+			countriesByClient[clientID] = make(map[string]int64)
+		}
+		countryForClient := countriesByClient[clientID]
+
+		if movie.GetEof() {
+			var top5 protopb.Top5Country
+			top5.ClientId = proto.String(clientID)
+			top5.ProductionCountries = []string{}
+			top5.Budget = []int64{}
+
+			type kv struct {
+				Key   string
+				Value int64
 			}
+
+			var pairs []kv
+			for k, v := range countryForClient {
+				pairs = append(pairs, kv{k, v})
+			}
+
+			sort.Slice(pairs, func(i, j int) bool {
+				return pairs[i].Value > pairs[j].Value
+			})
+
+			top := 5
+			for _, p := range pairs {
+				top5.ProductionCountries = append(top5.ProductionCountries, p.Key)
+				top5.Budget = append(top5.Budget, p.Value)
+
+				top--
+				if top == 0 {
+					break
+				}
+			}
+
+			data, err := proto.Marshal(&top5)
+			if err != nil {
+				a.Log.Fatalf("[client_id:%s] failed to marshal top5: %v", clientID, err)
+			}
+
+			err = rabbitmq.Publish(a.Channel, "", a.Config.OutputQueue, data)
+			if err != nil {
+				a.Log.Fatalf("[client_id:%s] failed to publish top5: %v", clientID, err)
+			}
+
+			dataEof, err := protoUtils.CreateEofMessageTop5Country(clientID)
+			if err != nil {
+				a.Log.Fatalf("[client_id:%s] failed to marshal eof: %v", clientID, err)
+			}
+
+			err = rabbitmq.Publish(a.Channel, "", a.Config.OutputQueue, dataEof)
+			if err != nil {
+				a.Log.Fatalf("[client_id:%s] failed to publish eof: %v", clientID, err)
+			}
+
+			a.Log.Infof("[client_id:%s] published top5: %v", clientID, &top5)
+			// TODO: clean map from client
+
 			continue
 		}
-		// Update global top 5
-		globalTop5[clientID] = utils.ReduceTop5(lastGlobalTop5Cli, &top5)
-		// To log
-		newGlobalTop5Cli := utils.GetOrInitKeyMapWithKey(&globalTop5, clientID, protoUtils.CreateMinimumTop5Country)
-		aggregator.Log.Debugf("[aggregator_%s client_%s] Top After Reduce: %s", aggregator.Config.AggregatorType, clientID, protoUtils.Top5ToString(newGlobalTop5Cli))
+
+		_, found = countryForClient[movie.GetProductionCountries()[0]]
+		if !found {
+			countryForClient[movie.GetProductionCountries()[0]] = 0
+		}
+		countryForClient[movie.GetProductionCountries()[0]] += movie.GetBudget()
 	}
 }
 

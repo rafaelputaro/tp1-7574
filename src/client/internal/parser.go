@@ -103,7 +103,7 @@ func parseMovie(record []string) (*pb.Movie, error) {
 	revenue, _ := strconv.ParseFloat(record[15], 64)
 
 	return &pb.Movie{
-		Budget:              proto.Int32(int32(budget)),
+		Budget:              proto.Int64(int64(budget)),
 		Genres:              proto.String(record[3]),
 		Id:                  proto.Int32(int32(id)),
 		Overview:            proto.String(record[9]),

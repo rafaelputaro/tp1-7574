@@ -5,7 +5,7 @@ option go_package = "./protopb";
 import "google/protobuf/empty.proto";
 
 message Movie {
-  required int32 budget = 3;
+  required int64 budget = 3;
   required string genres = 4;
   required int32 id = 6;
   required string overview = 10;

@@ -153,8 +153,8 @@ services:
     environment:
       - AGGREGATOR_TYPE=top_5
       - AGGREGATOR_ID=2
-      - AGGREGATOR_AMOUNT_SOURCES={{ shards }}
-      - AGGREGATOR_INPUT_QUEUE_NAME=movies_top_5_investors
+      - AGGREGATOR_AMOUNT_SOURCES=1
+      - AGGREGATOR_INPUT_QUEUE_NAME=single_country_origin_movies
       - AGGREGATOR_OUTPUT_QUEUE_NAME=top_5_report
     networks:
       - tp1_net

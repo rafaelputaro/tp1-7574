@@ -23,7 +23,7 @@ const (
 
 type MovieSanit struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
-	Budget              *int32                 `protobuf:"varint,1,req,name=budget" json:"budget,omitempty"`
+	Budget              *int64                 `protobuf:"varint,1,req,name=budget" json:"budget,omitempty"`
 	Genres              []string               `protobuf:"bytes,2,rep,name=genres" json:"genres,omitempty"`
 	Id                  *int32                 `protobuf:"varint,3,req,name=id" json:"id,omitempty"`
 	Overview            *string                `protobuf:"bytes,4,req,name=overview" json:"overview,omitempty"`
@@ -67,7 +67,7 @@ func (*MovieSanit) Descriptor() ([]byte, []int) {
 	return file_movie_sanit_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *MovieSanit) GetBudget() int32 {
+func (x *MovieSanit) GetBudget() int64 {
 	if x != nil && x.Budget != nil {
 		return *x.Budget
 	}
@@ -144,7 +144,7 @@ const file_movie_sanit_proto_rawDesc = "" +
 	"\x11movie_sanit.proto\"\x9c\x02\n" +
 	"\n" +
 	"MovieSanit\x12\x16\n" +
-	"\x06budget\x18\x01 \x02(\x05R\x06budget\x12\x16\n" +
+	"\x06budget\x18\x01 \x02(\x03R\x06budget\x12\x16\n" +
 	"\x06genres\x18\x02 \x03(\tR\x06genres\x12\x0e\n" +
 	"\x02id\x18\x03 \x02(\x05R\x02id\x12\x1a\n" +
 	"\boverview\x18\x04 \x02(\tR\boverview\x121\n" +

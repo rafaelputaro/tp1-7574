@@ -23,7 +23,7 @@ const (
 
 type Top5Country struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
-	Budget              []int32                `protobuf:"varint,1,rep,name=budget" json:"budget,omitempty"`
+	Budget              []int64                `protobuf:"varint,1,rep,name=budget" json:"budget,omitempty"`
 	ProductionCountries []string               `protobuf:"bytes,2,rep,name=production_countries,json=productionCountries" json:"production_countries,omitempty"`
 	ClientId            *string                `protobuf:"bytes,3,opt,name=clientId" json:"clientId,omitempty"`
 	Eof                 *bool                  `protobuf:"varint,4,opt,name=eof" json:"eof,omitempty"`
@@ -61,7 +61,7 @@ func (*Top5Country) Descriptor() ([]byte, []int) {
 	return file_top_5_country_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *Top5Country) GetBudget() []int32 {
+func (x *Top5Country) GetBudget() []int64 {
 	if x != nil {
 		return x.Budget
 	}
@@ -95,7 +95,7 @@ const file_top_5_country_proto_rawDesc = "" +
 	"\n" +
 	"\x13top_5_country.proto\"\x86\x01\n" +
 	"\vTop5Country\x12\x16\n" +
-	"\x06budget\x18\x01 \x03(\x05R\x06budget\x121\n" +
+	"\x06budget\x18\x01 \x03(\x03R\x06budget\x121\n" +
 	"\x14production_countries\x18\x02 \x03(\tR\x13productionCountries\x12\x1a\n" +
 	"\bclientId\x18\x03 \x01(\tR\bclientId\x12\x10\n" +
 	"\x03eof\x18\x04 \x01(\bR\x03eofB\vZ\t./protopb"

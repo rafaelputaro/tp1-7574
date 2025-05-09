@@ -1,7 +1,7 @@
 option go_package = "./protopb";
 
 message MovieSanit {
-  required int32 budget = 1;
+  required int64 budget = 1;
   repeated string genres = 2;
   required int32 id = 3;
   required string overview = 4;

@@ -24,7 +24,7 @@ const (
 )
 
 func main() {
-	time.Sleep(30*time.Second + time.Duration(rand.Intn(10))*time.Second)
+	time.Sleep(10*time.Second + time.Duration(rand.Intn(20000000000)))
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
