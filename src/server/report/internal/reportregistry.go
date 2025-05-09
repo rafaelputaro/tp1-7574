@@ -140,9 +140,16 @@ func SortReport(report *pb.ReportResponse) {
 	})
 
 	slices.SortFunc(report.Answer4.Actors, func(a, b *pb.ActorEntry) int {
-		if a.Count != b.Count {
+		if a.GetCount() != b.GetCount() {
 			return int(b.GetCount() - a.GetCount())
 		}
-		return int(a.GetId() - b.GetId())
+
+		if a.GetName() < b.GetName() {
+			return -1
+		} else if a.GetName() > b.GetName() {
+			return 1
+		}
+
+		return 0
 	})
 }

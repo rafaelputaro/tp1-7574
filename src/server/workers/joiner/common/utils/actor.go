@@ -43,6 +43,7 @@ func (counter *ActorsCounter) Count(credit *protopb.CreditSanit) {
 			counter.countActor(credit.CastNames[index], credit.ProfilePaths[index])
 		}
 	}
+	// TODO: Si no llego todavia la movie? Habria que agregar algo igual
 }
 
 // update count for an actor

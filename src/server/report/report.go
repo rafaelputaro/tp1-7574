@@ -211,7 +211,6 @@ func processTop10(data []byte, rr *internal.ReportRegistry) {
 
 	for i := 0; i < len(top10.GetNames()); i++ {
 		entry := pb.ActorEntry{
-			Id:    proto.Int64(int64(i)),
 			Name:  proto.String(top10.Names[i]),
 			Count: proto.Int64(top10.CountMovies[i]),
 		}

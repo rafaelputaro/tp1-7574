@@ -56,16 +56,17 @@ func (actorsData *ActorsData) UpdateCount(actor *protopb.Actor) {
 
 // Returns: 1 coun1 < count2; 0 count1 == count2; -1 count1 > count2
 func cmpData(data1, data2 ActorData) int {
-	count1 := data1.CountMovies
-	count2 := data2.CountMovies
-	if count1 == count2 {
-		return 0
+	if data1.CountMovies != data2.CountMovies {
+		return int(data2.CountMovies - data1.CountMovies)
 	}
-	if count1 > count2 {
+
+	if data1.Name < data2.Name {
 		return -1
-	} else {
+	} else if data1.Name > data2.Name {
 		return 1
 	}
+
+	return 0
 }
 
 // After this function is called, the index becomes inconsistent.

@@ -160,7 +160,7 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 			joiner.publishData(data)
 			joiner.Log.Debugf("[client_id:%s] sent eof marker", clientID)
 
-			// Remove processed client to free resources
+			// TODO: Remove processed client to free resources
 			// delete(clientStates, clientID)
 		}
 	}
@@ -309,7 +309,7 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 			}
 			joiner.publishData(data)
 
-			// Remove client state to free resources
+			// TODO: Remove client state to free resources
 			// delete(clientStates, clientID)
 		}
 	}

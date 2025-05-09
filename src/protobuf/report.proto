@@ -47,9 +47,8 @@ message Answer4 {
 }
 
 message ActorEntry {
-  required int64 id = 1;
-  required string name = 2;
-  required int64 count = 3;
+  required string name = 1;
+  required int64 count = 2;
 }
 
 message Answer5 {

@@ -456,9 +456,8 @@ func (x *Answer4) GetActors() []*ActorEntry {
 
 type ActorEntry struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            *int64                 `protobuf:"varint,1,req,name=id" json:"id,omitempty"`
-	Name          *string                `protobuf:"bytes,2,req,name=name" json:"name,omitempty"`
-	Count         *int64                 `protobuf:"varint,3,req,name=count" json:"count,omitempty"`
+	Name          *string                `protobuf:"bytes,1,req,name=name" json:"name,omitempty"`
+	Count         *int64                 `protobuf:"varint,2,req,name=count" json:"count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -491,13 +490,6 @@ func (x *ActorEntry) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ActorEntry.ProtoReflect.Descriptor instead.
 func (*ActorEntry) Descriptor() ([]byte, []int) {
 	return file_report_proto_rawDescGZIP(), []int{8}
-}
-
-func (x *ActorEntry) GetId() int64 {
-	if x != nil && x.Id != nil {
-		return *x.Id
-	}
-	return 0
 }
 
 func (x *ActorEntry) GetName() string {
@@ -693,12 +685,11 @@ const file_report_proto_rawDesc = "" +
 	"\x05title\x18\x02 \x02(\tR\x05title\x12\x16\n" +
 	"\x06rating\x18\x03 \x02(\x01R\x06rating\".\n" +
 	"\aAnswer4\x12#\n" +
-	"\x06actors\x18\x01 \x03(\v2\v.ActorEntryR\x06actors\"F\n" +
+	"\x06actors\x18\x01 \x03(\v2\v.ActorEntryR\x06actors\"6\n" +
 	"\n" +
-	"ActorEntry\x12\x0e\n" +
-	"\x02id\x18\x01 \x02(\x03R\x02id\x12\x12\n" +
-	"\x04name\x18\x02 \x02(\tR\x04name\x12\x14\n" +
-	"\x05count\x18\x03 \x02(\x03R\x05count\"c\n" +
+	"ActorEntry\x12\x12\n" +
+	"\x04name\x18\x01 \x02(\tR\x04name\x12\x14\n" +
+	"\x05count\x18\x02 \x02(\x03R\x05count\"c\n" +
 	"\aAnswer5\x12+\n" +
 	"\bpositive\x18\x01 \x02(\v2\x0f.SentimentScoreR\bpositive\x12+\n" +
 	"\bnegative\x18\x02 \x02(\v2\x0f.SentimentScoreR\bnegative\":\n" +

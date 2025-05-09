@@ -122,7 +122,7 @@ func printReport(report *pb.ReportResponse) {
 	// Answer 4: Actors
 	output += "\n[4] Frequent Actors:\n"
 	for _, actor := range report.Answer4.GetActors() {
-		output += fmt.Sprintf(" - ID: %d | Name: %s | Appearances: %d\n", actor.GetId(), actor.GetName(), actor.GetCount())
+		output += fmt.Sprintf(" - Name: %s | Appearances: %d\n", actor.GetName(), actor.GetCount())
 	}
 
 	// Answer 5: Sentiment
