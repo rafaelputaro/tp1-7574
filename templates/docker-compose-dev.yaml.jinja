@@ -226,6 +226,7 @@ services:
       - NODE_NUM={{ i }}
       - SHARDS={{ shards }}
       - NLP_NODES={{ nlp_nodes }}
+      - NODE_NAME=nlp-{{ i }}
     networks:
       - tp1_net
     depends_on:

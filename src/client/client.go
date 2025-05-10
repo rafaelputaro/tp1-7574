@@ -91,7 +91,7 @@ func main() {
 		logger.Fatalf("Failed to get report: %v", err)
 	}
 
-	// logger.Infof("Received report response: %+v", resp)
+	logger.Infof("Received report response: %+v", resp)
 
 	printReport(resp)
 }

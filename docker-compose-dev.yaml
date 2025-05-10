@@ -402,6 +402,7 @@ services:
       - NODE_NUM=1
       - SHARDS=3
       - NLP_NODES=5
+      - NODE_NAME=nlp-1
     networks:
       - tp1_net
     depends_on:
@@ -417,6 +418,7 @@ services:
       - NODE_NUM=2
       - SHARDS=3
       - NLP_NODES=5
+      - NODE_NAME=nlp-2
     networks:
       - tp1_net
     depends_on:
@@ -432,6 +434,7 @@ services:
       - NODE_NUM=3
       - SHARDS=3
       - NLP_NODES=5
+      - NODE_NAME=nlp-3
     networks:
       - tp1_net
     depends_on:
@@ -447,6 +450,7 @@ services:
       - NODE_NUM=4
       - SHARDS=3
       - NLP_NODES=5
+      - NODE_NAME=nlp-4
     networks:
       - tp1_net
     depends_on:
@@ -462,6 +466,7 @@ services:
       - NODE_NUM=5
       - SHARDS=3
       - NLP_NODES=5
+      - NODE_NAME=nlp-5
     networks:
       - tp1_net
     depends_on:

@@ -27,7 +27,7 @@ POSITIVE_QUEUE = "positive_movies"
 NEGATIVE_QUEUE = "negative_movies"
 COORDINATION_EXCHANGE = "coordination_exchange"
 COORDINATION_KEY = "nlp"
-NODE_ID = socket.gethostname()
+NODE_ID = getenv("NODE_NAME")
 
 ack_received = dict()
 ack_events = dict()
@@ -64,10 +64,11 @@ def connect_rabbitmq_with_retries(retries=20, delay=3):
 
 
 def collect_ack(client_id, node_id):
-    get_ack_received(client_id).add(node_id)
     logger.info(f"[client_id:{client_id}][leader] Received ACK from node {node_id}")
+    get_ack_received(client_id).add(node_id)
     if len(get_ack_received(client_id)) == expected_acks():
         get_event(client_id).set()
+    # TODO: Should use mutex
 
 
 def cached_sentiment(movie):
@@ -85,16 +86,11 @@ def expected_acks():
     return int(getenv("NLP_NODES")) - 1
 
 
-def wait_for_acks(client_id, timeout=10):
-    def ack_waiter():
-        logger.info(f"[client_id:{client_id}][leader] Waiting for ACKs")
-        if get_event(client_id).wait(timeout):  # TODO only blocking the thread here?
-            logger.info(f"[client_id:{client_id}][leader] All ACKs received")
-        else:
-            logger.warning(f"[client_id:{client_id}][leader] Timeout waiting for ACKs {get_ack_received(client_id)}")
-
-    # Start the waiter in a new thread
-    threading.Thread(target=ack_waiter).start()
+def wait_for_acks(client_id, timeout=20):
+    if get_event(client_id).wait(timeout):
+        logger.info(f"[client_id:{client_id}][leader] All ACKs received")
+    else:
+        logger.warning(f"[client_id:{client_id}][leader] Timeout waiting for ACKs {get_ack_received(client_id)}")
 
 
 def coordination_callback(ch, method, properties, body):
@@ -160,13 +156,31 @@ def callback(_, __, ___, body):
         body=movie.SerializeToString()
     )
 
-    # TODO // send ack for all that is not the current client
-    if movie.clientId not in not_leading_for:
-        for client_id in not_leading_for:
-            send_ack(client_id)
-        not_leading_for.clear()
+    for client_id in not_leading_for:
+        send_ack(client_id)
+    not_leading_for.clear()
+    # TODO: Should use mutex
 
     # logger.info(f"[client_id:{movie.clientId}] message published to {target_queue}")
+
+
+def coord_consumer():
+    logger.info("Starting coordination consumer thread...")
+    coord_connection = connect_rabbitmq_with_retries()
+    coord_channel = coord_connection.channel()
+
+    coord_channel.exchange_declare(exchange=COORDINATION_EXCHANGE, exchange_type='topic', durable=True)
+    coord_queue = coord_channel.queue_declare("", exclusive=True, auto_delete=True)
+    coord_channel.queue_bind(exchange=COORDINATION_EXCHANGE, queue=coord_queue.method.queue,
+                             routing_key=COORDINATION_KEY)
+    coord_channel.basic_consume(queue=coord_queue.method.queue, on_message_callback=coordination_callback,
+                                auto_ack=True)
+    try:
+        coord_channel.start_consuming()
+    except Exception as e:
+        logger.error(f"Coordination consumer encountered an error: {e}")
+    finally:
+        coord_channel.close()
 
 
 def main():
@@ -185,11 +199,6 @@ def main():
     channel.queue_bind(exchange=SENTIMENT_EXCHANGE, queue=POSITIVE_QUEUE, routing_key=POSITIVE_QUEUE)
     channel.queue_bind(exchange=SENTIMENT_EXCHANGE, queue=NEGATIVE_QUEUE, routing_key=NEGATIVE_QUEUE)
 
-    channel.exchange_declare(exchange=COORDINATION_EXCHANGE, exchange_type='topic', durable=True)
-    queue = channel.queue_declare("", exclusive=True, auto_delete=True)
-    channel.queue_bind(exchange=COORDINATION_EXCHANGE, queue=queue.method.queue, routing_key=COORDINATION_KEY)
-    channel.basic_consume(queue=queue.method.queue, on_message_callback=coordination_callback, auto_ack=True)
-
     logger.info("Loading sentiment analysis model...")
     sentiment_analyzer = pipeline(
         task='sentiment-analysis',
@@ -199,6 +208,8 @@ def main():
     )
 
     try:
+        coord_thread = threading.Thread(target=coord_consumer, daemon=True)
+        coord_thread.start()
         with SentimentCache(getenv("NODE_NUM")) as c:
             global cache
             cache = c
