@@ -81,6 +81,25 @@ func DeclareFanoutExchanges(channel *amqp.Channel, exchanges ...string) error {
 	return nil
 }
 
+func DeclareTopicExchanges(channel *amqp.Channel, exchanges ...string) error {
+	for _, name := range exchanges {
+		err := channel.ExchangeDeclare(
+			name,
+			"topic",
+			true,
+			false,
+			false,
+			false,
+			nil,
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func DeclareDirectExchanges(channel *amqp.Channel, exchanges ...string) error {
 	for _, name := range exchanges {
 		err := channel.ExchangeDeclare(

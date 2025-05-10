@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"tp1/coordinator"
 	"tp1/globalconfig"
 	"tp1/protobuf/protopb"
 	protoUtils "tp1/protobuf/utils"
@@ -468,6 +469,8 @@ func (f *Filter) processSingleCountryOriginFilter() {
 	inputQueue := globalconfig.Movies2Queue
 	outputQueue := "single_country_origin_movies" // TODO: to config
 
+	coord := coordinator.NewEOFLeader(f.log, f.channel, "single_country_origin_filter")
+
 	err := rabbitmq.DeclareDirectQueues(f.channel, inputQueue)
 	if err != nil {
 		f.log.Fatalf("Failed to declare queue: %v", err)
@@ -499,9 +502,10 @@ func (f *Filter) processSingleCountryOriginFilter() {
 		clientID := movie.GetClientId()
 
 		if movie.GetEof() {
-			// TODO: EOF leader logic
-
 			f.log.Infof("[client_id:%s] received EOF marker", clientID)
+
+			coord.TakeLeadership(clientID)
+			coord.WaitForACKs(clientID)
 
 			dataEof, err := protoUtils.CreateEofMessageMovieSanit(clientID)
 			if err != nil {
@@ -522,6 +526,9 @@ func (f *Filter) processSingleCountryOriginFilter() {
 			if err != nil {
 				f.log.Errorf("[client_id:%s] failed to publish movie: %v", clientID, err)
 			}
+			// f.log.Debugf("[client_id:%s] published movie: %s", clientID, movie.GetTitle())
+
+			coord.SendACKs(clientID)
 		}
 	}
 }

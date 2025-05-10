@@ -11,6 +11,8 @@ const (
 	Report3Queue    = "top_and_bottom_report"
 	Report4Queue    = "top_10_report"
 	Report5Queue    = "metrics_report"
+
+	CoordinationExchange = "coordination_exchange"
 )
 
 var MoviesQueues = []string{Movies1Queue, Movies2Queue, Movies3Queue}

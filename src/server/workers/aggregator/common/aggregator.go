@@ -210,7 +210,7 @@ func (a *Aggregator) aggregateTop5() {
 
 		clientID := movie.GetClientId()
 
-		a.Log.Debugf("[client_id:%s] received: %v", clientID, &movie)
+		// a.Log.Debugf("[client_id:%s] received: %v", clientID, &movie)
 
 		_, found := countriesByClient[clientID]
 		if !found {
@@ -273,13 +273,15 @@ func (a *Aggregator) aggregateTop5() {
 			// TODO: clean map from client
 
 			continue
-		}
+		} else if movie.GetBudget() > 0 {
+			a.Log.Debugf("[client_id:%s] received: %v", clientID, &movie)
 
-		_, found = countryForClient[movie.GetProductionCountries()[0]]
-		if !found {
-			countryForClient[movie.GetProductionCountries()[0]] = 0
+			_, found = countryForClient[movie.GetProductionCountries()[0]]
+			if !found {
+				countryForClient[movie.GetProductionCountries()[0]] = 0
+			}
+			countryForClient[movie.GetProductionCountries()[0]] += movie.GetBudget()
 		}
-		countryForClient[movie.GetProductionCountries()[0]] += movie.GetBudget()
 	}
 }
 

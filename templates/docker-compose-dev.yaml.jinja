@@ -70,6 +70,8 @@ services:
       - FILTER_TYPE=single_country_origin_filter
       - FILTER_NUM={{ i }}
       - SHARDS={{ shards }}
+      - FILTER_NODES={{ single_country_origin_filter_nodes }}
+      - NODE_NAME=single-country-origin-filter-{{ i }}
     networks:
       - tp1_net
     depends_on:

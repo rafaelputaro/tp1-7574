@@ -65,7 +65,7 @@ def connect_rabbitmq_with_retries(retries=20, delay=3):
 
 def collect_ack(client_id, node_id):
     get_ack_received(client_id).add(node_id)
-    logger.info(f"[client_id:{client_id}][Leader] Received ACK from node {node_id}")
+    logger.info(f"[client_id:{client_id}][leader] Received ACK from node {node_id}")
     if len(get_ack_received(client_id)) == expected_acks():
         get_event(client_id).set()
 
@@ -87,11 +87,11 @@ def expected_acks():
 
 def wait_for_acks(client_id, timeout=10):
     def ack_waiter():
-        logger.info(f"[client_id:{client_id}][Leader] Waiting for ACKs")
-        if get_event(client_id).wait(timeout):
-            logger.info(f"[client_id:{client_id}][Leader] All ACKs received")
+        logger.info(f"[client_id:{client_id}][leader] Waiting for ACKs")
+        if get_event(client_id).wait(timeout):  # TODO only blocking the thread here?
+            logger.info(f"[client_id:{client_id}][leader] All ACKs received")
         else:
-            logger.warning(f"[client_id:{client_id}][Leader] Timeout waiting for ACKs {get_ack_received(client_id)}")
+            logger.warning(f"[client_id:{client_id}][leader] Timeout waiting for ACKs {get_ack_received(client_id)}")
 
     # Start the waiter in a new thread
     threading.Thread(target=ack_waiter).start()
@@ -104,7 +104,7 @@ def coordination_callback(ch, method, properties, body):
         collect_ack(message.client_id, message.node_id)
     elif message.type == coordination_pb2.LEADER:
         if message.node_id != NODE_ID:
-            logger.info(f"[client_id:{message.client_id}][Node] Received LEADER from {message.node_id}")
+            logger.info(f"[client_id:{message.client_id}][node] Received LEADER from {message.node_id}")
             not_leading_for.add(message.client_id)
 
 
@@ -119,7 +119,7 @@ def broadcast_leader_message(client_id):
         body=message.SerializeToString()
     )
     leading_for.add(client_id)
-    logger.info(f"[client_id:{client_id}][Leader] Broadcast LEADER message")
+    logger.info(f"[client_id:{client_id}][leader] Broadcast LEADER message")
 
 
 def send_ack(client_id):
@@ -132,7 +132,7 @@ def send_ack(client_id):
         routing_key=COORDINATION_KEY,
         body=message.SerializeToString()
     )
-    logger.info(f"[client_id:{client_id}][Node] Sent ACK message")
+    logger.info(f"[client_id:{client_id}][node] Sent ACK message")
 
 
 def callback(_, __, ___, body):
@@ -140,7 +140,7 @@ def callback(_, __, ___, body):
     movie.ParseFromString(body)
 
     if movie.HasField("eof") and movie.eof:
-        logger.info(f"[client_id:{movie.clientId}][Leader] Received EOF")
+        logger.info(f"[client_id:{movie.clientId}][leader] Received EOF")
 
         broadcast_leader_message(movie.clientId)
         wait_for_acks(movie.clientId)
@@ -160,6 +160,7 @@ def callback(_, __, ___, body):
         body=movie.SerializeToString()
     )
 
+    # TODO // send ack for all that is not the current client
     if movie.clientId not in not_leading_for:
         for client_id in not_leading_for:
             send_ack(client_id)
@@ -184,7 +185,7 @@ def main():
     channel.queue_bind(exchange=SENTIMENT_EXCHANGE, queue=POSITIVE_QUEUE, routing_key=POSITIVE_QUEUE)
     channel.queue_bind(exchange=SENTIMENT_EXCHANGE, queue=NEGATIVE_QUEUE, routing_key=NEGATIVE_QUEUE)
 
-    channel.exchange_declare(exchange=COORDINATION_EXCHANGE, exchange_type='fanout', durable=True)
+    channel.exchange_declare(exchange=COORDINATION_EXCHANGE, exchange_type='topic', durable=True)
     queue = channel.queue_declare("", exclusive=True, auto_delete=True)
     channel.queue_bind(exchange=COORDINATION_EXCHANGE, queue=queue.method.queue, routing_key=COORDINATION_KEY)
     channel.basic_consume(queue=queue.method.queue, on_message_callback=coordination_callback, auto_ack=True)

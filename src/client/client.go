@@ -134,7 +134,7 @@ func printReport(report *pb.ReportResponse) {
 	fmt.Println(output)
 
 	// Save to file
-	timestamp := time.Now().Format("2006-01-02 15:04:05")
+	timestamp := time.Now().Format("2006-01-02 15:04:05.000000000")
 	filename := fmt.Sprintf("/app/report_%s.txt", timestamp)
 	err := os.WriteFile(filename, []byte(output), 0644)
 	if err != nil {

@@ -122,6 +122,8 @@ services:
       - FILTER_TYPE=single_country_origin_filter
       - FILTER_NUM=1
       - SHARDS=3
+      - FILTER_NODES=3
+      - NODE_NAME=single-country-origin-filter-1
     networks:
       - tp1_net
     depends_on:
@@ -135,6 +137,8 @@ services:
       - FILTER_TYPE=single_country_origin_filter
       - FILTER_NUM=2
       - SHARDS=3
+      - FILTER_NODES=3
+      - NODE_NAME=single-country-origin-filter-2
     networks:
       - tp1_net
     depends_on:
@@ -148,6 +152,8 @@ services:
       - FILTER_TYPE=single_country_origin_filter
       - FILTER_NUM=3
       - SHARDS=3
+      - FILTER_NODES=3
+      - NODE_NAME=single-country-origin-filter-3
     networks:
       - tp1_net
     depends_on:
