@@ -528,7 +528,7 @@ func (f *Filter) processSingleCountryOriginFilter() {
 			}
 			// f.log.Debugf("[client_id:%s] published movie: %s", clientID, movie.GetTitle())
 
-			coord.SendACKs(clientID)
+			coord.SendACKs()
 		}
 	}
 }

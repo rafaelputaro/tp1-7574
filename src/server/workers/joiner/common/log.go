@@ -10,7 +10,7 @@ var Log = logging.MustGetLogger("joiner")
 
 func InitLogger() {
 	format := logging.MustStringFormatter(
-		`%{level:.5s} | %{shortfunc} | %{message}`,
+		`%{message}`,
 	)
 	backend := logging.NewLogBackend(os.Stderr, "", 0)
 	backendFormatter := logging.NewBackendFormatter(backend, format)

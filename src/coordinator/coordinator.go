@@ -19,10 +19,11 @@ var (
 )
 
 type EOFLeader struct {
-	mu            sync.Mutex
+	m1            sync.Mutex
 	ackReceived   map[string]map[string]bool
-	leadingFor    map[string]bool
+	m2            sync.Mutex
 	notLeadingFor map[string]bool
+	leadingFor    map[string]bool
 	queue         string
 	log           *logging.Logger
 	channel       *amqp.Channel
@@ -82,20 +83,20 @@ func (e *EOFLeader) TakeLeadership(clientID string) {
 }
 
 func (e *EOFLeader) WaitForACKs(clientID string) {
-	ackTimeout := time.After(5 * time.Second)
-	ticker := time.NewTicker(500 * time.Millisecond)
+	ackTimeout := time.After(10 * time.Second)
+	ticker := time.NewTicker(50 * time.Millisecond)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ackTimeout:
-			e.log.Warningf("[client_id:%s][leader] timeout waiting for acks", clientID)
+			e.log.Warningf("[client_id:%s][leader] timeout waiting for acks %v", clientID, e.ackReceived[clientID])
 			// TODO: clear ACK map and leadingFor map
 			return
 		case <-ticker.C:
-			e.mu.Lock()
+			e.m1.Lock()
 			receivedACKs := len(e.ackReceived[clientID])
-			e.mu.Unlock()
+			e.m1.Unlock()
 
 			if receivedACKs >= e.getExpectedACKs() {
 				e.log.Infof("[client_id:%s][leader] received all acks: %d/%d", clientID, receivedACKs, e.getExpectedACKs())
@@ -107,15 +108,13 @@ func (e *EOFLeader) WaitForACKs(clientID string) {
 
 }
 
-func (e *EOFLeader) SendACKs(_ string) {
-	// TODO: remove parameter
+func (e *EOFLeader) SendACKs() {
+	e.m2.Lock()
+	defer e.m2.Unlock()
 	for c := range e.notLeadingFor {
-		/*if c != clientID {
-			e.sendACK(c)
-		}*/
 		e.sendACK(c)
-		// TODO: delete after the loop delete(e.notLeadingFor, clientID)
 	}
+	clear(e.notLeadingFor)
 }
 
 func (e *EOFLeader) startListening() {
@@ -144,13 +143,17 @@ func (e *EOFLeader) startListening() {
 		} else if coordMsg.GetType() == protopb.MessageType_LEADER {
 			if msgNodeId != nodeId {
 				e.log.Infof("[client_id:%s][node] received leader message from %s", clientID, msgNodeId)
+				e.m2.Lock()
 				e.notLeadingFor[clientID] = true
+				e.m2.Unlock()
 			}
 		}
 	}
 }
 
 func (e *EOFLeader) collectAck(clientId string, nodeId string) {
+	e.m1.Lock()
+	defer e.m1.Unlock()
 	_, found := e.ackReceived[clientId]
 	if !found {
 		e.ackReceived[clientId] = make(map[string]bool)
