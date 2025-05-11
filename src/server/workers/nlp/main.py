@@ -29,11 +29,14 @@ COORDINATION_EXCHANGE = "coordination_exchange"
 COORDINATION_KEY = "nlp"
 NODE_ID = getenv("NODE_NAME")
 
+mutex_1 = threading.Lock()
 ack_received = dict()
-ack_events = dict()
 
-leading_for = set()
+mutex_2 = threading.Lock()
 not_leading_for = set()
+
+ack_events = dict()
+leading_for = set()
 sent_ack = set()
 
 
@@ -64,11 +67,11 @@ def connect_rabbitmq_with_retries(retries=20, delay=3):
 
 
 def collect_ack(client_id, node_id):
-    logger.info(f"[client_id:{client_id}][leader] Received ACK from node {node_id}")
-    get_ack_received(client_id).add(node_id)
-    if len(get_ack_received(client_id)) == expected_acks():
-        get_event(client_id).set()
-    # TODO: Should use mutex
+    with mutex_1:
+        logger.info(f"[client_id:{client_id}][leader] Received ACK from node {node_id}")
+        get_ack_received(client_id).add(node_id)
+        if len(get_ack_received(client_id)) == expected_acks():
+            get_event(client_id).set()
 
 
 def cached_sentiment(movie):
@@ -101,7 +104,8 @@ def coordination_callback(ch, method, properties, body):
     elif message.type == coordination_pb2.LEADER:
         if message.node_id != NODE_ID:
             logger.info(f"[client_id:{message.client_id}][node] Received LEADER from {message.node_id}")
-            not_leading_for.add(message.client_id)
+            with mutex_1:
+                not_leading_for.add(message.client_id)
 
 
 def broadcast_leader_message(client_id):
@@ -156,10 +160,10 @@ def callback(_, __, ___, body):
         body=movie.SerializeToString()
     )
 
-    for client_id in not_leading_for:
-        send_ack(client_id)
-    not_leading_for.clear()
-    # TODO: Should use mutex
+    with mutex_2:
+        for client_id in not_leading_for:
+            send_ack(client_id)
+        not_leading_for.clear()
 
     # logger.info(f"[client_id:{movie.clientId}] message published to {target_queue}")
 

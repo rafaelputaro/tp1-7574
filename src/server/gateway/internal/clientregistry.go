@@ -29,6 +29,20 @@ func (cr *ClientRegistry) GetOrCreateClientID(ctx context.Context) (string, erro
 	return cr.getOrCreateClientID(ip), nil
 }
 
+func (cr *ClientRegistry) MarkAsDone(ctx context.Context) error {
+	p, ok := peer.FromContext(ctx)
+	if !ok {
+		return status.Errorf(codes.Internal, "could not get client peer info")
+	}
+	ip := strings.Split(p.Addr.String(), ":")[0]
+	cr.mu.Lock()
+	defer cr.mu.Unlock()
+	if _, ok := cr.lookup[ip]; ok {
+		delete(cr.lookup, ip)
+	}
+	return nil
+}
+
 func (cr *ClientRegistry) getOrCreateClientID(ip string) string {
 	cr.mu.Lock()
 	defer cr.mu.Unlock()
