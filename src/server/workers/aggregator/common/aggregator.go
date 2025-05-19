@@ -165,6 +165,7 @@ func (aggregator *Aggregator) aggregateMovies() {
 		amountEOF := make(map[string]int)
 		for msg := range msgs {
 			var movie protopb.MovieSanit
+			rabbitmq.SingleAck(msg)
 			if err := proto.Unmarshal(msg.Body, &movie); err != nil {
 				aggregator.Log.Errorf("failed to unmarshal message %v", err)
 				continue
@@ -295,6 +296,7 @@ func (aggregator *Aggregator) aggregateTop10() {
 	actorsData := make(map[string](*utils.ActorsData))
 	for msg := range msgs {
 		var actorCount protopb.Actor
+		rabbitmq.SingleAck(msg)
 		if err := proto.Unmarshal(msg.Body, &actorCount); err != nil {
 			aggregator.Log.Errorf("[aggregator_%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_UNMARSHAL, err)
 			continue
@@ -338,6 +340,7 @@ func (aggregator *Aggregator) aggregateTopAndBottom() {
 	globalTopAndBottom := make(map[string](*protopb.TopAndBottomRatingAvg))
 	for msg := range msgs {
 		var topAndBottom protopb.TopAndBottomRatingAvg
+		rabbitmq.SingleAck(msg)
 		if err := proto.Unmarshal(msg.Body, &topAndBottom); err != nil {
 			aggregator.Log.Errorf("[aggregator_%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_UNMARSHAL, err)
 			continue
@@ -443,6 +446,7 @@ func (aggregator *Aggregator) aggregateMetric(queueName string, channelResults c
 	// read all message from queue for each clients
 	for msg := range msgs {
 		var movie protopb.MovieSanit
+		rabbitmq.SingleAck(msg)
 		if err := proto.Unmarshal(msg.Body, &movie); err != nil {
 			aggregator.Log.Errorf("[aggregator_%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_UNMARSHAL, err)
 			continue
@@ -476,7 +480,7 @@ func (aggregator *Aggregator) aggregateMetric(queueName string, channelResults c
 }
 
 func (aggregator *Aggregator) consumeQueue(queueName string) (<-chan amqp.Delivery, error) {
-	msgs, err := rabbitmq.ConsumeFromQueue(aggregator.Channel, queueName)
+	msgs, err := rabbitmq.ConsumeFromQueueNoAutoAck(aggregator.Channel, queueName)
 	if err != nil {
 		aggregator.Log.Fatalf("%s '%s': %v", MSG_FAILED_CONSUME, queueName, err)
 	}
