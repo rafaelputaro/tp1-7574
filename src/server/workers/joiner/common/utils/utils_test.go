@@ -58,7 +58,7 @@ func createMovieSet() *[]*protopb.MovieSanit {
 	toRetun := []*protopb.MovieSanit{}
 	for movieId := range 20 {
 		toRetun = append(toRetun, &protopb.MovieSanit{
-			Budget:              proto.Int32(int32(100 * movieId)),
+			Budget:              proto.Int64(int64(100 * movieId)),
 			Genres:              []string{},
 			Id:                  proto.Int32(int32(movieId)),
 			Overview:            proto.String(""),

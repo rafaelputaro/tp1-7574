@@ -1,9 +1,10 @@
 package internal
 
 import (
-	"google.golang.org/protobuf/proto"
 	"testing"
 	pb "tp1/protobuf/protopb"
+
+	"google.golang.org/protobuf/proto"
 )
 
 func TestParseMovie(t *testing.T) {
@@ -14,30 +15,15 @@ func TestParseMovie(t *testing.T) {
 	}
 
 	expected := &pb.Movie{
-		Adult:               proto.Bool(true),
-		BelongsToCollection: proto.String("collection"),
-		Budget:              proto.Int32(1000000),
+		Budget:              proto.Int64(1000000),
 		Genres:              proto.String("Action"),
-		Homepage:            proto.String("homepage"),
 		Id:                  proto.Int32(123),
-		ImdbId:              proto.String("tt1234567"),
-		OriginalLanguage:    proto.String("en"),
-		OriginalTitle:       proto.String("Original Title"),
 		Overview:            proto.String("Some overview"),
-		Popularity:          proto.Float32(6.7),
-		PosterPath:          proto.String("poster.jpg"),
-		ProductionCompanies: proto.String("Company"),
 		ProductionCountries: proto.String("AR"),
 		ReleaseDate:         proto.String("2005-05-10"),
 		Revenue:             proto.Float64(5000000),
-		Runtime:             proto.Float64(120.5),
 		SpokenLanguages:     proto.String("es"),
-		Status:              proto.String("Released"),
-		Tagline:             proto.String("A tagline"),
 		Title:               proto.String("Movie Title"),
-		Video:               proto.Bool(false),
-		VoteAverage:         proto.Float64(7.8),
-		VoteCount:           proto.Int32(1200),
 	}
 
 	got, err := parseMovie(record)
@@ -53,7 +39,6 @@ func TestParseRating(t *testing.T) {
 	}
 
 	expected := &pb.Rating{
-		UserId:    proto.Int64(1),
 		MovieId:   proto.Int64(31),
 		Rating:    proto.Float32(2.5),
 		Timestamp: proto.Int64(1260759144),
@@ -73,7 +58,6 @@ func TestParseCredit(t *testing.T) {
 
 	expected := &pb.Credit{
 		Cast: proto.String("cast"),
-		Crew: proto.String("crew"),
 		Id:   proto.Int64(123),
 	}
 

@@ -2,13 +2,14 @@ package internal
 
 import (
 	"context"
+	"io"
+	"net"
+	"testing"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
 	"google.golang.org/protobuf/types/known/emptypb"
-	"io"
-	"net"
-	"testing"
 
 	pb "tp1/protobuf/protopb"
 
@@ -45,30 +46,15 @@ func TestSendMoviesBatch(t *testing.T) {
 
 	testBatch := []*pb.Movie{
 		{
-			Adult:               proto.Bool(true),
-			BelongsToCollection: proto.String("collection"),
-			Budget:              proto.Int32(1000000),
+			Budget:              proto.Int64(1000000),
 			Genres:              proto.String("Action"),
-			Homepage:            proto.String("homepage"),
 			Id:                  proto.Int32(123),
-			ImdbId:              proto.String("tt1234567"),
-			OriginalLanguage:    proto.String("en"),
-			OriginalTitle:       proto.String("Original Title"),
 			Overview:            proto.String("Some overview"),
-			Popularity:          proto.Float32(6.7),
-			PosterPath:          proto.String("poster.jpg"),
-			ProductionCompanies: proto.String("Company"),
 			ProductionCountries: proto.String("AR"),
 			ReleaseDate:         proto.String("2005-05-10"),
 			Revenue:             proto.Float64(5000000),
-			Runtime:             proto.Float64(120.5),
 			SpokenLanguages:     proto.String("es"),
-			Status:              proto.String("Released"),
-			Tagline:             proto.String("A tagline"),
 			Title:               proto.String("Movie Title"),
-			Video:               proto.Bool(false),
-			VoteAverage:         proto.Float64(7.8),
-			VoteCount:           proto.Int32(1200),
 		},
 	}
 
