@@ -141,6 +141,22 @@ func ConsumeFromQueue(channel *amqp.Channel, queue string) (<-chan amqp.Delivery
 	)
 }
 
+func ConsumeFromQueueNoAutoAck(channel *amqp.Channel, queue string) (<-chan amqp.Delivery, error) {
+	return channel.Consume(
+		queue,
+		"",
+		false,
+		false,
+		false,
+		false,
+		nil,
+	)
+}
+
+func SingleAck(msg amqp.Delivery) error {
+	return msg.Ack(false)
+}
+
 func Publish(channel *amqp.Channel, exchange, routingKey string, data []byte) error {
 	return channel.Publish(
 		exchange,
