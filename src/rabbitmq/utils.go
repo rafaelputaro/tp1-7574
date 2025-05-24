@@ -133,18 +133,6 @@ func ConsumeFromQueue(channel *amqp.Channel, queue string) (<-chan amqp.Delivery
 	return channel.Consume(
 		queue,
 		"",
-		true,
-		false,
-		false,
-		false,
-		nil,
-	)
-}
-
-func ConsumeFromQueueNoAutoAck(channel *amqp.Channel, queue string) (<-chan amqp.Delivery, error) {
-	return channel.Consume(
-		queue,
-		"",
 		false,
 		false,
 		false,

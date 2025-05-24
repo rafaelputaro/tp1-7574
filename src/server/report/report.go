@@ -60,11 +60,16 @@ func (r *ReportGenerator) StartConsuming() {
 		go func(config queueConfig) {
 			msgsCh, err := rabbitmq.ConsumeFromQueue(r.ch, config.Name)
 			if err != nil {
-				logger.Errorf("failed to consume from %s: %v", config.Name, err)
+				logger.Fatalf("failed to consume from %s: %v", config.Name, err)
 				return
 			}
 
 			for d := range msgsCh {
+				err := rabbitmq.SingleAck(d)
+				if err != nil {
+					logger.Fatalf("failed to ack message: %v", err)
+				}
+
 				if config.IsEOF(d.Body, r.rr) {
 					continue
 				}

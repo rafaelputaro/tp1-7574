@@ -218,9 +218,13 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 
 	// Start message consumers in separate goroutines
 	go func() {
-		msgs, err := joiner.consumeQueue(joiner.Config.InputQueueName)
+		msgs, err := rabbitmq.ConsumeFromQueue(joiner.Channel, joiner.Config.InputQueueName)
 		if err == nil {
 			for msg := range msgs {
+				err := rabbitmq.SingleAck(msg)
+				if err != nil {
+					joiner.Log.Fatalf("failed to ack message: %v", err)
+				}
 				processMessage(msg, false)
 			}
 		} else {
@@ -229,9 +233,13 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 	}()
 
 	go func() {
-		msgs, err := joiner.consumeQueue(inputQueue.Name)
+		msgs, err := rabbitmq.ConsumeFromQueue(joiner.Channel, inputQueue.Name)
 		if err == nil {
 			for msg := range msgs {
+				err := rabbitmq.SingleAck(msg)
+				if err != nil {
+					joiner.Log.Fatalf("failed to ack message: %v", err)
+				}
 				processMessage(msg, true)
 			}
 		} else {
@@ -365,46 +373,37 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 
 	// Start message consumers
 	go func() {
-		msgs, err := joiner.consumeQueue(joiner.Config.InputQueueName)
+		msgs, err := rabbitmq.ConsumeFromQueue(joiner.Channel, joiner.Config.InputQueueName)
 		if err != nil {
 			joiner.Log.Fatalf("[queue:%s] failed to consume: %v", joiner.Config.InputQueueName, err)
 		}
 
 		for msg := range msgs {
+			err := rabbitmq.SingleAck(msg)
+			if err != nil {
+				joiner.Log.Fatalf("failed to ack message: %v", err)
+			}
 			processMessage(msg, false) // Movie messages
 		}
 	}()
 
 	go func() {
-		msgs, err := joiner.consumeQueue(inputQueue.Name)
+		msgs, err := rabbitmq.ConsumeFromQueue(joiner.Channel, inputQueue.Name)
 		if err != nil {
 			joiner.Log.Fatalf("[queue:%s] failed to consume: %v", inputQueue.Name, err)
 		}
 
 		for msg := range msgs {
+			err := rabbitmq.SingleAck(msg)
+			if err != nil {
+				joiner.Log.Fatalf("failed to ack message: %v", err)
+			}
 			processMessage(msg, true) // Rating messages
 		}
 	}()
 
 	// Keep the joiner running indefinitely
 	select {}
-}
-
-func (joiner *Joiner) consumeQueue(name string) (<-chan amqp.Delivery, error) {
-	msgs, err := joiner.Channel.Consume(
-		name,  // name
-		"",    // consumerTag: "" lets rabbitmq generate a tag for this consumer
-		true,  // autoAck: when a msg arrives, the consumers acks the msg
-		false, // exclusive: allow others to consume from the queue
-		false, // no-local: ignored field
-		false, // no-wait: wait for confirmation of the consumers correct registration
-		nil,   // args
-	)
-	if err != nil {
-		joiner.Log.Fatalf("%s '%s': %v", MSG_FAILED_CONSUME, name, err)
-	}
-	joiner.Log.Infof("[%s] Waiting for messages from %s...", joiner.Config.JoinerType, name)
-	return msgs, err
 }
 
 func (joiner *Joiner) Dispose() {

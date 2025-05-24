@@ -121,6 +121,11 @@ func (f *Filter) processArEsFilter() {
 	f.log.Infof("waiting for messages...")
 
 	for msg := range msgs {
+		err := rabbitmq.SingleAck(msg)
+		if err != nil {
+			f.log.Fatalf("failed to ack message: %v", err)
+		}
+
 		var movie protopb.MovieSanit
 		if err := proto.Unmarshal(msg.Body, &movie); err != nil {
 			f.log.Errorf("failed to unmarshal message: %v", err)
@@ -243,6 +248,11 @@ func (f *Filter) processTop5InvestorsFilter() {
 	countryBudget := make(map[string]int64)
 
 	for msg := range msgs {
+		err := rabbitmq.SingleAck(msg)
+		if err != nil {
+			f.log.Fatalf("failed to ack message: %v", err)
+		}
+
 		var movie protopb.MovieSanit
 		if err := proto.Unmarshal(msg.Body, &movie); err != nil {
 			f.log.Errorf("[%s] Failed to unmarshal message: %v", filterName, err)
@@ -379,6 +389,11 @@ func (f *Filter) processYearFilters() {
 	f.log.Infof("waiting for messages...")
 
 	for msg := range msgs {
+		err := rabbitmq.SingleAck(msg)
+		if err != nil {
+			f.log.Fatalf("failed to ack message: %v", err)
+		}
+
 		var movie protopb.MovieSanit
 		if err := proto.Unmarshal(msg.Body, &movie); err != nil {
 			f.log.Errorf("failed to unmarshal message: %v", err)
@@ -492,6 +507,11 @@ func (f *Filter) processSingleCountryOriginFilter() {
 	}
 
 	for msg := range msgs {
+		err := rabbitmq.SingleAck(msg)
+		if err != nil {
+			f.log.Fatalf("failed to ack message: %v", err)
+		}
+
 		var movie protopb.MovieSanit
 		err = proto.Unmarshal(msg.Body, &movie)
 		if err != nil {
@@ -589,6 +609,11 @@ func (f *Filter) runShardedFilter(inputQueue string, declareInput bool, outputEx
 	f.log.Infof("Waiting for messages...")
 
 	for msg := range msgs {
+		err := rabbitmq.SingleAck(msg)
+		if err != nil {
+			f.log.Fatalf("failed to ack message: %v", err)
+		}
+
 		var movie protopb.MovieSanit
 		if err := proto.Unmarshal(msg.Body, &movie); err != nil {
 			f.log.Errorf("failed to unmarshal message: %v", err)

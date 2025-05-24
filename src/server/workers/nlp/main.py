@@ -97,6 +97,7 @@ def wait_for_acks(client_id, timeout=20):
 
 
 def coordination_callback(ch, method, properties, body):
+    ch.basic_ack(delivery_tag=method.delivery_tag)
     message = coordination_pb2.CoordinationMessage()
     message.ParseFromString(body)
     if message.type == coordination_pb2.ACK and message.client_id in leading_for:
@@ -135,7 +136,8 @@ def send_ack(client_id):
     logger.info(f"[client_id:{client_id}][node] Sent ACK message")
 
 
-def callback(_, __, ___, body):
+def callback(ch, method, properties, body):
+    ch.basic_ack(delivery_tag=method.delivery_tag)
     movie = movie_sanit_pb2.MovieSanit()
     movie.ParseFromString(body)
 
@@ -177,8 +179,7 @@ def coord_consumer():
     coord_queue = coord_channel.queue_declare("", exclusive=True, auto_delete=True)
     coord_channel.queue_bind(exchange=COORDINATION_EXCHANGE, queue=coord_queue.method.queue,
                              routing_key=COORDINATION_KEY)
-    coord_channel.basic_consume(queue=coord_queue.method.queue, on_message_callback=coordination_callback,
-                                auto_ack=True)
+    coord_channel.basic_consume(queue=coord_queue.method.queue, on_message_callback=coordination_callback)
     try:
         coord_channel.start_consuming()
     except Exception as e:
@@ -218,7 +219,7 @@ def main():
             global cache
             cache = c
             logger.info(f"Listening for messages from queue '{QUEUE_NAME}'...")
-            channel.basic_consume(queue=QUEUE_NAME, on_message_callback=callback, auto_ack=True)
+            channel.basic_consume(queue=QUEUE_NAME, on_message_callback=callback)
             channel.start_consuming()
     except KeyboardInterrupt:
         logger.info("Interrupted. Closing connection...")

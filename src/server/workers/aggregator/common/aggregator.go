@@ -510,7 +510,7 @@ func (aggregator *Aggregator) aggregateMetric(queueName string, channelResults c
 }
 
 func (aggregator *Aggregator) consumeQueue(queueName string) (<-chan amqp.Delivery, error) {
-	msgs, err := rabbitmq.ConsumeFromQueueNoAutoAck(aggregator.Channel, queueName)
+	msgs, err := rabbitmq.ConsumeFromQueue(aggregator.Channel, queueName)
 	if err != nil {
 		aggregator.Log.Fatalf("%s '%s': %v", MSG_FAILED_CONSUME, queueName, err)
 	}

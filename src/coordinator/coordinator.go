@@ -124,8 +124,13 @@ func (e *EOFLeader) startListening() {
 	}
 
 	for msg := range msgs {
+		err := rabbitmq.SingleAck(msg)
+		if err != nil {
+			e.log.Fatalf("failed to ack message: %v", err)
+		}
+
 		var coordMsg protopb.CoordinationMessage
-		err := proto.Unmarshal(msg.Body, &coordMsg)
+		err = proto.Unmarshal(msg.Body, &coordMsg)
 		if err != nil {
 			e.log.Errorf("failed to unmarshal coordination message: %v", err)
 			continue
