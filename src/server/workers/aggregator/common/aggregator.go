@@ -163,13 +163,19 @@ func (aggregator *Aggregator) aggregateMovies() {
 	msgs, err := aggregator.consumeQueue(aggregator.Config.InputQueue)
 	if err == nil {
 		amountEOF := make(map[string]int)
+
 		for msg := range msgs {
+			err := rabbitmq.SingleAck(msg)
+			if err != nil {
+				aggregator.Log.Fatalf("failed to ack message: %v", err)
+			}
+
 			var movie protopb.MovieSanit
-			rabbitmq.SingleAck(msg)
 			if err := proto.Unmarshal(msg.Body, &movie); err != nil {
 				aggregator.Log.Errorf("failed to unmarshal message %v", err)
 				continue
 			}
+
 			// EOF
 			if movie.GetEof() {
 				clientID := movie.GetClientId()
@@ -202,8 +208,13 @@ func (a *Aggregator) aggregateTop5() {
 	countriesByClient := make(map[string]map[string]int64)
 
 	for msg := range msgs {
+		err := rabbitmq.SingleAck(msg)
+		if err != nil {
+			a.Log.Fatalf("failed to ack message: %v", err)
+		}
+
 		var movie protopb.MovieSanit
-		err := proto.Unmarshal(msg.Body, &movie)
+		err = proto.Unmarshal(msg.Body, &movie)
 		if err != nil {
 			a.Log.Errorf("failed to unmarshal message: %v", err)
 			continue
@@ -291,12 +302,18 @@ func (aggregator *Aggregator) aggregateTop10() {
 	if err != nil {
 		aggregator.Log.Fatalf("%s '%s': %v", MSG_FAILED_CONSUME, aggregator.Config.InputQueue, err)
 	}
+
 	// Count EOF and actors data for all clients
 	amountEOF := make(map[string]int)
 	actorsData := make(map[string](*utils.ActorsData))
+
 	for msg := range msgs {
+		err := rabbitmq.SingleAck(msg)
+		if err != nil {
+			aggregator.Log.Fatalf("failed to ack message: %v", err)
+		}
+
 		var actorCount protopb.Actor
-		rabbitmq.SingleAck(msg)
 		if err := proto.Unmarshal(msg.Body, &actorCount); err != nil {
 			aggregator.Log.Errorf("[aggregator_%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_UNMARSHAL, err)
 			continue
@@ -335,12 +352,18 @@ func (aggregator *Aggregator) aggregateTopAndBottom() {
 	if err != nil {
 		aggregator.Log.Fatalf("%s '%s': %v", MSG_FAILED_CONSUME, aggregator.Config.InputQueue, err)
 	}
+
 	// Count EOF and top_and_bottom for all clients
 	amountEOF := make(map[string]int)
 	globalTopAndBottom := make(map[string](*protopb.TopAndBottomRatingAvg))
+
 	for msg := range msgs {
+		err := rabbitmq.SingleAck(msg)
+		if err != nil {
+			aggregator.Log.Fatalf("failed to ack message: %v", err)
+		}
+
 		var topAndBottom protopb.TopAndBottomRatingAvg
-		rabbitmq.SingleAck(msg)
 		if err := proto.Unmarshal(msg.Body, &topAndBottom); err != nil {
 			aggregator.Log.Errorf("[aggregator_%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_UNMARSHAL, err)
 			continue
@@ -432,6 +455,7 @@ func (aggregator *Aggregator) aggregateMetric(queueName string, channelResults c
 	if err != nil {
 		return err
 	}
+
 	// check negative
 	var isNegative bool
 	if aggregator.Config.InputQueue == queueName {
@@ -439,14 +463,20 @@ func (aggregator *Aggregator) aggregateMetric(queueName string, channelResults c
 	} else {
 		isNegative = false
 	}
+
 	// count EOF and count and sumAvg for each clients
 	amountEOF := make(map[string]int)
 	count := make(map[string]int64)
 	sumAvg := make(map[string]float64)
+
 	// read all message from queue for each clients
 	for msg := range msgs {
+		err := rabbitmq.SingleAck(msg)
+		if err != nil {
+			aggregator.Log.Fatalf("failed to ack message: %v", err)
+		}
+
 		var movie protopb.MovieSanit
-		rabbitmq.SingleAck(msg)
 		if err := proto.Unmarshal(msg.Body, &movie); err != nil {
 			aggregator.Log.Errorf("[aggregator_%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_UNMARSHAL, err)
 			continue
