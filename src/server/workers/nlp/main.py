@@ -55,7 +55,10 @@ def get_ack_received(client_id):
 def connect_rabbitmq_with_retries(retries=20, delay=3):
     for attempt in range(1, retries + 1):
         try:
-            conn = pika.BlockingConnection(pika.URLParameters(RABBITMQ_URL))
+            params = pika.URLParameters(RABBITMQ_URL)
+            params.socket_timeout = 60
+            params.heartbeat = 120 
+            conn = pika.BlockingConnection(params)
             return conn
         except pika.exceptions.AMQPConnectionError as e:
             logger.info(f"Attempt {attempt}: Could not connect to RabbitMQ: {e}")

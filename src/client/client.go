@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/op/go-logging"
-	"google.golang.org/protobuf/types/known/emptypb"
 	"math/rand"
 	"os"
 	"os/signal"
@@ -12,6 +10,9 @@ import (
 	"time"
 	"tp1/client/internal"
 	pb "tp1/protobuf/protopb"
+
+	"github.com/op/go-logging"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -85,10 +86,16 @@ func main() {
 
 	controllerReportClient := pb.NewControllerClient(controllerConn)
 
-	resp, err := controllerReportClient.GetReport(ctx, &emptypb.Empty{})
-
-	if err != nil {
-		logger.Fatalf("Failed to get report: %v", err)
+	var resp *pb.ReportResponse
+	for {
+		var errRep error
+		resp, errRep = controllerReportClient.GetReport(ctx, &emptypb.Empty{})
+		if errRep != nil {
+			logger.Errorf("Failed to get report: %v", errRep)
+			time.Sleep(60 * time.Second)
+			continue
+		}
+		break
 	}
 
 	// logger.Infof("Received report response: %+v", resp)
