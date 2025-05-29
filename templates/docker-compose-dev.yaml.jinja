@@ -37,6 +37,10 @@ services:
       ar-es-filter-{{ i }}:
         condition: service_healthy
 {%- endfor -%}
+{% for i in range(1, ar_filter_nodes + 1) %}
+      ar-filter-{{ i }}:
+        condition: service_healthy
+{%- endfor -%}
 {% endfor %}
 
 {% for i in range(1, ar_es_filter_nodes + 1) %}
@@ -69,9 +73,18 @@ services:
       - SHARDS={{ shards }}
     networks:
       - tp1_net
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
     depends_on:
-      rabbitmq:
+{% for i in range(1, shards + 1) %}
+      joiner_group_by_movie_id_credits-{{ i }}:
         condition: service_healthy
+      joiner_group_by_movie_id_ratings-{{ i }}:
+        condition: service_healthy
+{%- endfor %}
 {% endfor %}
 
 {% for i in range(1, single_country_origin_filter_nodes + 1) %}
@@ -124,10 +137,15 @@ services:
     networks:
       - tp1_net
     depends_on:
-      rabbitmq:
+      aggregator_top_and_bottom:
         condition: service_healthy
     links:
       - rabbitmq
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 {% endfor %}
 
 {% for i in range(1, shards + 1) %}
@@ -143,10 +161,15 @@ services:
     networks:
       - tp1_net
     depends_on:
-      rabbitmq:
+      aggregator_top_10:
         condition: service_healthy
     links:
       - rabbitmq
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 {% endfor %}
 
   aggregator_movies:
@@ -209,6 +232,11 @@ services:
         condition: service_healthy
     links:
       - rabbitmq
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   aggregator_top_and_bottom:
     container_name: aggregator_top_and_bottom
@@ -226,6 +254,11 @@ services:
         condition: service_healthy
     links:
       - rabbitmq
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   aggregator_metrics:
     container_name: aggregator_metrics
@@ -244,6 +277,11 @@ services:
         condition: service_healthy
     links:
       - rabbitmq
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
 {% for i in range(1, nlp_nodes + 1) %}
   nlp-{{ i }}:
@@ -277,36 +315,22 @@ services:
       timeout: 3s
       retries: 5
     depends_on:
-      aggregator_metrics:
-        condition: service_started
-      aggregator_top_and_bottom:
-        condition: service_started
-      aggregator_top_10:
-        condition: service_started
 {%- for i in range(1, filter_nodes_2000s + 1) %}
       2000s-filter-{{ i }}:
         condition: service_healthy
 {%- endfor -%}
-{% for i in range(1, ar_filter_nodes + 1) %}
-      ar-filter-{{ i }}:
-        condition: service_started
-{%- endfor -%}
-{% for i in range(1, top_5_investors_filter_nodes + 1) %}
-      top-5-investors-filter-{{ i }}:
-        condition: service_started
-{%- endfor -%}
 {% for i in range(1, single_country_origin_filter_nodes + 1) %}
       single-country-origin-filter-{{ i }}:
-        condition: service_started
-{%- endfor -%}
-{% for i in range(1, nlp_nodes + 1) %}
-      nlp-{{ i }}:
-        condition: service_started
+        condition: service_healthy
 {%- endfor -%}
 {% for i in range(1, shards + 1) %}
       joiner_group_by_movie_id_credits-{{ i }}:
-        condition: service_started
+        condition: service_healthy
       joiner_group_by_movie_id_ratings-{{ i }}:
+        condition: service_healthy
+{%- endfor -%}
+{% for i in range(1, nlp_nodes + 1) %}
+      nlp-{{ i }}:
         condition: service_started
 {%- endfor %}
 

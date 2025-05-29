@@ -1,10 +1,9 @@
 import logging
 import sys
 import time
-import socket
 from os import getenv
 import threading
-from collections import defaultdict
+from health import start, mark_ready
 
 import pika
 from transformers import pipeline
@@ -39,6 +38,8 @@ ack_events = dict()
 leading_for = set()
 sent_ack = set()
 
+shutdown_health = start()
+
 
 def get_event(client_id):
     if client_id not in ack_events:
@@ -57,7 +58,7 @@ def connect_rabbitmq_with_retries(retries=20, delay=3):
         try:
             params = pika.URLParameters(RABBITMQ_URL)
             params.socket_timeout = 60
-            params.heartbeat = 120 
+            params.heartbeat = 120
             conn = pika.BlockingConnection(params)
             return conn
         except pika.exceptions.AMQPConnectionError as e:
@@ -223,11 +224,13 @@ def main():
             cache = c
             logger.info(f"Listening for messages from queue '{QUEUE_NAME}'...")
             channel.basic_consume(queue=QUEUE_NAME, on_message_callback=callback)
+            mark_ready()
             channel.start_consuming()
     except KeyboardInterrupt:
         logger.info("Interrupted. Closing connection...")
         channel.stop_consuming()
         connection.close()
+        shutdown_health()
         sys.exit(0)
 
 
