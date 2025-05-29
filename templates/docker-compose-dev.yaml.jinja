@@ -27,6 +27,11 @@ services:
       - SHARDS={{ shards }}
     networks:
       - tp1_net
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
     depends_on:
 {% for i in range(1, ar_es_filter_nodes + 1) %}
       ar-es-filter-{{ i }}:
@@ -82,8 +87,13 @@ services:
     networks:
       - tp1_net
     depends_on:
-      rabbitmq:
+      aggregator_top_5:
         condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 {% endfor %}
 
 {% for i in range(1, top_5_investors_filter_nodes + 1) %}
@@ -177,6 +187,11 @@ services:
         condition: service_healthy
     links:
       - rabbitmq
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   aggregator_top_10:
     container_name: aggregator_top_10
@@ -256,26 +271,21 @@ services:
       dockerfile: src/server/gateway/Dockerfile
     networks:
       - tp1_net
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
     depends_on:
-      report:
-        condition: service_healthy
       aggregator_metrics:
         condition: service_started
       aggregator_top_and_bottom:
         condition: service_started
       aggregator_top_10:
         condition: service_started
-      aggregator_top_5:
-        condition: service_started
-      aggregator_movies:
-        condition: service_started
 {%- for i in range(1, filter_nodes_2000s + 1) %}
       2000s-filter-{{ i }}:
-        condition: service_started
-{%- endfor -%}
-{% for i in range(1, ar_es_filter_nodes + 1) %}
-      ar-es-filter-{{ i }}:
-        condition: service_started
+        condition: service_healthy
 {%- endfor -%}
 {% for i in range(1, ar_filter_nodes + 1) %}
       ar-filter-{{ i }}:
@@ -310,7 +320,8 @@ services:
     networks:
       - tp1_net
     depends_on:
-      - controller
+      controller:
+        condition: service_healthy
     volumes:
       - ./src/client/datasets:/app/datasets
       - ./reports:/app

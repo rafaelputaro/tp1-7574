@@ -4,6 +4,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"net"
+	"tp1/health"
 	"tp1/server/gateway/internal"
 
 	"github.com/op/go-logging"
@@ -18,6 +19,9 @@ var (
 
 func main() {
 	logger := logging.MustGetLogger("controller")
+
+	healthSrv := health.New(logger)
+	healthSrv.Start()
 
 	conn, err := rabbitmq.ConnectRabbitMQ(logger)
 	if err != nil {
@@ -68,6 +72,8 @@ func main() {
 	protopb.RegisterControllerServer(grpcServer, ctrl)
 
 	logger.Info("gRPC server listening on :50051")
+
+	healthSrv.MarkReady()
 
 	err = grpcServer.Serve(lis)
 	if err != nil {
