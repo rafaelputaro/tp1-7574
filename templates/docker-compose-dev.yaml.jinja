@@ -144,7 +144,7 @@ services:
     networks:
       - tp1_net
     depends_on:
-      rabbitmq:
+      report:
         condition: service_healthy
     links:
       - rabbitmq
@@ -161,7 +161,7 @@ services:
     networks:
       - tp1_net
     depends_on:
-      rabbitmq:
+      report:
         condition: service_healthy
     links:
       - rabbitmq
@@ -178,7 +178,7 @@ services:
     networks:
       - tp1_net
     depends_on:
-      rabbitmq:
+      report:
         condition: service_healthy
     links:
       - rabbitmq
@@ -195,7 +195,7 @@ services:
     networks:
       - tp1_net
     depends_on:
-      rabbitmq:
+      report:
         condition: service_healthy
     links:
       - rabbitmq
@@ -213,7 +213,7 @@ services:
     networks:
       - tp1_net
     depends_on:
-      rabbitmq:
+      report:
         condition: service_healthy
     links:
       - rabbitmq
