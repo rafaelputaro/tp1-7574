@@ -28,9 +28,11 @@ services:
     networks:
       - tp1_net
     depends_on:
-      rabbitmq:
-        condition: service_healthy
 
+      ar-es-filter-1:
+        condition: service_healthy
+      ar-es-filter-2:
+        condition: service_healthy
   2000s-filter-2:
     container_name: 2000s-filter-2
     image: filter:latest
@@ -41,9 +43,11 @@ services:
     networks:
       - tp1_net
     depends_on:
-      rabbitmq:
-        condition: service_healthy
 
+      ar-es-filter-1:
+        condition: service_healthy
+      ar-es-filter-2:
+        condition: service_healthy
   2000s-filter-3:
     container_name: 2000s-filter-3
     image: filter:latest
@@ -54,9 +58,11 @@ services:
     networks:
       - tp1_net
     depends_on:
-      rabbitmq:
-        condition: service_healthy
 
+      ar-es-filter-1:
+        condition: service_healthy
+      ar-es-filter-2:
+        condition: service_healthy
 
 
   ar-es-filter-1:
@@ -71,6 +77,11 @@ services:
     depends_on:
       aggregator_movies:
         condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   ar-es-filter-2:
     container_name: ar-es-filter-2
@@ -84,6 +95,11 @@ services:
     depends_on:
       aggregator_movies:
         condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
 
 

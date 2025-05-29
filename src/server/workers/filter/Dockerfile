@@ -19,6 +19,7 @@ RUN mkdir globalconfig
 RUN mkdir coordinator
 RUN mkdir server
 RUN mkdir vendor
+RUN mkdir health
 COPY src/go.mod .
 COPY src/go.sum .
 COPY src/protobuf ./protobuf
@@ -27,6 +28,7 @@ COPY src/globalconfig ./globalconfig
 COPY src/coordinator ./coordinator
 COPY src/server ./server
 COPY src/vendor ./vendor
+COPY src/health ./health
 # Build the binary
 # * `CGO_ENABLED` must be disabled to run go binary in Alpine
 # * `GOOS=linux` tells the compiler to generate a binary for Linux

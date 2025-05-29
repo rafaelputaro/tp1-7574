@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"sync"
+	"tp1/health"
 
 	"tp1/server/workers/filter/lib"
 	"tp1/server/workers/filter/lib/filter"
@@ -25,6 +26,9 @@ func main() {
 	log.Info("Starting filter...")
 	initLogger()
 
+	healthSrv := health.New(log)
+	healthSrv.Start()
+
 	config, err := lib.LoadConfig()
 	if err != nil {
 		log.Errorf("Error loading config: %+v", err)
@@ -40,6 +44,8 @@ func main() {
 		defer wg.Done()
 		f.StartFilterLoop()
 	}()
+
+	healthSrv.MarkReady()
 
 	// Wait for go routine to finish TODO: or SIGKILL signals
 	wg.Wait()

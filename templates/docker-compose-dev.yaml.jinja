@@ -28,8 +28,10 @@ services:
     networks:
       - tp1_net
     depends_on:
-      rabbitmq:
+{% for i in range(1, ar_es_filter_nodes + 1) %}
+      ar-es-filter-{{ i }}:
         condition: service_healthy
+{%- endfor -%}
 {% endfor %}
 
 {% for i in range(1, ar_es_filter_nodes + 1) %}
@@ -45,6 +47,11 @@ services:
     depends_on:
       aggregator_movies:
         condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 {% endfor %}
 
 {% for i in range(1, ar_filter_nodes + 1) %}
