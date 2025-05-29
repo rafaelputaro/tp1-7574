@@ -10,6 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"net"
 	"tp1/globalconfig"
+	"tp1/health"
 	pb "tp1/protobuf/protopb"
 	"tp1/rabbitmq"
 	"tp1/server/report/internal"
@@ -263,6 +264,9 @@ func processMetrics(data []byte, rr *internal.ReportRegistry) {
 }
 
 func main() {
+	healthSrv := health.New(logger)
+	healthSrv.Start()
+
 	conn, err := rabbitmq.ConnectRabbitMQ(logger)
 	if err != nil {
 		logger.Fatalf("Failed to connect to RabbitMQ: %v", err)
@@ -285,6 +289,8 @@ func main() {
 	pb.RegisterReportServiceServer(grpcServer, reportGenerator)
 
 	reportGenerator.StartConsuming()
+
+	healthSrv.MarkReady()
 
 	lis, err := net.Listen("tcp", ":50052")
 	if err != nil {

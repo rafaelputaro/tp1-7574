@@ -88,11 +88,12 @@ func main() {
 
 	var resp *pb.ReportResponse
 	for {
+		logger.Infof("getting report")
 		var errRep error
 		resp, errRep = controllerReportClient.GetReport(ctx, &emptypb.Empty{})
 		if errRep != nil {
 			logger.Errorf("Failed to get report: %v", errRep)
-			time.Sleep(60 * time.Second)
+			time.Sleep(60 * time.Second) // todo esto no va a funcionar con la cache de nlp vacia
 			continue
 		}
 		break

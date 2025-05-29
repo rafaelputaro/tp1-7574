@@ -485,36 +485,66 @@ services:
     networks:
       - tp1_net
     depends_on:
-      - aggregator_metrics
-      - aggregator_top_and_bottom
-      - aggregator_top_10
-      - aggregator_top_5
-      - aggregator_movies
-      - report
-      - 2000s-filter-1
-      - 2000s-filter-2
-      - 2000s-filter-3
-      - ar-es-filter-1
-      - ar-es-filter-2
-      - ar-filter-1
-      - ar-filter-2
-      - top-5-investors-filter-1
-      - top-5-investors-filter-2
-      - top-5-investors-filter-3
-      - single-country-origin-filter-1
-      - single-country-origin-filter-2
-      - single-country-origin-filter-3
-      - nlp-1
-      - nlp-2
-      - nlp-3
-      - nlp-4
-      - nlp-5
-      - joiner_group_by_movie_id_credits-1
-      - joiner_group_by_movie_id_ratings-1
-      - joiner_group_by_movie_id_credits-2
-      - joiner_group_by_movie_id_ratings-2
-      - joiner_group_by_movie_id_credits-3
-      - joiner_group_by_movie_id_ratings-3
+      report:
+        condition: service_healthy
+      aggregator_metrics:
+        condition: service_started
+      aggregator_top_and_bottom:
+        condition: service_started
+      aggregator_top_10:
+        condition: service_started
+      aggregator_top_5:
+        condition: service_started
+      aggregator_movies:
+        condition: service_started
+      2000s-filter-1:
+        condition: service_started
+      2000s-filter-2:
+        condition: service_started
+      2000s-filter-3:
+        condition: service_started
+      ar-es-filter-1:
+        condition: service_started
+      ar-es-filter-2:
+        condition: service_started
+      ar-filter-1:
+        condition: service_started
+      ar-filter-2:
+        condition: service_started
+      top-5-investors-filter-1:
+        condition: service_started
+      top-5-investors-filter-2:
+        condition: service_started
+      top-5-investors-filter-3:
+        condition: service_started
+      single-country-origin-filter-1:
+        condition: service_started
+      single-country-origin-filter-2:
+        condition: service_started
+      single-country-origin-filter-3:
+        condition: service_started
+      nlp-1:
+        condition: service_started
+      nlp-2:
+        condition: service_started
+      nlp-3:
+        condition: service_started
+      nlp-4:
+        condition: service_started
+      nlp-5:
+        condition: service_started
+      joiner_group_by_movie_id_credits-1:
+        condition: service_started
+      joiner_group_by_movie_id_ratings-1:
+        condition: service_started
+      joiner_group_by_movie_id_credits-2:
+        condition: service_started
+      joiner_group_by_movie_id_ratings-2:
+        condition: service_started
+      joiner_group_by_movie_id_credits-3:
+        condition: service_started
+      joiner_group_by_movie_id_ratings-3:
+        condition: service_started
 
 
   client-1:
@@ -586,6 +616,12 @@ services:
         condition: service_healthy
     networks:
       - tp1_net
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
 
 networks:
   tp1_net:
