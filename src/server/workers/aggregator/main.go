@@ -1,12 +1,10 @@
 package main
 
 import (
-	"os"
 	"sync"
+	"tp1/health"
 	"tp1/server/workers/aggregator/common"
 )
-
-const MSG_ERROR_CREATE_AGGREGATOR = "Error on creating aggregator"
 
 /*
 Environment variables:
@@ -20,23 +18,30 @@ AGGREGATOR_OUTPUT_QUEUE_NAME;
 func main() {
 	common.Log.Info("Starting aggregator...")
 	common.InitLogger()
+
+	healthSrv := health.New(common.Log)
+	healthSrv.Start()
+
 	var aggregator, err = common.NewAggregator(common.Log)
 	if err != nil {
-		common.Log.Infof("%v: %v", MSG_ERROR_CREATE_AGGREGATOR, err)
-		os.Exit(1)
-	} else {
-		common.Log.Infof("Aggregator type: %s | Aggregator ID: %s\n",
-			aggregator.Config.AggregatorType,
-			aggregator.Config.ID,
-		)
-		var wg sync.WaitGroup
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			aggregator.Start()
-		}()
-		// Wait for go routine to finish TODO: or SIGKILL signals
-		wg.Wait()
-		aggregator.Dispose()
+		common.Log.Fatalf("error creating aggregator: %v", err)
 	}
+
+	common.Log.Infof("Aggregator type: %s | Aggregator ID: %s\n",
+		aggregator.Config.AggregatorType,
+		aggregator.Config.ID,
+	)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		aggregator.Start()
+	}()
+
+	healthSrv.MarkReady()
+
+	// Wait for go routine to finish TODO: or SIGKILL signals
+	wg.Wait()
+	aggregator.Dispose()
 }

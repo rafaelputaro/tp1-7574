@@ -69,7 +69,7 @@ services:
     networks:
       - tp1_net
     depends_on:
-      rabbitmq:
+      aggregator_movies:
         condition: service_healthy
 
   ar-es-filter-2:
@@ -82,7 +82,7 @@ services:
     networks:
       - tp1_net
     depends_on:
-      rabbitmq:
+      aggregator_movies:
         condition: service_healthy
 
 
@@ -324,6 +324,11 @@ services:
         condition: service_healthy
     links:
       - rabbitmq
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   aggregator_top_5:
     container_name: aggregator_top_5

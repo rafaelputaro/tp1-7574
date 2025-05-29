@@ -17,7 +17,7 @@ func TestAggregatorConfig(t *testing.T) {
 	common.InitLogger()
 	var aggregator, err = common.NewAggregator(common.Log)
 	if err != nil {
-		common.Log.Infof("%v: %v", MSG_ERROR_CREATE_AGGREGATOR, err)
+		common.Log.Infof("%v: %v", "error creating aggregator", err)
 		os.Exit(1)
 	} else {
 		common.Log.Infof("Aggregator type: %s | Aggregator ID: %s\n",
