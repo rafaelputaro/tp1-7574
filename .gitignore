@@ -32,6 +32,8 @@ src/client/datasets/
 reports/
 nlp-cache/
 logs.txt
+.DS_Store
+**/.DS_Store
 
 # Compilation
 src/client/client
