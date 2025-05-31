@@ -33,6 +33,8 @@ func CompareReport(directory string, toCompare string) {
 		logger.Warningf(MSG_NO_REPORTS_FOUND)
 		return
 	}
+	// Construct the full path to the latest report file
+	latestReport = directory + "/" + latestReport
 	logger.Infof(MSG_COMPARE_REPORT, latestReport, toCompare)
 	// Compare the latest report with the provided file
 	compareFiles(latestReport, toCompare)
