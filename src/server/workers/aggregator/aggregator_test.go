@@ -1,7 +1,5 @@
 package main
 
-// https://www.rabbitmq.com/tutorials/tutorial-one-go
-
 import (
 	"fmt"
 	"os"

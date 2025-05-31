@@ -150,4 +150,5 @@ func printReport(report *pb.ReportResponse) {
 	} else {
 		fmt.Printf("Report saved to %s\n", filename)
 	}
+	//internal.CompareReport(".", filename)
 }
