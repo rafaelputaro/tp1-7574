@@ -33,7 +33,7 @@ func UpdateMetrics(avgRevenueOverBudgetNegative *map[string]float64, avgRevenueO
 	}
 }
 
-func CreateMetricsReport(clientID string, avgRevenueOverBudgetNegative *map[string]float64, avgRevenueOverBudgetPositive *map[string]float64) (*protopb.Metrics, error) {
+func CreateMetricsReport(clientID string, avgRevenueOverBudgetNegative *map[string]float64, avgRevenueOverBudgetPositive *map[string]float64, messageId int64) (*protopb.Metrics, error) {
 	avgROBNeg, okNeg := (*avgRevenueOverBudgetNegative)[clientID]
 	avgROBPos, okPos := (*avgRevenueOverBudgetPositive)[clientID]
 	if okNeg && okPos {
@@ -41,6 +41,7 @@ func CreateMetricsReport(clientID string, avgRevenueOverBudgetNegative *map[stri
 			AvgRevenueOverBudgetNegative: proto.Float64(avgROBNeg),
 			AvgRevenueOverBudgetPositive: proto.Float64(avgROBPos),
 			ClientId:                     proto.String(clientID),
+			MessageId:                    proto.Int64(messageId),
 		}, nil
 	}
 	return nil, errors.New(MSG_REPORT_NOT_READY)

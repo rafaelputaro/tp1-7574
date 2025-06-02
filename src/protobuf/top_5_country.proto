@@ -4,6 +4,6 @@ message Top5Country {
   repeated int64 budget = 1;
   repeated string production_countries = 2;
   optional string clientId = 3;
-  optional int64 messageId = 4;
+  required int64 messageId = 4;
   optional bool eof = 5;
 }

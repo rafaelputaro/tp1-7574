@@ -26,7 +26,7 @@ type Top5Country struct {
 	Budget              []int64                `protobuf:"varint,1,rep,name=budget" json:"budget,omitempty"`
 	ProductionCountries []string               `protobuf:"bytes,2,rep,name=production_countries,json=productionCountries" json:"production_countries,omitempty"`
 	ClientId            *string                `protobuf:"bytes,3,opt,name=clientId" json:"clientId,omitempty"`
-	MessageId           *int64                 `protobuf:"varint,4,opt,name=messageId" json:"messageId,omitempty"`
+	MessageId           *int64                 `protobuf:"varint,4,req,name=messageId" json:"messageId,omitempty"`
 	Eof                 *bool                  `protobuf:"varint,5,opt,name=eof" json:"eof,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
@@ -106,7 +106,7 @@ const file_top_5_country_proto_rawDesc = "" +
 	"\x06budget\x18\x01 \x03(\x03R\x06budget\x121\n" +
 	"\x14production_countries\x18\x02 \x03(\tR\x13productionCountries\x12\x1a\n" +
 	"\bclientId\x18\x03 \x01(\tR\bclientId\x12\x1c\n" +
-	"\tmessageId\x18\x04 \x01(\x03R\tmessageId\x12\x10\n" +
+	"\tmessageId\x18\x04 \x02(\x03R\tmessageId\x12\x10\n" +
 	"\x03eof\x18\x05 \x01(\bR\x03eofB\vZ\t./protopb"
 
 var (

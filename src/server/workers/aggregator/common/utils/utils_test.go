@@ -112,12 +112,12 @@ func TestMetricsReport(t *testing.T) {
 	avgRevenueOverBudgetNegative := make(map[string]float64)
 	avgRevenueOverBudgetPositive := make(map[string]float64)
 	var report *protopb.Metrics
-	_, err := CreateMetricsReport("", &avgRevenueOverBudgetNegative, &avgRevenueOverBudgetPositive)
+	_, err := CreateMetricsReport("", &avgRevenueOverBudgetNegative, &avgRevenueOverBudgetPositive, 0)
 	if err == nil {
 		t.Fatal("Error on report not null")
 	}
 	UpdateMetrics(&avgRevenueOverBudgetNegative, &avgRevenueOverBudgetPositive, resultNegative)
-	_, err = CreateMetricsReport("", &avgRevenueOverBudgetNegative, &avgRevenueOverBudgetPositive)
+	_, err = CreateMetricsReport("", &avgRevenueOverBudgetNegative, &avgRevenueOverBudgetPositive, 0)
 	if err == nil {
 		t.Fatal("Error on report not null")
 	}
@@ -134,7 +134,7 @@ func TestMetricsReport(t *testing.T) {
 		fmt.Printf("%v", valueNeg)
 		t.Fatal("Error on value")
 	}
-	report, err = CreateMetricsReport("", &avgRevenueOverBudgetNegative, &avgRevenueOverBudgetPositive)
+	report, err = CreateMetricsReport("", &avgRevenueOverBudgetNegative, &avgRevenueOverBudgetPositive, 0)
 	if report == nil {
 		t.Fatal("Error on report")
 	}

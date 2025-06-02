@@ -2,9 +2,11 @@ package internal
 
 import (
 	"context"
-	"github.com/op/go-logging"
 	"io"
 	pb "tp1/protobuf/protopb"
+	protoUtils "tp1/protobuf/utils"
+
+	"github.com/op/go-logging"
 )
 
 var logger = logging.MustGetLogger("client")
@@ -40,6 +42,7 @@ func SendMovies(ctx context.Context, client pb.MovieServiceClient, parser Parser
 		}
 
 		for _, item := range batch {
+			protoUtils.SetMessageIdMovie(item, int64(count))
 			if err := stream.Send(item); err != nil {
 				logger.Errorf("failed to send movie: %v", err)
 			}
@@ -85,6 +88,7 @@ func SendRatings(ctx context.Context, client pb.RatingServiceClient, parser Pars
 		}
 
 		for _, item := range batch {
+			protoUtils.SetMessageIdRating(item, int64(count))
 			if err := stream.Send(item); err != nil {
 				logger.Errorf("failed to send rating: %v", err)
 			}
@@ -130,6 +134,7 @@ func SendCredits(ctx context.Context, client pb.CreditServiceClient, parser Pars
 		}
 
 		for _, item := range batch {
+			protoUtils.SetMessageIdCredit(item, int64(count))
 			if err := stream.Send(item); err != nil {
 				logger.Errorf("failed to send credit: %v", err)
 			}

@@ -426,7 +426,7 @@ func (aggregator *Aggregator) aggregateMetrics() {
 		// get client id
 		clientID := result.ClientID
 		// try to report
-		report, errReport := utils.CreateMetricsReport(clientID, &avgRevenueOverBudgetNegative, &avgRevenueOverBudgetPositive)
+		report, errReport := utils.CreateMetricsReport(clientID, &avgRevenueOverBudgetNegative, &avgRevenueOverBudgetPositive, DEFAULT_MESSAGE_ID_UNIQUE_OUTPUT)
 		if errReport != nil {
 			continue
 		}

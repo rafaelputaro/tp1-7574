@@ -63,6 +63,10 @@ func CreateDummyCredit(clientId string, messageId int64, eof bool) *protopb.Cred
 	}
 }
 
+func SetMessageIdCredit(credit *protopb.Credit, messageId int64) {
+	credit.MessageId = proto.Int64(messageId)
+}
+
 func CreateEofCredit(clientId string, messageId int64) *protopb.Credit {
 	return CreateDummyCredit(clientId, messageId, true)
 }
@@ -134,6 +138,10 @@ func CreateDummyMovie(clientId string, messageId int64, eof bool) *protopb.Movie
 	}
 }
 
+func SetMessageIdMovie(movie *protopb.Movie, messageId int64) {
+	movie.MessageId = proto.Int64(messageId)
+}
+
 func CreateEofMovie(clientId string, messageId int64) *protopb.Movie {
 	return CreateDummyMovie(clientId, messageId, true)
 }
@@ -169,6 +177,10 @@ func CreateDummyRating(clientId string, messageId int64, eof bool) *protopb.Rati
 		MessageId: proto.Int64(messageId),
 		Eof:       proto.Bool(eof),
 	}
+}
+
+func SetMessageIdRating(rating *protopb.Rating, messageId int64) {
+	rating.MessageId = proto.Int64(messageId)
 }
 
 func CreateEofRating(clientId string, messageId int64) *protopb.Rating {
