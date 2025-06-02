@@ -10,6 +10,6 @@ message MovieSanit {
   required double revenue = 7;
   required string title = 8;
   optional string clientId = 9;
-  optional int64 messageId = 10;
+  required int64 messageId = 10;
   optional bool eof = 11;
 }

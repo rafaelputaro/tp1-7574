@@ -26,7 +26,7 @@ type RatingSanit struct {
 	MovieId       *int64                 `protobuf:"varint,1,req,name=movieId" json:"movieId,omitempty"`
 	Rating        *float32               `protobuf:"fixed32,2,req,name=rating" json:"rating,omitempty"`
 	ClientId      *string                `protobuf:"bytes,3,opt,name=clientId" json:"clientId,omitempty"`
-	MessageId     *int64                 `protobuf:"varint,4,opt,name=messageId" json:"messageId,omitempty"`
+	MessageId     *int64                 `protobuf:"varint,4,req,name=messageId" json:"messageId,omitempty"`
 	Eof           *bool                  `protobuf:"varint,5,opt,name=eof" json:"eof,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -106,7 +106,7 @@ const file_rating_sanit_proto_rawDesc = "" +
 	"\amovieId\x18\x01 \x02(\x03R\amovieId\x12\x16\n" +
 	"\x06rating\x18\x02 \x02(\x02R\x06rating\x12\x1a\n" +
 	"\bclientId\x18\x03 \x01(\tR\bclientId\x12\x1c\n" +
-	"\tmessageId\x18\x04 \x01(\x03R\tmessageId\x12\x10\n" +
+	"\tmessageId\x18\x04 \x02(\x03R\tmessageId\x12\x10\n" +
 	"\x03eof\x18\x05 \x01(\bR\x03eofB\vZ\t./protopb"
 
 var (

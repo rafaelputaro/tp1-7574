@@ -4,6 +4,6 @@ message RatingSanit {
   required int64 movieId = 1;
   required float rating = 2;
   optional string clientId = 3;
-  optional int64 messageId = 4;
+  required int64 messageId = 4;
   optional bool eof = 5;
 }

@@ -4,16 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/op/go-logging"
-	amqp "github.com/rabbitmq/amqp091-go"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"io"
 	"strconv"
 	"strings"
 	"tp1/globalconfig"
 	pb "tp1/protobuf/protopb"
 	"tp1/rabbitmq"
+
+	"github.com/op/go-logging"
+	amqp "github.com/rabbitmq/amqp091-go"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -44,11 +45,11 @@ func (c *Controller) StreamMovies(stream pb.MovieService_StreamMoviesServer) err
 	}
 
 	count := 0
-
+	maxMessageId := int64(0)
 	for {
 		msg, err := stream.Recv()
 		if err == io.EOF {
-			err := c.publishMovieEof(clientID)
+			err := c.publishMovieEof(clientID, maxMessageId+1)
 			if err != nil {
 				logger.Errorf("failed to publish movie EOF message: %v", err)
 				return err
@@ -75,7 +76,7 @@ func (c *Controller) StreamMovies(stream pb.MovieService_StreamMoviesServer) err
 		if err != nil {
 			return err
 		}
-
+		maxMessageId = getMaxId(maxMessageId, sanitized.GetMessageId())
 		count++
 	}
 }
@@ -87,11 +88,11 @@ func (c *Controller) StreamRatings(stream pb.RatingService_StreamRatingsServer) 
 	}
 
 	count := 0
-
+	maxMessageId := int64(0)
 	for {
 		rating, err := stream.Recv()
 		if err == io.EOF {
-			err := c.publishRatingEof(clientID)
+			err := c.publishRatingEof(clientID, maxMessageId+1)
 			if err != nil {
 				logger.Errorf("failed to publish rating EOF message: %v", err)
 				return err
@@ -118,7 +119,7 @@ func (c *Controller) StreamRatings(stream pb.RatingService_StreamRatingsServer) 
 		if err != nil {
 			return err
 		}
-
+		maxMessageId = getMaxId(maxMessageId, sanitized.GetMessageId())
 		count++
 	}
 }
@@ -130,11 +131,11 @@ func (c *Controller) StreamCredits(stream pb.CreditService_StreamCreditsServer) 
 	}
 
 	count := 0
-
+	maxMessageId := int64(0)
 	for {
 		credit, err := stream.Recv()
 		if err == io.EOF {
-			err := c.publishCreditEof(clientID)
+			err := c.publishCreditEof(clientID, maxMessageId+1)
 			if err != nil {
 				logger.Errorf("failed to publish credit EOF message: %v", err)
 				return err
@@ -161,7 +162,7 @@ func (c *Controller) StreamCredits(stream pb.CreditService_StreamCreditsServer) 
 		if err != nil {
 			return err
 		}
-
+		maxMessageId = getMaxId(maxMessageId, sanitized.GetMessageId())
 		count++
 	}
 }
@@ -202,7 +203,7 @@ func (c *Controller) publishToQueues(data []byte, queues ...string) error {
 	return nil
 }
 
-func (c *Controller) publishMovieEof(clientID string) error {
+func (c *Controller) publishMovieEof(clientID string, messageId int64) error {
 	data, err := proto.Marshal(&pb.MovieSanit{
 		Budget:      proto.Int64(0),
 		Id:          proto.Int32(0),
@@ -212,6 +213,7 @@ func (c *Controller) publishMovieEof(clientID string) error {
 		Title:       proto.String(""),
 		Eof:         proto.Bool(true),
 		ClientId:    proto.String(clientID),
+		MessageId:   proto.Int64(messageId),
 	})
 	if err != nil {
 		return err
@@ -225,11 +227,12 @@ func (c *Controller) publishMovieEof(clientID string) error {
 	return nil
 }
 
-func (c *Controller) publishCreditEof(clientID string) error {
+func (c *Controller) publishCreditEof(clientID string, messageId int64) error {
 	data, err := proto.Marshal(&pb.CreditSanit{
-		Id:       proto.Int64(0),
-		Eof:      proto.Bool(true),
-		ClientId: proto.String(clientID),
+		Id:        proto.Int64(0),
+		Eof:       proto.Bool(true),
+		ClientId:  proto.String(clientID),
+		MessageId: proto.Int64(messageId),
 	})
 	if err != nil {
 		return err
@@ -243,12 +246,13 @@ func (c *Controller) publishCreditEof(clientID string) error {
 	return nil
 }
 
-func (c *Controller) publishRatingEof(clientID string) error {
+func (c *Controller) publishRatingEof(clientID string, messageId int64) error {
 	data, err := proto.Marshal(&pb.RatingSanit{
-		MovieId:  proto.Int64(0),
-		Rating:   proto.Float32(0),
-		Eof:      proto.Bool(true),
-		ClientId: proto.String(clientID),
+		MovieId:   proto.Int64(0),
+		Rating:    proto.Float32(0),
+		Eof:       proto.Bool(true),
+		ClientId:  proto.String(clientID),
+		MessageId: proto.Int64(messageId),
 	})
 	if err != nil {
 		return err
@@ -270,27 +274,6 @@ func sanitizeMovie(m *pb.Movie, clientID string) (*pb.MovieSanit, error) {
 	if m.Overview == nil || m.GetOverview() == "" {
 		return nil, fmt.Errorf("invalid movie overview")
 	}
-	/*if m.Title == nil {
-		return nil, fmt.Errorf("invalid movie title")
-	}
-	if m.Genres == nil {
-		return nil, fmt.Errorf("invalid movie genres")
-	}
-	if m.ReleaseDate == nil {
-		return nil, fmt.Errorf("invalid movie release date")
-	}
-	if m.ProductionCountries == nil {
-		return nil, fmt.Errorf("invalid movie production countries")
-	}
-	if m.SpokenLanguages == nil {
-		return nil, fmt.Errorf("invalid movie spoken languages")
-	}
-	if m.Budget == nil || m.GetBudget() <= 0 {
-		return nil, fmt.Errorf("invalid movie budget")
-	}
-	if m.Revenue == nil || m.GetRevenue() <= 0 {
-		return nil, fmt.Errorf("invalid movie revenue")
-	}*/
 
 	// Release Year
 	var releaseYear uint32
@@ -345,6 +328,7 @@ func sanitizeMovie(m *pb.Movie, clientID string) (*pb.MovieSanit, error) {
 		Title:               proto.String(strings.TrimSpace(m.GetTitle())),
 		Eof:                 m.Eof,
 		ClientId:            proto.String(clientID),
+		MessageId:           m.MessageId,
 	}, nil
 }
 
@@ -365,10 +349,11 @@ func sanitizeRating(r *pb.Rating, clientId string) (*pb.RatingSanit, error) {
 	}
 
 	return &pb.RatingSanit{
-		MovieId:  r.MovieId,
-		Rating:   r.Rating,
-		Eof:      r.Eof,
-		ClientId: proto.String(clientId),
+		MovieId:   r.MovieId,
+		Rating:    r.Rating,
+		Eof:       r.Eof,
+		ClientId:  proto.String(clientId),
+		MessageId: r.MessageId,
 	}, nil
 }
 
@@ -404,5 +389,14 @@ func sanitizeCredit(c *pb.Credit, clientId string) (*pb.CreditSanit, error) {
 		Id:           c.Id,
 		Eof:          c.Eof,
 		ClientId:     proto.String(clientId),
+		MessageId:    c.MessageId,
 	}, nil
+}
+
+// getMaxId returns the maximum of two message IDs.
+func getMaxId(msgId int64, newMsgId int64) int64 {
+	if newMsgId > msgId {
+		return newMsgId
+	}
+	return msgId
 }
