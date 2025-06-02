@@ -26,7 +26,8 @@ type Metrics struct {
 	AvgRevenueOverBudgetNegative *float64               `protobuf:"fixed64,1,req,name=avgRevenueOverBudgetNegative" json:"avgRevenueOverBudgetNegative,omitempty"`
 	AvgRevenueOverBudgetPositive *float64               `protobuf:"fixed64,2,req,name=avgRevenueOverBudgetPositive" json:"avgRevenueOverBudgetPositive,omitempty"`
 	ClientId                     *string                `protobuf:"bytes,3,opt,name=clientId" json:"clientId,omitempty"`
-	Eof                          *bool                  `protobuf:"varint,4,opt,name=eof" json:"eof,omitempty"`
+	MessageId                    *int64                 `protobuf:"varint,4,opt,name=messageId" json:"messageId,omitempty"`
+	Eof                          *bool                  `protobuf:"varint,5,opt,name=eof" json:"eof,omitempty"`
 	unknownFields                protoimpl.UnknownFields
 	sizeCache                    protoimpl.SizeCache
 }
@@ -82,6 +83,13 @@ func (x *Metrics) GetClientId() string {
 	return ""
 }
 
+func (x *Metrics) GetMessageId() int64 {
+	if x != nil && x.MessageId != nil {
+		return *x.MessageId
+	}
+	return 0
+}
+
 func (x *Metrics) GetEof() bool {
 	if x != nil && x.Eof != nil {
 		return *x.Eof
@@ -93,12 +101,13 @@ var File_metrics_proto protoreflect.FileDescriptor
 
 const file_metrics_proto_rawDesc = "" +
 	"\n" +
-	"\rmetrics.proto\"\xbf\x01\n" +
+	"\rmetrics.proto\"\xdd\x01\n" +
 	"\aMetrics\x12B\n" +
 	"\x1cavgRevenueOverBudgetNegative\x18\x01 \x02(\x01R\x1cavgRevenueOverBudgetNegative\x12B\n" +
 	"\x1cavgRevenueOverBudgetPositive\x18\x02 \x02(\x01R\x1cavgRevenueOverBudgetPositive\x12\x1a\n" +
-	"\bclientId\x18\x03 \x01(\tR\bclientId\x12\x10\n" +
-	"\x03eof\x18\x04 \x01(\bR\x03eofB\vZ\t./protopb"
+	"\bclientId\x18\x03 \x01(\tR\bclientId\x12\x1c\n" +
+	"\tmessageId\x18\x04 \x01(\x03R\tmessageId\x12\x10\n" +
+	"\x03eof\x18\x05 \x01(\bR\x03eofB\vZ\t./protopb"
 
 var (
 	file_metrics_proto_rawDescOnce sync.Once

@@ -34,7 +34,8 @@ type Movie struct {
 	SpokenLanguages     *string                `protobuf:"bytes,18,req,name=spoken_languages,json=spokenLanguages" json:"spoken_languages,omitempty"`
 	Title               *string                `protobuf:"bytes,21,req,name=title" json:"title,omitempty"`
 	ClientId            *string                `protobuf:"bytes,25,opt,name=clientId" json:"clientId,omitempty"`
-	Eof                 *bool                  `protobuf:"varint,26,opt,name=eof" json:"eof,omitempty"`
+	MessageId           *int64                 `protobuf:"varint,26,opt,name=messageId" json:"messageId,omitempty"`
+	Eof                 *bool                  `protobuf:"varint,27,opt,name=eof" json:"eof,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -139,6 +140,13 @@ func (x *Movie) GetClientId() string {
 	return ""
 }
 
+func (x *Movie) GetMessageId() int64 {
+	if x != nil && x.MessageId != nil {
+		return *x.MessageId
+	}
+	return 0
+}
+
 func (x *Movie) GetEof() bool {
 	if x != nil && x.Eof != nil {
 		return *x.Eof
@@ -150,7 +158,7 @@ var File_movie_proto protoreflect.FileDescriptor
 
 const file_movie_proto_rawDesc = "" +
 	"\n" +
-	"\vmovie.proto\x1a\x1bgoogle/protobuf/empty.proto\"\xc2\x02\n" +
+	"\vmovie.proto\x1a\x1bgoogle/protobuf/empty.proto\"\xe0\x02\n" +
 	"\x05Movie\x12\x16\n" +
 	"\x06budget\x18\x03 \x02(\x03R\x06budget\x12\x16\n" +
 	"\x06genres\x18\x04 \x02(\tR\x06genres\x12\x0e\n" +
@@ -162,8 +170,9 @@ const file_movie_proto_rawDesc = "" +
 	"\arevenue\x18\x10 \x02(\x01R\arevenue\x12)\n" +
 	"\x10spoken_languages\x18\x12 \x02(\tR\x0fspokenLanguages\x12\x14\n" +
 	"\x05title\x18\x15 \x02(\tR\x05title\x12\x1a\n" +
-	"\bclientId\x18\x19 \x01(\tR\bclientId\x12\x10\n" +
-	"\x03eof\x18\x1a \x01(\bR\x03eof2@\n" +
+	"\bclientId\x18\x19 \x01(\tR\bclientId\x12\x1c\n" +
+	"\tmessageId\x18\x1a \x01(\x03R\tmessageId\x12\x10\n" +
+	"\x03eof\x18\x1b \x01(\bR\x03eof2@\n" +
 	"\fMovieService\x120\n" +
 	"\fStreamMovies\x12\x06.Movie\x1a\x16.google.protobuf.Empty(\x01B\vZ\t./protopb"
 

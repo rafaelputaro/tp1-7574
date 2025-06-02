@@ -21,6 +21,10 @@ const TOP10 string = "top_10"
 const TOP_AND_BOTTOM string = "top_and_bottom"
 const METRICS string = "metrics"
 
+// Ouput message IDs:
+const DEFAULT_MESSAGE_ID_UNIQUE_OUTPUT int64 = 0
+const DEFAULT_MESSAGE_ID_EOF_UNIQUE_OUTPUT int64 = 1
+
 // Messages to log:
 const MSG_ERROR_CONFIG = "Configuration could not be read from config file. Using env variables instead"
 const MSG_ERROR_DIAL = "Error on dial rabbitmq"
@@ -186,7 +190,7 @@ func (aggregator *Aggregator) aggregateMovies() {
 
 				// If all sources sent EOF, submit the EOF to report
 				if aggregator.checkEofSingleQueue(amountEOF[movie.GetClientId()]) {
-					dataEof, errEof := protoUtils.CreateEofMessageMovieSanit(movie.GetClientId())
+					dataEof, errEof := protoUtils.CreateEofMessageMovieSanit(movie.GetClientId(), movie.GetMessageId())
 					aggregator.checkErrorAndPublish(clientID, dataEof, errEof)
 					aggregator.Log.Infof("[client_id:%s] sent eof marker", clientID)
 				}
@@ -235,7 +239,7 @@ func (a *Aggregator) aggregateTop5() {
 			top5.ClientId = proto.String(clientID)
 			top5.ProductionCountries = []string{}
 			top5.Budget = []int64{}
-
+			top5.MessageId = proto.Int64(DEFAULT_MESSAGE_ID_UNIQUE_OUTPUT)
 			type kv struct {
 				Key   string
 				Value int64
@@ -271,7 +275,7 @@ func (a *Aggregator) aggregateTop5() {
 				a.Log.Fatalf("[client_id:%s] failed to publish top5: %v", clientID, err)
 			}
 
-			dataEof, err := protoUtils.CreateEofMessageTop5Country(clientID)
+			dataEof, err := protoUtils.CreateEofMessageTop5Country(clientID, DEFAULT_MESSAGE_ID_EOF_UNIQUE_OUTPUT)
 			if err != nil {
 				a.Log.Fatalf("[client_id:%s] failed to marshal eof: %v", clientID, err)
 			}
@@ -327,7 +331,7 @@ func (aggregator *Aggregator) aggregateTop10() {
 			amountEOF[clientID] = utils.GetOrInitKeyMap(&amountEOF, clientID, utils.InitEOFCount) + 1
 			// If all sources sent EOF, send top 10 and submit the EOF to report
 			if aggregator.checkEofSingleQueue(amountEOF[clientID]) {
-				top10 := actorsDataClient.GetTop10(clientID)
+				top10 := actorsDataClient.GetTop10(clientID, DEFAULT_MESSAGE_ID_UNIQUE_OUTPUT)
 				data, err := proto.Marshal(top10)
 				if err != nil {
 					aggregator.Log.Fatalf("[aggregator_%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_MARSHAL, err)
@@ -337,7 +341,7 @@ func (aggregator *Aggregator) aggregateTop10() {
 				aggregator.publishData(data)
 				aggregator.Log.Debugf("[aggregator_%s client_%s] %s: %s", aggregator.Config.AggregatorType, clientID, MSG_SENT_TO_REPORT, protoUtils.Top10ToString(top10))
 				// submit the EOF to report
-				dataEof, errEof := protoUtils.CreateEofMessageTop10(clientID)
+				dataEof, errEof := protoUtils.CreateEofMessageTop10(clientID, DEFAULT_MESSAGE_ID_EOF_UNIQUE_OUTPUT)
 				aggregator.checkErrorAndPublish(clientID, dataEof, errEof)
 			}
 			continue
@@ -371,7 +375,7 @@ func (aggregator *Aggregator) aggregateTopAndBottom() {
 		clientID := topAndBottom.GetClientId()
 		aggregator.Log.Debugf("[aggregator_%s client_%s] %s : %s", aggregator.Config.AggregatorType, clientID, MSG_RECEIVED, protoUtils.TopAndBottomToString(&topAndBottom))
 		// Actual top and bottom for a client
-		globalTopAndBottomClient := utils.GetOrInitKeyMapWithKey(&globalTopAndBottom, clientID, protoUtils.CreateSeedTopAndBottom)
+		globalTopAndBottomClient := utils.GetOrInitKeyMapWithKeyAndMsgId(&globalTopAndBottom, clientID, DEFAULT_MESSAGE_ID_UNIQUE_OUTPUT, protoUtils.CreateSeedTopAndBottom)
 		// EOF
 		if topAndBottom.GetEof() {
 			amountEOF[clientID] = utils.GetOrInitKeyMap(&amountEOF, clientID, utils.InitEOFCount) + 1
@@ -386,12 +390,12 @@ func (aggregator *Aggregator) aggregateTopAndBottom() {
 				aggregator.publishData(data)
 				aggregator.Log.Debugf("[aggregator_%s client_%s] %s: %s", aggregator.Config.AggregatorType, clientID, MSG_SENT_TO_REPORT, protoUtils.TopAndBottomToString(globalTopAndBottomClient))
 				// submit the EOF to report
-				dataEof, errEof := protoUtils.CreateEofMessageTopAndBottomRatingAvg(clientID)
+				dataEof, errEof := protoUtils.CreateEofMessageTopAndBottomRatingAvg(clientID, DEFAULT_MESSAGE_ID_EOF_UNIQUE_OUTPUT)
 				aggregator.checkErrorAndPublish(clientID, dataEof, errEof)
 			}
 			continue
 		}
-		globalTopAndBottom[clientID] = utils.ReduceTopAndBottom(globalTopAndBottomClient, &topAndBottom)
+		globalTopAndBottom[clientID] = utils.ReduceTopAndBottom(globalTopAndBottomClient, &topAndBottom, DEFAULT_MESSAGE_ID_UNIQUE_OUTPUT)
 	}
 }
 
@@ -438,7 +442,7 @@ func (aggregator *Aggregator) aggregateMetrics() {
 		aggregator.Log.Debugf("[client_id:%s] %s: %v", clientID, MSG_SENT_TO_REPORT, report)
 
 		// submit the EOF to report
-		dataEof, errEof := protoUtils.CreateEofMessageMetrics(clientID)
+		dataEof, errEof := protoUtils.CreateEofMessageMetrics(clientID, DEFAULT_MESSAGE_ID_EOF_UNIQUE_OUTPUT)
 		aggregator.checkErrorAndPublish(clientID, dataEof, errEof)
 	}
 	// wait go func

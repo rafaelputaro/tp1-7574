@@ -9,7 +9,8 @@ message Rating {
   required float rating = 2;
   required int64 timestamp = 3;
   optional string clientId = 4;
-  optional bool eof = 5;
+  optional int64 messageId = 5;
+  optional bool eof = 6;
 }
 
 service RatingService {

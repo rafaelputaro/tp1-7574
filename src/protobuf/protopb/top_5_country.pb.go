@@ -26,7 +26,8 @@ type Top5Country struct {
 	Budget              []int64                `protobuf:"varint,1,rep,name=budget" json:"budget,omitempty"`
 	ProductionCountries []string               `protobuf:"bytes,2,rep,name=production_countries,json=productionCountries" json:"production_countries,omitempty"`
 	ClientId            *string                `protobuf:"bytes,3,opt,name=clientId" json:"clientId,omitempty"`
-	Eof                 *bool                  `protobuf:"varint,4,opt,name=eof" json:"eof,omitempty"`
+	MessageId           *int64                 `protobuf:"varint,4,opt,name=messageId" json:"messageId,omitempty"`
+	Eof                 *bool                  `protobuf:"varint,5,opt,name=eof" json:"eof,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -82,6 +83,13 @@ func (x *Top5Country) GetClientId() string {
 	return ""
 }
 
+func (x *Top5Country) GetMessageId() int64 {
+	if x != nil && x.MessageId != nil {
+		return *x.MessageId
+	}
+	return 0
+}
+
 func (x *Top5Country) GetEof() bool {
 	if x != nil && x.Eof != nil {
 		return *x.Eof
@@ -93,12 +101,13 @@ var File_top_5_country_proto protoreflect.FileDescriptor
 
 const file_top_5_country_proto_rawDesc = "" +
 	"\n" +
-	"\x13top_5_country.proto\"\x86\x01\n" +
+	"\x13top_5_country.proto\"\xa4\x01\n" +
 	"\vTop5Country\x12\x16\n" +
 	"\x06budget\x18\x01 \x03(\x03R\x06budget\x121\n" +
 	"\x14production_countries\x18\x02 \x03(\tR\x13productionCountries\x12\x1a\n" +
-	"\bclientId\x18\x03 \x01(\tR\bclientId\x12\x10\n" +
-	"\x03eof\x18\x04 \x01(\bR\x03eofB\vZ\t./protopb"
+	"\bclientId\x18\x03 \x01(\tR\bclientId\x12\x1c\n" +
+	"\tmessageId\x18\x04 \x01(\x03R\tmessageId\x12\x10\n" +
+	"\x03eof\x18\x05 \x01(\bR\x03eofB\vZ\t./protopb"
 
 var (
 	file_top_5_country_proto_rawDescOnce sync.Once

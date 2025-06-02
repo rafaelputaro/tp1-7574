@@ -4,5 +4,6 @@ message RevenueOverBudget {
   required double sumRevenueOverBudget = 1;
   required int64 amountReviews = 2;
   optional string clientId = 3;
-  optional bool eof = 4;
+  optional int64 messageId = 4;
+  optional bool eof = 5;
 }

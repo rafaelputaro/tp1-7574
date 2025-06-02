@@ -27,7 +27,8 @@ type Actor struct {
 	ProfilePath   *string                `protobuf:"bytes,2,req,name=profilePath" json:"profilePath,omitempty"`
 	CountMovies   *int64                 `protobuf:"varint,3,req,name=countMovies" json:"countMovies,omitempty"`
 	ClientId      *string                `protobuf:"bytes,4,opt,name=clientId" json:"clientId,omitempty"`
-	Eof           *bool                  `protobuf:"varint,5,opt,name=eof" json:"eof,omitempty"`
+	MessageId     *int64                 `protobuf:"varint,5,opt,name=messageId" json:"messageId,omitempty"`
+	Eof           *bool                  `protobuf:"varint,6,opt,name=eof" json:"eof,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -90,6 +91,13 @@ func (x *Actor) GetClientId() string {
 	return ""
 }
 
+func (x *Actor) GetMessageId() int64 {
+	if x != nil && x.MessageId != nil {
+		return *x.MessageId
+	}
+	return 0
+}
+
 func (x *Actor) GetEof() bool {
 	if x != nil && x.Eof != nil {
 		return *x.Eof
@@ -101,13 +109,14 @@ var File_actor_proto protoreflect.FileDescriptor
 
 const file_actor_proto_rawDesc = "" +
 	"\n" +
-	"\vactor.proto\"\x8d\x01\n" +
+	"\vactor.proto\"\xab\x01\n" +
 	"\x05Actor\x12\x12\n" +
 	"\x04name\x18\x01 \x02(\tR\x04name\x12 \n" +
 	"\vprofilePath\x18\x02 \x02(\tR\vprofilePath\x12 \n" +
 	"\vcountMovies\x18\x03 \x02(\x03R\vcountMovies\x12\x1a\n" +
-	"\bclientId\x18\x04 \x01(\tR\bclientId\x12\x10\n" +
-	"\x03eof\x18\x05 \x01(\bR\x03eofB\vZ\t./protopb"
+	"\bclientId\x18\x04 \x01(\tR\bclientId\x12\x1c\n" +
+	"\tmessageId\x18\x05 \x01(\x03R\tmessageId\x12\x10\n" +
+	"\x03eof\x18\x06 \x01(\bR\x03eofB\vZ\t./protopb"
 
 var (
 	file_actor_proto_rawDescOnce sync.Once

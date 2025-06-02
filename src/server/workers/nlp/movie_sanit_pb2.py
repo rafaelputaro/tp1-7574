@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x11movie_sanit.proto\"\xbd\x01\n\nMovieSanit\x12\x0e\n\x06\x62udget\x18\x01 \x02(\x03\x12\x0e\n\x06genres\x18\x02 \x03(\t\x12\n\n\x02id\x18\x03 \x02(\x05\x12\x10\n\x08overview\x18\x04 \x02(\t\x12\x1c\n\x14production_countries\x18\x05 \x03(\t\x12\x14\n\x0crelease_year\x18\x06 \x02(\r\x12\x0f\n\x07revenue\x18\x07 \x02(\x01\x12\r\n\x05title\x18\x08 \x02(\t\x12\x10\n\x08\x63lientId\x18\t \x01(\t\x12\x0b\n\x03\x65of\x18\n \x01(\x08\x42\x0bZ\t./protopb')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x11movie_sanit.proto\"\xd0\x01\n\nMovieSanit\x12\x0e\n\x06\x62udget\x18\x01 \x02(\x03\x12\x0e\n\x06genres\x18\x02 \x03(\t\x12\n\n\x02id\x18\x03 \x02(\x05\x12\x10\n\x08overview\x18\x04 \x02(\t\x12\x1c\n\x14production_countries\x18\x05 \x03(\t\x12\x14\n\x0crelease_year\x18\x06 \x02(\r\x12\x0f\n\x07revenue\x18\x07 \x02(\x01\x12\r\n\x05title\x18\x08 \x02(\t\x12\x10\n\x08\x63lientId\x18\t \x01(\t\x12\x11\n\tmessageId\x18\n \x01(\x03\x12\x0b\n\x03\x65of\x18\x0b \x01(\x08\x42\x0bZ\t./protopb')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,5 +33,5 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'Z\t./protopb'
   _globals['_MOVIESANIT']._serialized_start=22
-  _globals['_MOVIESANIT']._serialized_end=211
+  _globals['_MOVIESANIT']._serialized_end=230
 # @@protoc_insertion_point(module_scope)

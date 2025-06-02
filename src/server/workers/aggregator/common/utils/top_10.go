@@ -1,9 +1,10 @@
 package utils
 
 import (
-	"google.golang.org/protobuf/proto"
 	"slices"
 	"tp1/protobuf/protopb"
+
+	"google.golang.org/protobuf/proto"
 )
 
 type ActorData struct {
@@ -74,7 +75,7 @@ func (actorsData *ActorsData) sort() {
 	slices.SortFunc(actorsData.data, cmpData)
 }
 
-func (actorsData *ActorsData) GetTop10(clientID string) *protopb.Top10 {
+func (actorsData *ActorsData) GetTop10(clientID string, messageId int64) *protopb.Top10 {
 	actorsData.sort()
 	lenTop := 10
 	lenData := len(actorsData.data)
@@ -86,6 +87,7 @@ func (actorsData *ActorsData) GetTop10(clientID string) *protopb.Top10 {
 		ProfilePaths: []string{},
 		CountMovies:  []int64{},
 		ClientId:     proto.String(clientID),
+		MessageId:    proto.Int64(messageId),
 	}
 	for index := range lenTop {
 		toReturn.Names = append(toReturn.Names, actorsData.data[index].Name)

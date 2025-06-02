@@ -28,7 +28,8 @@ type TopAndBottomRatingAvg struct {
 	RatingAvgTop    *float64               `protobuf:"fixed64,3,opt,name=rating_avg_top,json=ratingAvgTop" json:"rating_avg_top,omitempty"`
 	RatingAvgBottom *float64               `protobuf:"fixed64,4,opt,name=rating_avg_bottom,json=ratingAvgBottom" json:"rating_avg_bottom,omitempty"`
 	ClientId        *string                `protobuf:"bytes,5,opt,name=clientId" json:"clientId,omitempty"`
-	Eof             *bool                  `protobuf:"varint,6,opt,name=eof" json:"eof,omitempty"`
+	MessageId       *int64                 `protobuf:"varint,6,opt,name=messageId" json:"messageId,omitempty"`
+	Eof             *bool                  `protobuf:"varint,7,opt,name=eof" json:"eof,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -98,6 +99,13 @@ func (x *TopAndBottomRatingAvg) GetClientId() string {
 	return ""
 }
 
+func (x *TopAndBottomRatingAvg) GetMessageId() int64 {
+	if x != nil && x.MessageId != nil {
+		return *x.MessageId
+	}
+	return 0
+}
+
 func (x *TopAndBottomRatingAvg) GetEof() bool {
 	if x != nil && x.Eof != nil {
 		return *x.Eof
@@ -109,14 +117,15 @@ var File_top_and_bottom_rating_avg_proto protoreflect.FileDescriptor
 
 const file_top_and_bottom_rating_avg_proto_rawDesc = "" +
 	"\n" +
-	"\x1ftop_and_bottom_rating_avg.proto\"\xd7\x01\n" +
+	"\x1ftop_and_bottom_rating_avg.proto\"\xf5\x01\n" +
 	"\x15TopAndBottomRatingAvg\x12\x1b\n" +
 	"\ttitle_top\x18\x01 \x01(\tR\btitleTop\x12!\n" +
 	"\ftitle_bottom\x18\x02 \x01(\tR\vtitleBottom\x12$\n" +
 	"\x0erating_avg_top\x18\x03 \x01(\x01R\fratingAvgTop\x12*\n" +
 	"\x11rating_avg_bottom\x18\x04 \x01(\x01R\x0fratingAvgBottom\x12\x1a\n" +
-	"\bclientId\x18\x05 \x01(\tR\bclientId\x12\x10\n" +
-	"\x03eof\x18\x06 \x01(\bR\x03eofB\vZ\t./protopb"
+	"\bclientId\x18\x05 \x01(\tR\bclientId\x12\x1c\n" +
+	"\tmessageId\x18\x06 \x01(\x03R\tmessageId\x12\x10\n" +
+	"\x03eof\x18\a \x01(\bR\x03eofB\vZ\t./protopb"
 
 var (
 	file_top_and_bottom_rating_avg_proto_rawDescOnce sync.Once

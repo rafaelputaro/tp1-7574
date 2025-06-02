@@ -527,7 +527,7 @@ func (f *Filter) processSingleCountryOriginFilter() {
 			coord.TakeLeadership(clientID)
 			coord.WaitForACKs(clientID)
 
-			dataEof, err := protoUtils.CreateEofMessageMovieSanit(clientID)
+			dataEof, err := protoUtils.CreateEofMessageMovieSanit(clientID, movie.GetMessageId())
 			if err != nil {
 				f.log.Fatalf("[client_id:%s] failed to marshal eof: %v", clientID, err)
 			}

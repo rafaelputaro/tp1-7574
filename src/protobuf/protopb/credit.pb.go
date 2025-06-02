@@ -27,7 +27,8 @@ type Credit struct {
 	Cast          *string                `protobuf:"bytes,1,req,name=cast" json:"cast,omitempty"`
 	Id            *int64                 `protobuf:"varint,2,req,name=id" json:"id,omitempty"`
 	ClientId      *string                `protobuf:"bytes,3,opt,name=clientId" json:"clientId,omitempty"`
-	Eof           *bool                  `protobuf:"varint,4,opt,name=eof" json:"eof,omitempty"`
+	MessageId     *int64                 `protobuf:"varint,4,opt,name=messageId" json:"messageId,omitempty"`
+	Eof           *bool                  `protobuf:"varint,5,opt,name=eof" json:"eof,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -83,6 +84,13 @@ func (x *Credit) GetClientId() string {
 	return ""
 }
 
+func (x *Credit) GetMessageId() int64 {
+	if x != nil && x.MessageId != nil {
+		return *x.MessageId
+	}
+	return 0
+}
+
 func (x *Credit) GetEof() bool {
 	if x != nil && x.Eof != nil {
 		return *x.Eof
@@ -94,12 +102,13 @@ var File_credit_proto protoreflect.FileDescriptor
 
 const file_credit_proto_rawDesc = "" +
 	"\n" +
-	"\fcredit.proto\x1a\x1bgoogle/protobuf/empty.proto\"Z\n" +
+	"\fcredit.proto\x1a\x1bgoogle/protobuf/empty.proto\"x\n" +
 	"\x06Credit\x12\x12\n" +
 	"\x04cast\x18\x01 \x02(\tR\x04cast\x12\x0e\n" +
 	"\x02id\x18\x02 \x02(\x03R\x02id\x12\x1a\n" +
-	"\bclientId\x18\x03 \x01(\tR\bclientId\x12\x10\n" +
-	"\x03eof\x18\x04 \x01(\bR\x03eof2C\n" +
+	"\bclientId\x18\x03 \x01(\tR\bclientId\x12\x1c\n" +
+	"\tmessageId\x18\x04 \x01(\x03R\tmessageId\x12\x10\n" +
+	"\x03eof\x18\x05 \x01(\bR\x03eof2C\n" +
 	"\rCreditService\x122\n" +
 	"\rStreamCredits\x12\a.Credit\x1a\x16.google.protobuf.Empty(\x01B\vZ\t./protopb"
 

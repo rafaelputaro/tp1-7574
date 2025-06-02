@@ -15,7 +15,8 @@ message Movie {
   required string spoken_languages = 18;
   required string title = 21;
   optional string clientId = 25;
-  optional bool eof = 26;
+  optional int64 messageId = 26;
+  optional bool eof = 27;
 }
 
 service MovieService {

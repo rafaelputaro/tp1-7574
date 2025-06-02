@@ -27,7 +27,8 @@ type CreditSanit struct {
 	ProfilePaths  []string               `protobuf:"bytes,2,rep,name=profilePaths" json:"profilePaths,omitempty"`
 	Id            *int64                 `protobuf:"varint,3,req,name=id" json:"id,omitempty"`
 	ClientId      *string                `protobuf:"bytes,4,opt,name=clientId" json:"clientId,omitempty"`
-	Eof           *bool                  `protobuf:"varint,5,opt,name=eof" json:"eof,omitempty"`
+	MessageId     *int64                 `protobuf:"varint,5,opt,name=messageId" json:"messageId,omitempty"`
+	Eof           *bool                  `protobuf:"varint,6,opt,name=eof" json:"eof,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -90,6 +91,13 @@ func (x *CreditSanit) GetClientId() string {
 	return ""
 }
 
+func (x *CreditSanit) GetMessageId() int64 {
+	if x != nil && x.MessageId != nil {
+		return *x.MessageId
+	}
+	return 0
+}
+
 func (x *CreditSanit) GetEof() bool {
 	if x != nil && x.Eof != nil {
 		return *x.Eof
@@ -101,13 +109,14 @@ var File_credit_sanit_proto protoreflect.FileDescriptor
 
 const file_credit_sanit_proto_rawDesc = "" +
 	"\n" +
-	"\x12credit_sanit.proto\"\x8d\x01\n" +
+	"\x12credit_sanit.proto\"\xab\x01\n" +
 	"\vCreditSanit\x12\x1c\n" +
 	"\tcastNames\x18\x01 \x03(\tR\tcastNames\x12\"\n" +
 	"\fprofilePaths\x18\x02 \x03(\tR\fprofilePaths\x12\x0e\n" +
 	"\x02id\x18\x03 \x02(\x03R\x02id\x12\x1a\n" +
-	"\bclientId\x18\x04 \x01(\tR\bclientId\x12\x10\n" +
-	"\x03eof\x18\x05 \x01(\bR\x03eofB\vZ\t./protopb"
+	"\bclientId\x18\x04 \x01(\tR\bclientId\x12\x1c\n" +
+	"\tmessageId\x18\x05 \x01(\x03R\tmessageId\x12\x10\n" +
+	"\x03eof\x18\x06 \x01(\bR\x03eofB\vZ\t./protopb"
 
 var (
 	file_credit_sanit_proto_rawDescOnce sync.Once

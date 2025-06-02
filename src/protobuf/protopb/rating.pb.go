@@ -28,7 +28,8 @@ type Rating struct {
 	Rating        *float32               `protobuf:"fixed32,2,req,name=rating" json:"rating,omitempty"`
 	Timestamp     *int64                 `protobuf:"varint,3,req,name=timestamp" json:"timestamp,omitempty"`
 	ClientId      *string                `protobuf:"bytes,4,opt,name=clientId" json:"clientId,omitempty"`
-	Eof           *bool                  `protobuf:"varint,5,opt,name=eof" json:"eof,omitempty"`
+	MessageId     *int64                 `protobuf:"varint,5,opt,name=messageId" json:"messageId,omitempty"`
+	Eof           *bool                  `protobuf:"varint,6,opt,name=eof" json:"eof,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -91,6 +92,13 @@ func (x *Rating) GetClientId() string {
 	return ""
 }
 
+func (x *Rating) GetMessageId() int64 {
+	if x != nil && x.MessageId != nil {
+		return *x.MessageId
+	}
+	return 0
+}
+
 func (x *Rating) GetEof() bool {
 	if x != nil && x.Eof != nil {
 		return *x.Eof
@@ -102,13 +110,14 @@ var File_rating_proto protoreflect.FileDescriptor
 
 const file_rating_proto_rawDesc = "" +
 	"\n" +
-	"\frating.proto\x1a\x1bgoogle/protobuf/empty.proto\"\x86\x01\n" +
+	"\frating.proto\x1a\x1bgoogle/protobuf/empty.proto\"\xa4\x01\n" +
 	"\x06Rating\x12\x18\n" +
 	"\amovieId\x18\x01 \x02(\x03R\amovieId\x12\x16\n" +
 	"\x06rating\x18\x02 \x02(\x02R\x06rating\x12\x1c\n" +
 	"\ttimestamp\x18\x03 \x02(\x03R\ttimestamp\x12\x1a\n" +
-	"\bclientId\x18\x04 \x01(\tR\bclientId\x12\x10\n" +
-	"\x03eof\x18\x05 \x01(\bR\x03eof2C\n" +
+	"\bclientId\x18\x04 \x01(\tR\bclientId\x12\x1c\n" +
+	"\tmessageId\x18\x05 \x01(\x03R\tmessageId\x12\x10\n" +
+	"\x03eof\x18\x06 \x01(\bR\x03eof2C\n" +
 	"\rRatingService\x122\n" +
 	"\rStreamRatings\x12\a.Rating\x1a\x16.google.protobuf.Empty(\x01B\vZ\t./protopb"
 

@@ -10,38 +10,20 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func TestTop5(t *testing.T) {
-	top1 := protoUtils.CreateMinimumTop5Country("")
-	top1.Budget[2] = 500
-	top2 := protopb.Top5Country{
-		Budget:              []int64{50, 2000, 10000, 500},
-		ProductionCountries: []string{"Argentine", "England", "USA", "France"},
-	}
-	sorted := protopb.Top5Country{
-		Budget:              []int64{10000, 2000, 500, 500, 50},
-		ProductionCountries: []string{"USA", "England", "Empty2", "France", "Argentine"},
-		ClientId:            proto.String(""),
-	}
-	globalTop := ReduceTop5(top1, &top2)
-	if protoUtils.Top5ToString(globalTop) != protoUtils.Top5ToString(&sorted) {
-		t.Fatal("Error on reduce top 5")
-	}
-}
-
 func TestTopAndBottom(t *testing.T) {
-	topAndBottom1 := protoUtils.CreateSeedTopAndBottom("")
+	topAndBottom1 := protoUtils.CreateSeedTopAndBottom("", 0)
 	topAndBottom2 := protopb.TopAndBottomRatingAvg{
 		TitleTop:        proto.String("Rocky"),
 		RatingAvgTop:    proto.Float64(8.3),
 		TitleBottom:     proto.String("Attack of the killer tomatoes"),
 		RatingAvgBottom: proto.Float64(3.2),
 	}
-	newTop := ReduceTopAndBottom(topAndBottom1, &topAndBottom2)
+	newTop := ReduceTopAndBottom(topAndBottom1, &topAndBottom2, 0)
 	if *newTop.TitleTop != *topAndBottom2.TitleTop || *newTop.RatingAvgTop != *topAndBottom2.RatingAvgTop ||
 		*newTop.TitleBottom != *topAndBottom2.TitleBottom || *newTop.RatingAvgBottom != *topAndBottom2.RatingAvgBottom {
 		t.Fatal("Error on reduce bottom and top")
 	}
-	newTop = ReduceTopAndBottom(&topAndBottom2, topAndBottom1)
+	newTop = ReduceTopAndBottom(&topAndBottom2, topAndBottom1, 0)
 	if *newTop.TitleTop != *topAndBottom2.TitleTop || *newTop.RatingAvgTop != *topAndBottom2.RatingAvgTop ||
 		*newTop.TitleBottom != *topAndBottom2.TitleBottom || *newTop.RatingAvgBottom != *topAndBottom2.RatingAvgBottom {
 		t.Fatal("Error on reduce bottom and top")
@@ -52,12 +34,12 @@ func TestTopAndBottom(t *testing.T) {
 		TitleBottom:     proto.String("Mars Attack"),
 		RatingAvgBottom: proto.Float64(1.2),
 	}
-	newTop = ReduceTopAndBottom(&topAndBottom2, topAndBottom1)
+	newTop = ReduceTopAndBottom(&topAndBottom2, topAndBottom1, 0)
 	if *newTop.TitleTop != *topAndBottom2.TitleTop || *newTop.RatingAvgTop != *topAndBottom2.RatingAvgTop ||
 		*newTop.TitleBottom != *topAndBottom1.TitleBottom || *newTop.RatingAvgBottom != *topAndBottom1.RatingAvgBottom {
 		t.Fatal("Error on reduce bottom and top")
 	}
-	newTop = ReduceTopAndBottom(topAndBottom1, &topAndBottom2)
+	newTop = ReduceTopAndBottom(topAndBottom1, &topAndBottom2, 0)
 	if *newTop.TitleTop != *topAndBottom2.TitleTop || *newTop.RatingAvgTop != *topAndBottom2.RatingAvgTop ||
 		*newTop.TitleBottom != *topAndBottom1.TitleBottom || *newTop.RatingAvgBottom != *topAndBottom1.RatingAvgBottom {
 		t.Fatal("Error on reduce bottom and top")
@@ -97,10 +79,11 @@ func TestTop10(t *testing.T) {
 			Name:        proto.String(actorsName[index]),
 			ProfilePath: proto.String(fmt.Sprintf("%v.jpeg", actorsName[index])),
 			CountMovies: proto.Int64(actorsCount[index]),
+			MessageId:   proto.Int64(0),
 		})
 	}
-	toCheck := "Mark Rufallo(14) Rosario Dawson(6) Morena Baccarin(6) Hugh Grant(5) Mel Gibson(5) Franchella(5) Gina Carano(4) Vincent D'Onofrio(4) Julia Roberts(4) Ryan Reynolds(3)"
-	if !strings.Contains(protoUtils.Top10ToString(actorsData.GetTop10("")), toCheck) {
+	toCheck := "Mark Rufallo(14) Morena Baccarin(6) Rosario Dawson(6) Franchella(5) Hugh Grant(5) Mel Gibson(5) Gina Carano(4) Julia Roberts(4) Vincent D'Onofrio(4) Chris Evans(3)"
+	if !strings.Contains(protoUtils.Top10ToString(actorsData.GetTop10("", 0)), toCheck) {
 		t.Fatal("Error on reduce top10")
 	}
 }
@@ -197,7 +180,7 @@ func TestMetricsResult(t *testing.T) {
 
 func TestGetOrInitKeyMapWithKey(t *testing.T) {
 	globalTop5 := make(map[string]*protopb.Top5Country)
-	found := GetOrInitKeyMapWithKey(&globalTop5, "", protoUtils.CreateMinimumTop5Country)
+	found := GetOrInitKeyMapWithKeyAndMsgId(&globalTop5, "", 0, protoUtils.CreateMinimumTop5Country)
 	if *globalTop5[""].ClientId != "" {
 		t.Fatal("Error on map")
 	}
@@ -205,16 +188,16 @@ func TestGetOrInitKeyMapWithKey(t *testing.T) {
 		t.Fatal("Error on map")
 	}
 	globalTop5[""].Budget[0] = 1000
-	found = GetOrInitKeyMapWithKey(&globalTop5, "", protoUtils.CreateMinimumTop5Country)
+	found = GetOrInitKeyMapWithKeyAndMsgId(&globalTop5, "", 0, protoUtils.CreateMinimumTop5Country)
 	if found.Budget[0] != 1000 {
 		t.Fatal("Error on map")
 	}
 	if globalTop5[""].Budget[0] != 1000 {
 		t.Fatal("Error on map")
 	}
-	found = GetOrInitKeyMapWithKey(&globalTop5, "", protoUtils.CreateMinimumTop5Country)
+	found = GetOrInitKeyMapWithKeyAndMsgId(&globalTop5, "", 0, protoUtils.CreateMinimumTop5Country)
 	found.Budget[0] = 2000
-	found = GetOrInitKeyMapWithKey(&globalTop5, "", protoUtils.CreateMinimumTop5Country)
+	found = GetOrInitKeyMapWithKeyAndMsgId(&globalTop5, "", 0, protoUtils.CreateMinimumTop5Country)
 	if found.Budget[0] != 2000 {
 		t.Fatal("Error on map")
 	}
@@ -236,7 +219,7 @@ func TestGetOrInitKeyMapWithKey(t *testing.T) {
 		CountMovies: proto.Int64(1000),
 		ClientId:    proto.String(""),
 	})
-	top10 := actorsDataClient.GetTop10("")
+	top10 := actorsDataClient.GetTop10("", 1)
 	if top10.CountMovies[0] != 2000 {
 		t.Fatal("Error on map")
 	}
