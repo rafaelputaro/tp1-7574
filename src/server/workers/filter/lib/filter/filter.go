@@ -281,6 +281,7 @@ func (f *Filter) processTop5InvestorsFilter() {
 				Budget:              []int64{},
 				ProductionCountries: []string{},
 				ClientId:            movie.ClientId,
+				MessageId:           movie.MessageId,
 			}
 			// eof := true
 			// top5.Eof = &eof
@@ -317,6 +318,7 @@ func (f *Filter) processTop5InvestorsFilter() {
 				ProductionCountries: []string{},
 				Eof:                 proto.Bool(true),
 				ClientId:            movie.ClientId,
+				MessageId:           movie.MessageId,
 			}
 
 			eofDataBytes, err := proto.Marshal(eofData)
