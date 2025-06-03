@@ -16,6 +16,10 @@ import (
 const G_B_M_ID_RATINGS string = "group_by_movie_id_ratings"
 const G_B_M_ID_CREDITS string = "group_by_movie_id_credits"
 
+// Ouput message IDs:
+const DEFAULT_MESSAGE_ID_UNIQUE_OUTPUT int64 = 0
+const DEFAULT_MESSAGE_ID_EOF_UNIQUE_OUTPUT int64 = 1
+
 // Messages to log:
 const MSG_START = "Starting job for ID"
 const MSG_FAILED_CONSUME = "Failed to consume messages from"
@@ -140,19 +144,21 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 	// Function to send the report when both EOFs are received
 	sendReportIfReady := func(clientID string, state *clientState) {
 		if state.movieEOF && state.creditEOF {
+			numMsg := int64(64)
 			// Send actor counts for the client
 			for actorPath := range state.counter.Actors {
-				actor := state.counter.GetActor(actorPath, clientID)
+				actor := state.counter.GetActor(actorPath, clientID, numMsg, joiner.Config.InputQueueName)
 				data, err := proto.Marshal(actor)
 				if err != nil {
 					joiner.Log.Fatalf("[client_id:%s] failed to marshal actor data: %v", clientID, err)
 				}
 				joiner.publishData(data)
+				numMsg++
 				joiner.Log.Debugf("[client_id:%s] sent actor count: %v", clientID, actor)
 			}
 
 			// Send EOF for the client
-			eof := utils.CreateActorEof(clientID)
+			eof := utils.CreateActorEof(clientID, numMsg, joiner.Config.InputQueueName)
 			data, err := proto.Marshal(eof)
 			if err != nil {
 				joiner.Log.Fatalf("[client_id:%s] failed to marshal actor data eof: %v", clientID, err)
@@ -296,7 +302,7 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 	sendReportIfReady := func(clientID string, state *clientState) {
 		if state.movieEOF && state.ratingEOF {
 			// Get top and bottom ratings
-			topAndBottom := state.totalizer.GetTopAndBottom(clientID)
+			topAndBottom := state.totalizer.GetTopAndBottom(clientID, DEFAULT_MESSAGE_ID_UNIQUE_OUTPUT, joiner.Config.InputQueueName)
 
 			// Prepare report
 			joiner.Log.Debugf("[client_id:%s] send top and bottom: %s", clientID, utils.TopAndBottomToString(topAndBottom))
@@ -310,7 +316,7 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 			joiner.publishData(data)
 
 			// Send EOF for the client
-			eof := utils.CreateTopAndBottomRatingAvgEof(clientID)
+			eof := utils.CreateTopAndBottomRatingAvgEof(clientID, DEFAULT_MESSAGE_ID_EOF_UNIQUE_OUTPUT, joiner.Config.InputQueueName)
 			data, err = proto.Marshal(eof)
 			if err != nil {
 				joiner.Log.Fatalf("[client_id:%s] failed to marshall top and bottom EOF: %v", clientID, err)

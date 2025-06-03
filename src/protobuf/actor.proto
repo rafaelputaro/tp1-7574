@@ -5,6 +5,7 @@ message Actor {
   required string profilePath = 2;
   required int64 countMovies = 3;
   optional string clientId = 4;
-  optional int64 messageId = 5;
-  optional bool eof = 6;
+  required int64 messageId = 5;
+  required string sourceId = 6;
+  optional bool eof = 7;
 }

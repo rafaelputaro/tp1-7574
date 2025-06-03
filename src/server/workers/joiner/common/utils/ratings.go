@@ -58,7 +58,7 @@ func (totalizer *RatingTotalizer) Sum(rating *protopb.RatingSanit) {
 	}
 }
 
-func CreateTopAndBottomRatingAvgEof(clientID string) *protopb.TopAndBottomRatingAvg {
+func CreateTopAndBottomRatingAvgEof(clientID string, messageId int64, sourceId string) *protopb.TopAndBottomRatingAvg {
 	return &protopb.TopAndBottomRatingAvg{
 		TitleTop:        proto.String("Dummy1"),
 		TitleBottom:     proto.String("Dummy2"),
@@ -66,6 +66,8 @@ func CreateTopAndBottomRatingAvgEof(clientID string) *protopb.TopAndBottomRating
 		RatingAvgBottom: proto.Float64(0.0),
 		Eof:             proto.Bool(true),
 		ClientId:        proto.String(clientID),
+		MessageId:       proto.Int64(messageId),
+		SourceId:        proto.String(sourceId),
 	}
 }
 
@@ -108,7 +110,7 @@ func (totalizer *RatingTotalizer) sort() {
 	slices.SortFunc(totalizer.Movies, cmpMovieData)
 }
 
-func (totalizer *RatingTotalizer) GetTopAndBottom(clientID string) *protopb.TopAndBottomRatingAvg {
+func (totalizer *RatingTotalizer) GetTopAndBottom(clientID string, messageId int64, sourceId string) *protopb.TopAndBottomRatingAvg {
 	totalizer.sort()
 
 	lastIndex := -1
@@ -126,5 +128,7 @@ func (totalizer *RatingTotalizer) GetTopAndBottom(clientID string) *protopb.TopA
 		RatingAvgTop:    &totalizer.Movies[0].RatingAvg,
 		RatingAvgBottom: &last.RatingAvg,
 		ClientId:        proto.String(clientID),
+		MessageId:       proto.Int64(messageId),
+		SourceId:        proto.String(sourceId),
 	}
 }

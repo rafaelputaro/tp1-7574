@@ -6,8 +6,8 @@ import (
 )
 
 // Create a new top from two partials top's.
-func ReduceTopAndBottom(topAndBottom1, topAndBottom2 *protopb.TopAndBottomRatingAvg, messageId int64) *protopb.TopAndBottomRatingAvg {
-	toReturn := protoUtils.CreateSeedTopAndBottom(topAndBottom1.GetClientId(), messageId)
+func ReduceTopAndBottom(topAndBottom1, topAndBottom2 *protopb.TopAndBottomRatingAvg, messageId int64, sourceId string) *protopb.TopAndBottomRatingAvg {
+	toReturn := protoUtils.CreateSeedTopAndBottom(topAndBottom1.GetClientId(), messageId, sourceId)
 	// Compare top
 	if topAndBottom1.GetRatingAvgTop() > topAndBottom2.GetRatingAvgTop() {
 		*toReturn.RatingAvgTop = topAndBottom1.GetRatingAvgTop()

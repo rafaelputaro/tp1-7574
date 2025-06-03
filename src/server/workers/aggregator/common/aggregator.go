@@ -24,6 +24,7 @@ const METRICS string = "metrics"
 // Ouput message IDs:
 const DEFAULT_MESSAGE_ID_UNIQUE_OUTPUT int64 = 0
 const DEFAULT_MESSAGE_ID_EOF_UNIQUE_OUTPUT int64 = 1
+const DEFAULT_MESSAGE_SOURCE_ID string = ""
 
 // Messages to log:
 const MSG_ERROR_CONFIG = "Configuration could not be read from config file. Using env variables instead"
@@ -375,7 +376,7 @@ func (aggregator *Aggregator) aggregateTopAndBottom() {
 		clientID := topAndBottom.GetClientId()
 		aggregator.Log.Debugf("[aggregator_%s client_%s] %s : %s", aggregator.Config.AggregatorType, clientID, MSG_RECEIVED, protoUtils.TopAndBottomToString(&topAndBottom))
 		// Actual top and bottom for a client
-		globalTopAndBottomClient := utils.GetOrInitKeyMapWithKeyAndMsgId(&globalTopAndBottom, clientID, DEFAULT_MESSAGE_ID_UNIQUE_OUTPUT, protoUtils.CreateSeedTopAndBottom)
+		globalTopAndBottomClient := utils.GetOrInitKeyMapWithKeyAndMsgIdAndSrcId(&globalTopAndBottom, clientID, DEFAULT_MESSAGE_ID_UNIQUE_OUTPUT, DEFAULT_MESSAGE_SOURCE_ID, protoUtils.CreateSeedTopAndBottom)
 		// EOF
 		if topAndBottom.GetEof() {
 			amountEOF[clientID] = utils.GetOrInitKeyMap(&amountEOF, clientID, utils.InitEOFCount) + 1
@@ -390,12 +391,12 @@ func (aggregator *Aggregator) aggregateTopAndBottom() {
 				aggregator.publishData(data)
 				aggregator.Log.Debugf("[aggregator_%s client_%s] %s: %s", aggregator.Config.AggregatorType, clientID, MSG_SENT_TO_REPORT, protoUtils.TopAndBottomToString(globalTopAndBottomClient))
 				// submit the EOF to report
-				dataEof, errEof := protoUtils.CreateEofMessageTopAndBottomRatingAvg(clientID, DEFAULT_MESSAGE_ID_EOF_UNIQUE_OUTPUT)
+				dataEof, errEof := protoUtils.CreateEofMessageTopAndBottomRatingAvg(clientID, DEFAULT_MESSAGE_ID_EOF_UNIQUE_OUTPUT, DEFAULT_MESSAGE_SOURCE_ID)
 				aggregator.checkErrorAndPublish(clientID, dataEof, errEof)
 			}
 			continue
 		}
-		globalTopAndBottom[clientID] = utils.ReduceTopAndBottom(globalTopAndBottomClient, &topAndBottom, DEFAULT_MESSAGE_ID_UNIQUE_OUTPUT)
+		globalTopAndBottom[clientID] = utils.ReduceTopAndBottom(globalTopAndBottomClient, &topAndBottom, DEFAULT_MESSAGE_ID_UNIQUE_OUTPUT, DEFAULT_MESSAGE_SOURCE_ID)
 	}
 }
 

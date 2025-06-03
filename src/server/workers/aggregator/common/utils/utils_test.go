@@ -11,19 +11,19 @@ import (
 )
 
 func TestTopAndBottom(t *testing.T) {
-	topAndBottom1 := protoUtils.CreateSeedTopAndBottom("", 0)
+	topAndBottom1 := protoUtils.CreateSeedTopAndBottom("", 0, "")
 	topAndBottom2 := protopb.TopAndBottomRatingAvg{
 		TitleTop:        proto.String("Rocky"),
 		RatingAvgTop:    proto.Float64(8.3),
 		TitleBottom:     proto.String("Attack of the killer tomatoes"),
 		RatingAvgBottom: proto.Float64(3.2),
 	}
-	newTop := ReduceTopAndBottom(topAndBottom1, &topAndBottom2, 0)
+	newTop := ReduceTopAndBottom(topAndBottom1, &topAndBottom2, 0, "")
 	if *newTop.TitleTop != *topAndBottom2.TitleTop || *newTop.RatingAvgTop != *topAndBottom2.RatingAvgTop ||
 		*newTop.TitleBottom != *topAndBottom2.TitleBottom || *newTop.RatingAvgBottom != *topAndBottom2.RatingAvgBottom {
 		t.Fatal("Error on reduce bottom and top")
 	}
-	newTop = ReduceTopAndBottom(&topAndBottom2, topAndBottom1, 0)
+	newTop = ReduceTopAndBottom(&topAndBottom2, topAndBottom1, 0, "")
 	if *newTop.TitleTop != *topAndBottom2.TitleTop || *newTop.RatingAvgTop != *topAndBottom2.RatingAvgTop ||
 		*newTop.TitleBottom != *topAndBottom2.TitleBottom || *newTop.RatingAvgBottom != *topAndBottom2.RatingAvgBottom {
 		t.Fatal("Error on reduce bottom and top")
@@ -34,12 +34,12 @@ func TestTopAndBottom(t *testing.T) {
 		TitleBottom:     proto.String("Mars Attack"),
 		RatingAvgBottom: proto.Float64(1.2),
 	}
-	newTop = ReduceTopAndBottom(&topAndBottom2, topAndBottom1, 0)
+	newTop = ReduceTopAndBottom(&topAndBottom2, topAndBottom1, 0, "")
 	if *newTop.TitleTop != *topAndBottom2.TitleTop || *newTop.RatingAvgTop != *topAndBottom2.RatingAvgTop ||
 		*newTop.TitleBottom != *topAndBottom1.TitleBottom || *newTop.RatingAvgBottom != *topAndBottom1.RatingAvgBottom {
 		t.Fatal("Error on reduce bottom and top")
 	}
-	newTop = ReduceTopAndBottom(topAndBottom1, &topAndBottom2, 0)
+	newTop = ReduceTopAndBottom(topAndBottom1, &topAndBottom2, 0, "")
 	if *newTop.TitleTop != *topAndBottom2.TitleTop || *newTop.RatingAvgTop != *topAndBottom2.RatingAvgTop ||
 		*newTop.TitleBottom != *topAndBottom1.TitleBottom || *newTop.RatingAvgBottom != *topAndBottom1.RatingAvgBottom {
 		t.Fatal("Error on reduce bottom and top")
@@ -80,6 +80,8 @@ func TestTop10(t *testing.T) {
 			ProfilePath: proto.String(fmt.Sprintf("%v.jpeg", actorsName[index])),
 			CountMovies: proto.Int64(actorsCount[index]),
 			MessageId:   proto.Int64(0),
+			ClientId:    proto.String(""),
+			SourceId:    proto.String(""),
 		})
 	}
 	toCheck := "Mark Rufallo(14) Morena Baccarin(6) Rosario Dawson(6) Franchella(5) Hugh Grant(5) Mel Gibson(5) Gina Carano(4) Julia Roberts(4) Vincent D'Onofrio(4) Chris Evans(3)"
@@ -211,6 +213,8 @@ func TestGetOrInitKeyMapWithKey(t *testing.T) {
 		ProfilePath: proto.String("Pepe.jpg"),
 		CountMovies: proto.Int64(1000),
 		ClientId:    proto.String(""),
+		MessageId:   proto.Int64(0),
+		SourceId:    proto.String(""),
 	})
 	actorsDataClient = GetOrInitKeyMapWithKey(&actorsData, "", InitActorsData)
 	actorsDataClient.UpdateCount(&protopb.Actor{
@@ -218,6 +222,8 @@ func TestGetOrInitKeyMapWithKey(t *testing.T) {
 		ProfilePath: proto.String("Pepe.jpg"),
 		CountMovies: proto.Int64(1000),
 		ClientId:    proto.String(""),
+		MessageId:   proto.Int64(0),
+		SourceId:    proto.String(""),
 	})
 	top10 := actorsDataClient.GetTop10("", 1)
 	if top10.CountMovies[0] != 2000 {

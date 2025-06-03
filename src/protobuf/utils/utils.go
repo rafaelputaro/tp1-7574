@@ -10,23 +10,24 @@ import (
 
 const EOF_MESSAGE = "EOF Message"
 
-func CreateDummyActor(clientId string, messageId int64, eof bool) *protopb.Actor {
+func CreateDummyActor(clientId string, messageId int64, sourceId string, eof bool) *protopb.Actor {
 	return &protopb.Actor{
 		Name:        proto.String("Dummys"),
 		ProfilePath: proto.String("Dummy.jpg"),
 		CountMovies: proto.Int64(0),
 		ClientId:    &clientId,
 		MessageId:   proto.Int64(messageId),
+		SourceId:    proto.String(sourceId),
 		Eof:         proto.Bool(eof),
 	}
 }
 
-func CreateEofActor(clientId string, messageId int64) *protopb.Actor {
-	return CreateDummyActor(clientId, messageId, true)
+func CreateEofActor(clientId string, messageId int64, sourceId string) *protopb.Actor {
+	return CreateDummyActor(clientId, messageId, sourceId, true)
 }
 
-func CreateEofMessageActor(clientId string, messageId int64) ([]byte, error) {
-	return proto.Marshal(CreateEofActor(clientId, messageId))
+func CreateEofMessageActor(clientId string, messageId int64, sourceId string) ([]byte, error) {
+	return proto.Marshal(CreateEofActor(clientId, messageId, sourceId))
 }
 
 // Returns string from actor count
@@ -279,34 +280,36 @@ func Top10ToString(top *protopb.Top10) string {
 	return toReturn
 }
 
-func CreateDummyTopAndBottomRatingAvg(clientId string, messageId int64, eof bool) *protopb.TopAndBottomRatingAvg {
+func CreateDummyTopAndBottomRatingAvg(clientId string, messageId int64, sourceId string, eof bool) *protopb.TopAndBottomRatingAvg {
 	return &protopb.TopAndBottomRatingAvg{
 		TitleTop:        proto.String("Dummy"),
 		RatingAvgTop:    proto.Float64(0.0),
 		RatingAvgBottom: proto.Float64(0.0),
 		ClientId:        &clientId,
 		MessageId:       proto.Int64(messageId),
+		SourceId:        proto.String(sourceId),
 		Eof:             proto.Bool(eof),
 	}
 }
 
-func CreateSeedTopAndBottom(clientId string, messageId int64) *protopb.TopAndBottomRatingAvg {
+func CreateSeedTopAndBottom(clientId string, messageId int64, sourceId string) *protopb.TopAndBottomRatingAvg {
 	return &protopb.TopAndBottomRatingAvg{
 		TitleTop:        proto.String("Empty1"),
 		TitleBottom:     proto.String("Empty2"),
 		RatingAvgTop:    proto.Float64(0.0),
 		RatingAvgBottom: proto.Float64(math.MaxFloat64),
 		MessageId:       proto.Int64(messageId),
+		SourceId:        proto.String(sourceId),
 		ClientId:        &clientId,
 	}
 }
 
-func CreateEofTopAndBottomRatingAvg(clientId string, messageId int64) *protopb.TopAndBottomRatingAvg {
-	return CreateDummyTopAndBottomRatingAvg(clientId, messageId, true)
+func CreateEofTopAndBottomRatingAvg(clientId string, messageId int64, sourceId string) *protopb.TopAndBottomRatingAvg {
+	return CreateDummyTopAndBottomRatingAvg(clientId, messageId, sourceId, true)
 }
 
-func CreateEofMessageTopAndBottomRatingAvg(clientId string, messageId int64) ([]byte, error) {
-	return proto.Marshal(CreateEofTopAndBottomRatingAvg(clientId, messageId))
+func CreateEofMessageTopAndBottomRatingAvg(clientId string, messageId int64, sourceId string) ([]byte, error) {
+	return proto.Marshal(CreateEofTopAndBottomRatingAvg(clientId, messageId, sourceId))
 }
 
 // Returns string from TopAndBottomRagingAvg

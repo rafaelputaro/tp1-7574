@@ -118,7 +118,7 @@ func TestRatingSanit(t *testing.T) {
 }
 
 func TestEof(t *testing.T) {
-	actor := protoUtils.CreateEofActor("0", 1)
+	actor := protoUtils.CreateEofActor("0", 1, "")
 	credit := protoUtils.CreateEofCredit("0", 1)
 	creditSanit := protoUtils.CreateEofCreditSanit("0", 1)
 	metrics := protoUtils.CreateEofMetrics("0", 1)
@@ -129,7 +129,7 @@ func TestEof(t *testing.T) {
 	revOveBud := protoUtils.CreateEofRevenueOverBudget("0", 1)
 	top10 := protoUtils.CreateEofTop10("0", 1)
 	top5Country := protoUtils.CreateEofTop5Country("0", 1)
-	topAndBottomRatAvg := protoUtils.CreateEofTopAndBottomRatingAvg("0", 1)
+	topAndBottomRatAvg := protoUtils.CreateEofTopAndBottomRatingAvg("0", 1, "")
 	test := actor.GetEof() && credit.GetEof() && creditSanit.GetEof() && metrics.GetEof() &&
 		movie.GetEof() && movieSanit.GetEof() && rating.GetEof() && ratingSanit.GetEof() &&
 		rating.GetEof() && revOveBud.GetEof() && top10.GetEof() && top5Country.GetEof() &&

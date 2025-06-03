@@ -61,22 +61,26 @@ func (counter *ActorsCounter) countActor(name string, profilePath string) {
 }
 
 // profilePath is valid
-func (counter *ActorsCounter) GetActor(profilePath string, clientID string) *protopb.Actor {
+func (counter *ActorsCounter) GetActor(profilePath string, clientID string, messageId int64, sourceId string) *protopb.Actor {
 	founded := counter.Actors[profilePath]
 	return &protopb.Actor{
 		Name:        proto.String(founded.Name),
 		CountMovies: proto.Int64(founded.CountMovies),
 		ProfilePath: proto.String(profilePath),
 		ClientId:    proto.String(clientID),
+		MessageId:   proto.Int64(messageId),
+		SourceId:    proto.String(sourceId),
 	}
 }
 
-func CreateActorEof(clientID string) *protopb.Actor {
+func CreateActorEof(clientID string, messageId int64, sourceId string) *protopb.Actor {
 	return &protopb.Actor{
 		Name:        proto.String("DUMMY"),
 		CountMovies: proto.Int64(0),
 		ProfilePath: proto.String("DUMMY"),
 		Eof:         proto.Bool(true),
 		ClientId:    proto.String(clientID),
+		MessageId:   proto.Int64(messageId),
+		SourceId:    proto.String(sourceId),
 	}
 }
