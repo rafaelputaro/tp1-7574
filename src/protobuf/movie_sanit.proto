@@ -9,7 +9,7 @@ message MovieSanit {
   required uint32 release_year = 6;
   required double revenue = 7;
   required string title = 8;
-  optional string clientId = 9;
+  required string clientId = 9;
   required int64 messageId = 10;
   optional bool eof = 11;
 }

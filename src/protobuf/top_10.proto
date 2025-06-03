@@ -4,7 +4,7 @@ message Top10 {
   repeated string names = 1;
   repeated string profilePaths = 2;
   repeated int64 countMovies = 3;
-  optional string clientId = 4;
+  required string clientId = 4;
   required int64 messageId = 5;
   optional bool eof = 6;
 }

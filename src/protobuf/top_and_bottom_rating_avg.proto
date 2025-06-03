@@ -5,8 +5,8 @@ message TopAndBottomRatingAvg {
   optional string title_bottom = 2;
   optional double rating_avg_top = 3;
   optional double rating_avg_bottom = 4;
-  optional string clientId = 5;
-  optional int64 messageId = 6;
-  optional string sourceId = 7;
+  required string clientId = 5;
+  required int64 messageId = 6;
+  required string sourceId = 7;
   optional bool eof = 8;
 }

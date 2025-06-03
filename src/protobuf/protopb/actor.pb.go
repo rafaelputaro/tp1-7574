@@ -26,7 +26,7 @@ type Actor struct {
 	Name          *string                `protobuf:"bytes,1,req,name=name" json:"name,omitempty"`
 	ProfilePath   *string                `protobuf:"bytes,2,req,name=profilePath" json:"profilePath,omitempty"`
 	CountMovies   *int64                 `protobuf:"varint,3,req,name=countMovies" json:"countMovies,omitempty"`
-	ClientId      *string                `protobuf:"bytes,4,opt,name=clientId" json:"clientId,omitempty"`
+	ClientId      *string                `protobuf:"bytes,4,req,name=clientId" json:"clientId,omitempty"`
 	MessageId     *int64                 `protobuf:"varint,5,req,name=messageId" json:"messageId,omitempty"`
 	SourceId      *string                `protobuf:"bytes,6,req,name=sourceId" json:"sourceId,omitempty"`
 	Eof           *bool                  `protobuf:"varint,7,opt,name=eof" json:"eof,omitempty"`
@@ -122,7 +122,7 @@ const file_actor_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x02(\tR\x04name\x12 \n" +
 	"\vprofilePath\x18\x02 \x02(\tR\vprofilePath\x12 \n" +
 	"\vcountMovies\x18\x03 \x02(\x03R\vcountMovies\x12\x1a\n" +
-	"\bclientId\x18\x04 \x01(\tR\bclientId\x12\x1c\n" +
+	"\bclientId\x18\x04 \x02(\tR\bclientId\x12\x1c\n" +
 	"\tmessageId\x18\x05 \x02(\x03R\tmessageId\x12\x1a\n" +
 	"\bsourceId\x18\x06 \x02(\tR\bsourceId\x12\x10\n" +
 	"\x03eof\x18\a \x01(\bR\x03eofB\vZ\t./protopb"

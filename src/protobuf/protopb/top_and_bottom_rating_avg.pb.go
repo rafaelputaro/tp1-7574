@@ -27,9 +27,9 @@ type TopAndBottomRatingAvg struct {
 	TitleBottom     *string                `protobuf:"bytes,2,opt,name=title_bottom,json=titleBottom" json:"title_bottom,omitempty"`
 	RatingAvgTop    *float64               `protobuf:"fixed64,3,opt,name=rating_avg_top,json=ratingAvgTop" json:"rating_avg_top,omitempty"`
 	RatingAvgBottom *float64               `protobuf:"fixed64,4,opt,name=rating_avg_bottom,json=ratingAvgBottom" json:"rating_avg_bottom,omitempty"`
-	ClientId        *string                `protobuf:"bytes,5,opt,name=clientId" json:"clientId,omitempty"`
-	MessageId       *int64                 `protobuf:"varint,6,opt,name=messageId" json:"messageId,omitempty"`
-	SourceId        *string                `protobuf:"bytes,7,opt,name=sourceId" json:"sourceId,omitempty"`
+	ClientId        *string                `protobuf:"bytes,5,req,name=clientId" json:"clientId,omitempty"`
+	MessageId       *int64                 `protobuf:"varint,6,req,name=messageId" json:"messageId,omitempty"`
+	SourceId        *string                `protobuf:"bytes,7,req,name=sourceId" json:"sourceId,omitempty"`
 	Eof             *bool                  `protobuf:"varint,8,opt,name=eof" json:"eof,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
@@ -131,9 +131,9 @@ const file_top_and_bottom_rating_avg_proto_rawDesc = "" +
 	"\ftitle_bottom\x18\x02 \x01(\tR\vtitleBottom\x12$\n" +
 	"\x0erating_avg_top\x18\x03 \x01(\x01R\fratingAvgTop\x12*\n" +
 	"\x11rating_avg_bottom\x18\x04 \x01(\x01R\x0fratingAvgBottom\x12\x1a\n" +
-	"\bclientId\x18\x05 \x01(\tR\bclientId\x12\x1c\n" +
-	"\tmessageId\x18\x06 \x01(\x03R\tmessageId\x12\x1a\n" +
-	"\bsourceId\x18\a \x01(\tR\bsourceId\x12\x10\n" +
+	"\bclientId\x18\x05 \x02(\tR\bclientId\x12\x1c\n" +
+	"\tmessageId\x18\x06 \x02(\x03R\tmessageId\x12\x1a\n" +
+	"\bsourceId\x18\a \x02(\tR\bsourceId\x12\x10\n" +
 	"\x03eof\x18\b \x01(\bR\x03eofB\vZ\t./protopb"
 
 var (

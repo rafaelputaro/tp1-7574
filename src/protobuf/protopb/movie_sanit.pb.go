@@ -31,7 +31,7 @@ type MovieSanit struct {
 	ReleaseYear         *uint32                `protobuf:"varint,6,req,name=release_year,json=releaseYear" json:"release_year,omitempty"`
 	Revenue             *float64               `protobuf:"fixed64,7,req,name=revenue" json:"revenue,omitempty"`
 	Title               *string                `protobuf:"bytes,8,req,name=title" json:"title,omitempty"`
-	ClientId            *string                `protobuf:"bytes,9,opt,name=clientId" json:"clientId,omitempty"`
+	ClientId            *string                `protobuf:"bytes,9,req,name=clientId" json:"clientId,omitempty"`
 	MessageId           *int64                 `protobuf:"varint,10,req,name=messageId" json:"messageId,omitempty"`
 	Eof                 *bool                  `protobuf:"varint,11,opt,name=eof" json:"eof,omitempty"`
 	unknownFields       protoimpl.UnknownFields
@@ -160,7 +160,7 @@ const file_movie_sanit_proto_rawDesc = "" +
 	"\frelease_year\x18\x06 \x02(\rR\vreleaseYear\x12\x18\n" +
 	"\arevenue\x18\a \x02(\x01R\arevenue\x12\x14\n" +
 	"\x05title\x18\b \x02(\tR\x05title\x12\x1a\n" +
-	"\bclientId\x18\t \x01(\tR\bclientId\x12\x1c\n" +
+	"\bclientId\x18\t \x02(\tR\bclientId\x12\x1c\n" +
 	"\tmessageId\x18\n" +
 	" \x02(\x03R\tmessageId\x12\x10\n" +
 	"\x03eof\x18\v \x01(\bR\x03eofB\vZ\t./protopb"

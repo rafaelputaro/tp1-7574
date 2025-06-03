@@ -4,7 +4,7 @@ message Actor {
   required string name = 1;
   required string profilePath = 2;
   required int64 countMovies = 3;
-  optional string clientId = 4;
+  required string clientId = 4;
   required int64 messageId = 5;
   required string sourceId = 6;
   optional bool eof = 7;

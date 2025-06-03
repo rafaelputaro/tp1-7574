@@ -3,7 +3,7 @@ option go_package = "./protopb";
 message Metrics {
   required double avgRevenueOverBudgetNegative = 1;
   required double avgRevenueOverBudgetPositive = 2;
-  optional string clientId = 3;
+  required string clientId = 3;
   required int64 messageId = 4;
   optional bool eof = 5;
 }

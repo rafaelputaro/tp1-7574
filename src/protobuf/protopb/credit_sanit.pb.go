@@ -26,7 +26,7 @@ type CreditSanit struct {
 	CastNames     []string               `protobuf:"bytes,1,rep,name=castNames" json:"castNames,omitempty"`
 	ProfilePaths  []string               `protobuf:"bytes,2,rep,name=profilePaths" json:"profilePaths,omitempty"`
 	Id            *int64                 `protobuf:"varint,3,req,name=id" json:"id,omitempty"`
-	ClientId      *string                `protobuf:"bytes,4,opt,name=clientId" json:"clientId,omitempty"`
+	ClientId      *string                `protobuf:"bytes,4,req,name=clientId" json:"clientId,omitempty"`
 	MessageId     *int64                 `protobuf:"varint,5,req,name=messageId" json:"messageId,omitempty"`
 	Eof           *bool                  `protobuf:"varint,6,opt,name=eof" json:"eof,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -114,7 +114,7 @@ const file_credit_sanit_proto_rawDesc = "" +
 	"\tcastNames\x18\x01 \x03(\tR\tcastNames\x12\"\n" +
 	"\fprofilePaths\x18\x02 \x03(\tR\fprofilePaths\x12\x0e\n" +
 	"\x02id\x18\x03 \x02(\x03R\x02id\x12\x1a\n" +
-	"\bclientId\x18\x04 \x01(\tR\bclientId\x12\x1c\n" +
+	"\bclientId\x18\x04 \x02(\tR\bclientId\x12\x1c\n" +
 	"\tmessageId\x18\x05 \x02(\x03R\tmessageId\x12\x10\n" +
 	"\x03eof\x18\x06 \x01(\bR\x03eofB\vZ\t./protopb"
 

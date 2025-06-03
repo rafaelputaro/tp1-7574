@@ -25,8 +25,8 @@ type RevenueOverBudget struct {
 	state                protoimpl.MessageState `protogen:"open.v1"`
 	SumRevenueOverBudget *float64               `protobuf:"fixed64,1,req,name=sumRevenueOverBudget" json:"sumRevenueOverBudget,omitempty"`
 	AmountReviews        *int64                 `protobuf:"varint,2,req,name=amountReviews" json:"amountReviews,omitempty"`
-	ClientId             *string                `protobuf:"bytes,3,opt,name=clientId" json:"clientId,omitempty"`
-	MessageId            *int64                 `protobuf:"varint,4,opt,name=messageId" json:"messageId,omitempty"`
+	ClientId             *string                `protobuf:"bytes,3,req,name=clientId" json:"clientId,omitempty"`
+	MessageId            *int64                 `protobuf:"varint,4,req,name=messageId" json:"messageId,omitempty"`
 	Eof                  *bool                  `protobuf:"varint,5,opt,name=eof" json:"eof,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
@@ -105,8 +105,8 @@ const file_revenue_over_budget_proto_rawDesc = "" +
 	"\x11RevenueOverBudget\x122\n" +
 	"\x14sumRevenueOverBudget\x18\x01 \x02(\x01R\x14sumRevenueOverBudget\x12$\n" +
 	"\ramountReviews\x18\x02 \x02(\x03R\ramountReviews\x12\x1a\n" +
-	"\bclientId\x18\x03 \x01(\tR\bclientId\x12\x1c\n" +
-	"\tmessageId\x18\x04 \x01(\x03R\tmessageId\x12\x10\n" +
+	"\bclientId\x18\x03 \x02(\tR\bclientId\x12\x1c\n" +
+	"\tmessageId\x18\x04 \x02(\x03R\tmessageId\x12\x10\n" +
 	"\x03eof\x18\x05 \x01(\bR\x03eofB\vZ\t./protopb"
 
 var (

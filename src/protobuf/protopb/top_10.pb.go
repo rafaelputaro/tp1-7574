@@ -26,7 +26,7 @@ type Top10 struct {
 	Names         []string               `protobuf:"bytes,1,rep,name=names" json:"names,omitempty"`
 	ProfilePaths  []string               `protobuf:"bytes,2,rep,name=profilePaths" json:"profilePaths,omitempty"`
 	CountMovies   []int64                `protobuf:"varint,3,rep,name=countMovies" json:"countMovies,omitempty"`
-	ClientId      *string                `protobuf:"bytes,4,opt,name=clientId" json:"clientId,omitempty"`
+	ClientId      *string                `protobuf:"bytes,4,req,name=clientId" json:"clientId,omitempty"`
 	MessageId     *int64                 `protobuf:"varint,5,req,name=messageId" json:"messageId,omitempty"`
 	Eof           *bool                  `protobuf:"varint,6,opt,name=eof" json:"eof,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -114,7 +114,7 @@ const file_top_10_proto_rawDesc = "" +
 	"\x05names\x18\x01 \x03(\tR\x05names\x12\"\n" +
 	"\fprofilePaths\x18\x02 \x03(\tR\fprofilePaths\x12 \n" +
 	"\vcountMovies\x18\x03 \x03(\x03R\vcountMovies\x12\x1a\n" +
-	"\bclientId\x18\x04 \x01(\tR\bclientId\x12\x1c\n" +
+	"\bclientId\x18\x04 \x02(\tR\bclientId\x12\x1c\n" +
 	"\tmessageId\x18\x05 \x02(\x03R\tmessageId\x12\x10\n" +
 	"\x03eof\x18\x06 \x01(\bR\x03eofB\vZ\t./protopb"
 
