@@ -3,104 +3,98 @@ package internal
 import (
 	"bufio"
 	"os"
-	"time"
-
-	"github.com/op/go-logging"
 )
 
-const MSG_ERROR_READING_FILE = "Error reading file: %v"
-const MSG_ERROR_READING_DIR = "Error reading directory %s: %v"
-const MSG_NO_REPORTS_FOUND = "No report files found in the current directory."
-const MSG_COMPARE_REPORT = "Comparing report: %s with %s"
-const MSG_COMPARING_LINES = "[x]Comparing lines: \n	Expected: %s \n	Found: %s"
-const MODULE_TO_LOG = "client"
+const (
+	expectedReportFile = "app/expected_report.txt"
+)
 
-type FileWithDate struct {
-	FileInfo os.FileInfo
-	ModTime  time.Time
+func CompareWithExpectedReport(toCompare string) {
+	logger.Info("Starting comparison with expected report...")
+	compareFiles(expectedReportFile, toCompare)
 }
 
-// Compares the latest report file in the specified directory with a provided file.
-func CompareReport(directory string, toCompare string) {
-	logger := logging.MustGetLogger(MODULE_TO_LOG)
-	// Get the latest report file
-	latestReport, err := getOldestFile(directory)
+func compareFiles(expectedFile string, actualFile string) {
+
+	expected, err := os.Open(expectedFile)
 	if err != nil {
-		logger.Errorf(MSG_ERROR_READING_DIR, directory, err)
-		return
+		logger.Fatalf("Error opening file %s: %v", expectedFile, err)
 	}
-	if latestReport == "" {
-		logger.Warningf(MSG_NO_REPORTS_FOUND)
-		return
+	defer expected.Close()
+
+	actual, err := os.Open(actualFile)
+	if err != nil {
+		logger.Fatalf("Error opening file %s: %v", actualFile, err)
 	}
-	// Construct the full path to the latest report file
-	latestReport = directory + "/" + latestReport
-	logger.Infof(MSG_COMPARE_REPORT, latestReport, toCompare)
-	// Compare the latest report with the provided file
-	compareFiles(latestReport, toCompare)
+	defer actual.Close()
+
+	differences := compareFileByLine(expected, actual)
+
+	if differences == 0 {
+		logger.Info("Success! The reports match exactly.")
+	} else {
+		logger.Warningf("Found %d differences between the files", differences)
+	}
 }
 
-// compareFiles compares two files line by line and logs the differences.
-func compareFiles(patternFile string, toCompare string) {
-	logger := logging.MustGetLogger(MODULE_TO_LOG)
-	pattern, err := os.Open(patternFile)
-	if err != nil {
-		logger.Errorf(MSG_ERROR_READING_FILE, err)
-	}
-	defer pattern.Close()
-	toCampare, err := os.Open(toCompare)
-	if err != nil {
-		logger.Errorf(MSG_ERROR_READING_FILE, err)
-	}
-	defer toCampare.Close()
-	compareFileByLine(pattern, toCampare)
-}
+func compareFileByLine(expected, actual *os.File) int {
+	scExpected := bufio.NewScanner(expected)
+	scActual := bufio.NewScanner(actual)
+	lineNum := 1
+	differences := 0
 
-// Compare two files line by line
-func compareFileByLine(patternFile *os.File, toCompare *os.File) {
-	sc1 := bufio.NewScanner(patternFile)
-	sc2 := bufio.NewScanner(toCompare)
 	for {
-		sc1Bool := sc1.Scan()
-		sc2Bool := sc2.Scan()
-		if !sc1Bool && !sc2Bool {
+		hasExpected := scExpected.Scan()
+		hasActual := scActual.Scan()
+
+		expectedLine := ""
+		actualLine := ""
+
+		if hasExpected {
+			expectedLine = scExpected.Text()
+		}
+		if hasActual {
+			actualLine = scActual.Text()
+		}
+
+		// If both files are exhausted, we're done
+		if !hasExpected && !hasActual {
 			break
 		}
-		compareLines(sc1.Text(), sc2.Text())
-	}
-}
 
-// Compare two lines and log if they are equal or not
-func compareLines(line1 string, line2 string) {
-	logger := logging.MustGetLogger(MODULE_TO_LOG)
-	if line1 != line2 {
-		logger.Debugf(MSG_COMPARING_LINES, line2, line1)
-	}
-}
-
-// Returns the oldest file in a directory based on modification time.
-func getOldestFile(dirPath string) (string, error) {
-	logger := logging.MustGetLogger(MODULE_TO_LOG)
-	// Get the list of files in the directory
-	files, err := os.ReadDir(dirPath)
-	if err != nil {
-		logger.Errorf(MSG_ERROR_READING_DIR, dirPath, err)
-		return "", nil
-	}
-	var oldestFile os.DirEntry
-	var oldestTime time.Time
-	for _, file := range files {
-		info, err := file.Info()
-		if err != nil {
-			continue
+		// Check for differences
+		if expectedLine != actualLine {
+			logDifference(lineNum, expectedLine, actualLine)
+			differences++
 		}
-		if oldestFile == nil { // First file found
-			oldestFile = file
-			oldestTime = info.ModTime()
-		} else if info.ModTime().Before(oldestTime) { // Check if the current file is older
-			oldestFile = file
-			oldestTime = info.ModTime()
+
+		lineNum++
+
+		// If one file is longer than the other, keep comparing the remaining lines
+		if (!hasExpected || !hasActual) && (hasExpected || hasActual) {
+			for scExpected.Scan() {
+				logDifference(lineNum, scExpected.Text(), "")
+				lineNum++
+				differences++
+			}
+			for scActual.Scan() {
+				logDifference(lineNum, "", scActual.Text())
+				lineNum++
+				differences++
+			}
+			break
 		}
 	}
-	return oldestFile.Name(), nil
+
+	return differences
+}
+
+func logDifference(lineNum int, expected, actual string) {
+	if expected == "" {
+		logger.Warningf("Line %d: Extra line in actual: %s", lineNum, actual)
+	} else if actual == "" {
+		logger.Warningf("Line %d: Missing line (expected): %s", lineNum, expected)
+	} else {
+		logger.Warningf("Line %d:\n\tExpected: %s\n\tActual:   %s", lineNum, expected, actual)
+	}
 }

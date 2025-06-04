@@ -6,5 +6,5 @@ import (
 )
 
 func TestGetLatestReport(t *testing.T) {
-	internal.CompareReport(".", "client_test.go")
+	internal.CompareWithExpectedReport("client_test.go")
 }
