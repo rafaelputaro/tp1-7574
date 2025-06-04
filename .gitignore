@@ -37,3 +37,6 @@ logs.txt
 
 # Compilation
 src/client/client
+
+# Document text files
+documents/*.txt
