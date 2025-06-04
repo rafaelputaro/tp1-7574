@@ -139,7 +139,7 @@ func printReport(report *pb.ReportResponse) {
 	output += fmt.Sprintf(" - Negative (%s): %.2f\n", report.Answer5.GetNegative().GetType(), report.Answer5.GetNegative().GetScore())
 
 	// Print to console
-	fmt.Println(output)
+	// fmt.Println(output)
 
 	// Save to file
 	timestamp := time.Now().Format("2006-01-02 15:04:05.000000000")
