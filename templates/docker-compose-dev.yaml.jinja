@@ -307,6 +307,8 @@ services:
     build:
       context: .
       dockerfile: src/server/gateway/Dockerfile
+    environment:
+      - SHARDS={{ shards }}
     networks:
       - tp1_net
     healthcheck:

@@ -627,6 +627,8 @@ services:
     build:
       context: .
       dockerfile: src/server/gateway/Dockerfile
+    environment:
+      - SHARDS=3
     networks:
       - tp1_net
     healthcheck:

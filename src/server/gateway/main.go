@@ -4,6 +4,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"net"
+	"os"
+	"strconv"
 	"tp1/health"
 	"tp1/server/gateway/internal"
 
@@ -64,7 +66,22 @@ func main() {
 
 	reportClient := protopb.NewReportServiceClient(reportConn)
 	clientRegistry := internal.NewClientRegistry()
-	ctrl := internal.NewController(ch, reportClient, clientRegistry, 3) // todo: env variable
+
+	shardsEnv := os.Getenv("SHARDS")
+	if shardsEnv == "" {
+		logger.Fatal("SHARDS environment variable must be set")
+	}
+
+	shards, err := strconv.ParseInt(shardsEnv, 10, 64)
+	if err != nil {
+		logger.Fatalf("Invalid SHARDS value '%s': %v", shardsEnv, err)
+	}
+
+	if shards <= 0 {
+		logger.Fatalf("SHARDS must be a positive integer, got: %d", shards)
+	}
+
+	ctrl := internal.NewController(ch, reportClient, clientRegistry, shards)
 
 	protopb.RegisterMovieServiceServer(grpcServer, ctrl)
 	protopb.RegisterRatingServiceServer(grpcServer, ctrl)
