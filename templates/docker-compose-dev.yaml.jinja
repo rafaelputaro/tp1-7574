@@ -132,7 +132,7 @@ services:
       - JOINER_TYPE=group_by_movie_id_ratings
       - JOINER_ID={{ i }}
       - JOINER_INPUT_QUEUE_BASE_NAME=ar_movies_2000_and_later
-      - JOINER_INPUT_QUEUE_SEC_NAME=ratings
+      - JOINER_INPUT_QUEUE_SEC_NAME=ratings_{{ i }}
       - JOINER_OUTPUT_QUEUE_NAME=movies_top_and_bottom
     networks:
       - tp1_net

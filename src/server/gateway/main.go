@@ -64,7 +64,7 @@ func main() {
 
 	reportClient := protopb.NewReportServiceClient(reportConn)
 	clientRegistry := internal.NewClientRegistry()
-	ctrl := internal.NewController(ch, reportClient, clientRegistry)
+	ctrl := internal.NewController(ch, reportClient, clientRegistry, 3) // todo: env variable
 
 	protopb.RegisterMovieServiceServer(grpcServer, ctrl)
 	protopb.RegisterRatingServiceServer(grpcServer, ctrl)

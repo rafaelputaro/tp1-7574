@@ -22,7 +22,6 @@ const DEFAULT_MESSAGE_ID_EOF_UNIQUE_OUTPUT int64 = 1
 
 // Messages to log:
 const MSG_START = "Starting job for ID"
-const MSG_FAILED_CONSUME = "Failed to consume messages from"
 const MSG_JOB_FINISHED = "Job finished"
 const MSG_RECEIVED_EOF_MARKER = "Received EOF marker"
 const MSG_FAILED_TO_PUBLISH_ON_OUTPUT_QUEUE = "Failed to publish on outputqueue"
@@ -265,7 +264,7 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 		Shutdown(joiner.Log, joiner.Connection, joiner.Channel, "failed to declare exchange", err)
 	}
 
-	err = rabbitmq.DeclareDirectQueues(joiner.Channel, joiner.Config.InputQueueName)
+	err = rabbitmq.DeclareDirectQueues(joiner.Channel, joiner.Config.InputQueueName, joiner.Config.InputQueueSecName)
 	if err != nil {
 		Shutdown(joiner.Log, joiner.Connection, joiner.Channel, "failed to declare queue", err)
 	}
@@ -273,21 +272,6 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 	err = rabbitmq.BindQueueToExchange(joiner.Channel, joiner.Config.InputQueueName, inputExchange, joiner.Config.ID)
 	if err != nil {
 		Shutdown(joiner.Log, joiner.Connection, joiner.Channel, "failed to bind queue to exchange", err)
-	}
-
-	err = rabbitmq.DeclareFanoutExchanges(joiner.Channel, globalconfig.RatingsExchange)
-	if err != nil {
-		Shutdown(joiner.Log, joiner.Connection, joiner.Channel, "failed to declare fanout exchange", err)
-	}
-
-	inputQueue, err := rabbitmq.DeclareTemporaryQueue(joiner.Channel)
-	if err != nil {
-		Shutdown(joiner.Log, joiner.Connection, joiner.Channel, "failed to declare temporary queue", err)
-	}
-
-	err = rabbitmq.BindQueueToExchange(joiner.Channel, inputQueue.Name, globalconfig.RatingsExchange, "")
-	if err != nil {
-		Shutdown(joiner.Log, joiner.Connection, joiner.Channel, "failed to bind temporary queue to exchange", err)
 	}
 
 	// Store client-specific data
@@ -394,9 +378,9 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 	}()
 
 	go func() {
-		msgs, err := rabbitmq.ConsumeFromQueue(joiner.Channel, inputQueue.Name)
+		msgs, err := rabbitmq.ConsumeFromQueue(joiner.Channel, joiner.Config.InputQueueSecName)
 		if err != nil {
-			joiner.Log.Fatalf("[queue:%s] failed to consume: %v", inputQueue.Name, err)
+			joiner.Log.Fatalf("[queue:%s] failed to consume: %v", joiner.Config.InputQueueSecName, err)
 		}
 
 		for msg := range msgs {

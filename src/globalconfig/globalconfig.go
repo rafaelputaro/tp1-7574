@@ -1,7 +1,7 @@
 package globalconfig
 
 const (
-	RatingsExchange = "ratings_exchange"
+	RatingsQueue    = "ratings"
 	CreditsExchange = "credits_exchange"
 	Movies1Queue    = "movies1"
 	Movies2Queue    = "movies2"
@@ -16,5 +16,5 @@ const (
 )
 
 var MoviesQueues = []string{Movies1Queue, Movies2Queue, Movies3Queue}
-var Exchanges = []string{RatingsExchange, CreditsExchange}
+var Exchanges = []string{CreditsExchange}
 var ReportQueues = []string{Report1Queue, Report2Queue, Report3Queue, Report4Queue, Report5Queue}

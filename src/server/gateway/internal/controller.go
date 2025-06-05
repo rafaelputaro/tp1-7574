@@ -32,10 +32,11 @@ type Controller struct {
 	ch             *amqp.Channel
 	reportClient   pb.ReportServiceClient
 	clientRegistry *ClientRegistry
+	nShards        int64
 }
 
-func NewController(ch *amqp.Channel, client pb.ReportServiceClient, registry *ClientRegistry) *Controller {
-	return &Controller{ch: ch, reportClient: client, clientRegistry: registry}
+func NewController(ch *amqp.Channel, client pb.ReportServiceClient, registry *ClientRegistry, nShards int64) *Controller {
+	return &Controller{ch: ch, reportClient: client, clientRegistry: registry, nShards: nShards}
 }
 
 func (c *Controller) StreamMovies(stream pb.MovieService_StreamMoviesServer) error {
@@ -115,7 +116,7 @@ func (c *Controller) StreamRatings(stream pb.RatingService_StreamRatingsServer) 
 			return err
 		}
 
-		err = c.publishToExchange(globalconfig.RatingsExchange, data)
+		err = c.publishToShardedQueue(data, globalconfig.RatingsQueue, sanitized.GetMovieId())
 		if err != nil {
 			return err
 		}
@@ -203,6 +204,23 @@ func (c *Controller) publishToQueues(data []byte, queues ...string) error {
 	return nil
 }
 
+func (c *Controller) publishToShardedQueue(data []byte, queue string, movieId int64) error {
+	shard := (movieId % c.nShards) + 1
+	queueName := fmt.Sprintf("%s_%d", queue, shard)
+	return rabbitmq.Publish(c.ch, "", queueName, data)
+}
+
+func (c *Controller) publishToAllShardedQueues(data []byte, queue string) error {
+	for shard := range c.nShards {
+		queueName := fmt.Sprintf("%s_%d", queue, shard+1) // todo move to global config
+		err := rabbitmq.Publish(c.ch, "", queueName, data)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (c *Controller) publishMovieEof(clientID string, messageId int64) error {
 	data, err := proto.Marshal(&pb.MovieSanit{
 		Budget:      proto.Int64(0),
@@ -258,7 +276,7 @@ func (c *Controller) publishRatingEof(clientID string, messageId int64) error {
 		return err
 	}
 
-	err = c.publishToExchange(globalconfig.RatingsExchange, data)
+	err = c.publishToAllShardedQueues(data, globalconfig.RatingsQueue)
 	if err != nil {
 		return err
 	}
