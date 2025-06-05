@@ -34,8 +34,8 @@
  - Japan: $832585873
 
 [3] Rating Extremes:
- - Highest: ID 0 | Title: Violeta Went to Heaven | Rating: 5.00
- - Lowest: ID 1 | Title: Phase 7 | Rating: 2.75
+ - Highest: ID 0 | Title: The forbidden education | Rating: 4.00
+ - Lowest: ID 1 | Title: Left for Dead | Rating: 1.00
 
 [4] Frequent Actors:
  - Name: Ricardo Darín | Appearances: 10

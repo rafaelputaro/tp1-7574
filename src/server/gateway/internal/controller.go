@@ -186,7 +186,7 @@ func (c *Controller) GetReport(ctx context.Context, _ *emptypb.Empty) (*pb.Repor
 		return nil, status.Errorf(codes.Internal, "failed to mark client as done: %v", err)
 	}
 
-	logger.Infof("[client_id:%s] returning report: %v", clientID, report)
+	logger.Infof("[client_id:%s] returning report", clientID)
 	return report, nil
 }
 

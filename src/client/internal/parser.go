@@ -4,16 +4,18 @@ import (
 	"bufio"
 	"encoding/csv"
 	"fmt"
-	"google.golang.org/protobuf/proto"
 	"io"
 	"os"
 	"strconv"
 	pb "tp1/protobuf/protopb"
+
+	"google.golang.org/protobuf/proto"
 )
 
 type Parser[T any] interface {
 	NextBatch() ([]*T, error)
 	Close() error
+	GetSize() int
 }
 
 type parser[T any] struct {
@@ -54,6 +56,10 @@ func (p *parser[T]) NextBatch() ([]*T, error) {
 
 func (p *parser[T]) Close() error {
 	return p.file.Close()
+}
+
+func (p *parser[T]) GetSize() int {
+	return p.size
 }
 
 func newBatchCSVParser[T any](path string, fn func([]string) (*T, error), size int) (Parser[T], error) {

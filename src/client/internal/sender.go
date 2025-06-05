@@ -9,7 +9,10 @@ import (
 	"github.com/op/go-logging"
 )
 
-var logger = logging.MustGetLogger("client")
+var (
+	logger        = logging.MustGetLogger("client")
+	ValidMovieIDs = make(map[int64]struct{})
+)
 
 func SendMovies(ctx context.Context, client pb.MovieServiceClient, parser Parser[pb.Movie]) {
 	count := 0
@@ -22,11 +25,13 @@ func SendMovies(ctx context.Context, client pb.MovieServiceClient, parser Parser
 		logger.Fatalf("Failed to open movies stream after retries: %v", err)
 	}
 
+	ValidMovieIDs = make(map[int64]struct{})
+
 	for {
 		select {
 		case <-ctx.Done():
 			logger.Infof("Context canceled, stopping movies stream")
-			stream.CloseSend()
+			_ = stream.CloseSend()
 			return
 		default:
 		}
@@ -42,6 +47,10 @@ func SendMovies(ctx context.Context, client pb.MovieServiceClient, parser Parser
 		}
 
 		for _, item := range batch {
+			movieID := int64(item.GetId())
+
+			ValidMovieIDs[movieID] = struct{}{}
+
 			protoUtils.SetMessageIdMovie(item, int64(count))
 			if err := stream.Send(item); err != nil {
 				logger.Errorf("failed to send movie: %v", err)
@@ -54,11 +63,12 @@ func SendMovies(ctx context.Context, client pb.MovieServiceClient, parser Parser
 		logger.Errorf("movie stream close error: %v", err)
 	}
 
-	logger.Infof("Sent %d movies", count)
+	logger.Infof("Processed %d movies, collected %d unique movie IDs", count, len(ValidMovieIDs)) // todo we are sending movies with repeated ids
 }
 
 func SendRatings(ctx context.Context, client pb.RatingServiceClient, parser Parser[pb.Rating]) {
 	count := 0
+	totalRatings := 0
 
 	stream, err := RetryWithBackoff(
 		func() (pb.RatingService_StreamRatingsClient, error) {
@@ -68,11 +78,13 @@ func SendRatings(ctx context.Context, client pb.RatingServiceClient, parser Pars
 		logger.Fatalf("Failed to open ratings stream after retries: %v", err)
 	}
 
+	filteredBatch := make([]*pb.Rating, 0, parser.GetSize())
+
 	for {
 		select {
 		case <-ctx.Done():
 			logger.Infof("Context canceled, stopping ratings stream")
-			stream.CloseSend()
+			_ = stream.CloseSend()
 			return
 		default:
 		}
@@ -87,20 +99,34 @@ func SendRatings(ctx context.Context, client pb.RatingServiceClient, parser Pars
 			break
 		}
 
+		filteredBatch = filteredBatch[:0]
+		totalRatings += len(batch)
+
 		for _, item := range batch {
+			movieID := item.GetMovieId()
+			if _, exists := ValidMovieIDs[movieID]; !exists {
+				continue
+			}
+
 			protoUtils.SetMessageIdRating(item, int64(count))
+			filteredBatch = append(filteredBatch, item)
+			count++
+		}
+
+		for _, item := range filteredBatch {
 			if err := stream.Send(item); err != nil {
 				logger.Errorf("failed to send rating: %v", err)
 			}
 		}
-		count += len(batch)
+
+		if totalRatings%1000000 == 0 {
+			logger.Infof("Progress: processed %d ratings", totalRatings)
+		}
 	}
 
 	if _, err := stream.CloseAndRecv(); err != nil {
 		logger.Errorf("rating stream close error: %v", err)
 	}
-
-	logger.Infof("Sent %d ratings", count)
 }
 
 func SendCredits(ctx context.Context, client pb.CreditServiceClient, parser Parser[pb.Credit]) {
@@ -118,7 +144,7 @@ func SendCredits(ctx context.Context, client pb.CreditServiceClient, parser Pars
 		select {
 		case <-ctx.Done():
 			logger.Infof("Context canceled, stopping credits stream")
-			stream.CloseSend()
+			_ = stream.CloseSend()
 			return
 		default:
 		}
