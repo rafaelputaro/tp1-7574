@@ -205,14 +205,13 @@ func (c *Controller) publishToQueues(data []byte, queues ...string) error {
 }
 
 func (c *Controller) publishToShardedQueue(data []byte, queue string, movieId int64) error {
-	shard := (movieId % c.nShards) + 1
-	queueName := fmt.Sprintf("%s_%d", queue, shard)
+	queueName := globalconfig.GetShardedQueueName(queue, c.nShards, movieId)
 	return rabbitmq.Publish(c.ch, "", queueName, data)
 }
 
 func (c *Controller) publishToAllShardedQueues(data []byte, queue string) error {
-	for shard := range c.nShards {
-		queueName := fmt.Sprintf("%s_%d", queue, shard+1) // todo move to global config
+	queueNames := globalconfig.GetAllShardedQueueNames(queue, c.nShards)
+	for _, queueName := range queueNames {
 		err := rabbitmq.Publish(c.ch, "", queueName, data)
 		if err != nil {
 			return err
