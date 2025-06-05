@@ -13,9 +13,9 @@ services:
       - tp1_net
     healthcheck:
       test: rabbitmq-diagnostics check_port_connectivity
-      interval: 5s
-      timeout: 3s
-      retries: 3
+      interval: 10s
+      timeout: 10s
+      retries: 10
 
 
   2000s-filter-1:
@@ -29,9 +29,9 @@ services:
       - tp1_net
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      interval: 10s
+      timeout: 10s
+      retries: 10
     depends_on:
 
       ar-es-filter-1:
@@ -53,9 +53,9 @@ services:
       - tp1_net
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      interval: 10s
+      timeout: 10s
+      retries: 10
     depends_on:
 
       ar-es-filter-1:
@@ -77,9 +77,9 @@ services:
       - tp1_net
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      interval: 10s
+      timeout: 10s
+      retries: 10
     depends_on:
 
       ar-es-filter-1:
@@ -106,9 +106,9 @@ services:
         condition: service_healthy
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      interval: 10s
+      timeout: 10s
+      retries: 10
 
   ar-es-filter-2:
     container_name: ar-es-filter-2
@@ -124,9 +124,9 @@ services:
         condition: service_healthy
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      interval: 10s
+      timeout: 10s
+      retries: 10
 
 
 
@@ -141,9 +141,9 @@ services:
       - tp1_net
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      interval: 10s
+      timeout: 10s
+      retries: 10
     depends_on:
 
       joiner_group_by_movie_id_credits-1:
@@ -170,9 +170,9 @@ services:
       - tp1_net
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      interval: 10s
+      timeout: 10s
+      retries: 10
     depends_on:
 
       joiner_group_by_movie_id_credits-1:
@@ -206,9 +206,9 @@ services:
         condition: service_healthy
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      interval: 10s
+      timeout: 10s
+      retries: 10
 
   single-country-origin-filter-2:
     container_name: single-country-origin-filter-2
@@ -226,9 +226,9 @@ services:
         condition: service_healthy
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      interval: 10s
+      timeout: 10s
+      retries: 10
 
   single-country-origin-filter-3:
     container_name: single-country-origin-filter-3
@@ -246,9 +246,9 @@ services:
         condition: service_healthy
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      interval: 10s
+      timeout: 10s
+      retries: 10
 
 
 
@@ -311,9 +311,9 @@ services:
       - rabbitmq
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      interval: 10s
+      timeout: 10s
+      retries: 10
 
   joiner_group_by_movie_id_ratings-2:
     container_name: joiner_group_by_movie_id_ratings-2
@@ -333,9 +333,9 @@ services:
       - rabbitmq
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      interval: 10s
+      timeout: 10s
+      retries: 10
 
   joiner_group_by_movie_id_ratings-3:
     container_name: joiner_group_by_movie_id_ratings-3
@@ -355,9 +355,9 @@ services:
       - rabbitmq
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      interval: 10s
+      timeout: 10s
+      retries: 10
 
 
 
@@ -379,9 +379,9 @@ services:
       - rabbitmq
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      interval: 10s
+      timeout: 10s
+      retries: 10
 
   joiner_group_by_movie_id_credits-2:
     container_name: joiner_group_by_movie_id_credits-2
@@ -401,9 +401,9 @@ services:
       - rabbitmq
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      interval: 10s
+      timeout: 10s
+      retries: 10
 
   joiner_group_by_movie_id_credits-3:
     container_name: joiner_group_by_movie_id_credits-3
@@ -423,9 +423,9 @@ services:
       - rabbitmq
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      interval: 10s
+      timeout: 10s
+      retries: 10
 
 
   aggregator_movies:
@@ -446,9 +446,9 @@ services:
       - rabbitmq
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      interval: 10s
+      timeout: 10s
+      retries: 10
 
   aggregator_top_5:
     container_name: aggregator_top_5
@@ -468,9 +468,9 @@ services:
       - rabbitmq
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      interval: 10s
+      timeout: 10s
+      retries: 10
 
   aggregator_top_10:
     container_name: aggregator_top_10
@@ -490,9 +490,9 @@ services:
       - rabbitmq
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      interval: 10s
+      timeout: 10s
+      retries: 10
 
   aggregator_top_and_bottom:
     container_name: aggregator_top_and_bottom
@@ -512,9 +512,9 @@ services:
       - rabbitmq
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      interval: 10s
+      timeout: 10s
+      retries: 10
 
   aggregator_metrics:
     container_name: aggregator_metrics
@@ -535,9 +535,9 @@ services:
       - rabbitmq
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      interval: 10s
+      timeout: 10s
+      retries: 10
 
 
   nlp-1:
@@ -631,9 +631,9 @@ services:
       - tp1_net
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      interval: 10s
+      timeout: 10s
+      retries: 10
     depends_on:
       2000s-filter-1:
         condition: service_healthy
@@ -745,9 +745,9 @@ services:
       - tp1_net
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      interval: 10s
+      timeout: 10s
+      retries: 10
 
 
 networks:

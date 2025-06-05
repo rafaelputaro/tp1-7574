@@ -13,9 +13,9 @@ services:
       - tp1_net
     healthcheck:
       test: rabbitmq-diagnostics check_port_connectivity
-      interval: 5s
-      timeout: 3s
-      retries: 3
+      interval: 10s
+      timeout: 10s
+      retries: 10
 
 {% for i in range(1, filter_nodes_2000s + 1) %}
   2000s-filter-{{ i }}:
@@ -29,9 +29,9 @@ services:
       - tp1_net
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      interval: 10s
+      timeout: 10s
+      retries: 10
     depends_on:
 {% for i in range(1, ar_es_filter_nodes + 1) %}
       ar-es-filter-{{ i }}:
@@ -58,9 +58,9 @@ services:
         condition: service_healthy
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      interval: 10s
+      timeout: 10s
+      retries: 10
 {% endfor %}
 
 {% for i in range(1, ar_filter_nodes + 1) %}
@@ -75,9 +75,9 @@ services:
       - tp1_net
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      interval: 10s
+      timeout: 10s
+      retries: 10
     depends_on:
 {% for i in range(1, shards + 1) %}
       joiner_group_by_movie_id_credits-{{ i }}:
@@ -104,9 +104,9 @@ services:
         condition: service_healthy
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      interval: 10s
+      timeout: 10s
+      retries: 10
 {% endfor %}
 
 {% for i in range(1, top_5_investors_filter_nodes + 1) %}
@@ -143,9 +143,9 @@ services:
       - rabbitmq
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      interval: 10s
+      timeout: 10s
+      retries: 10
 {% endfor %}
 
 {% for i in range(1, shards + 1) %}
@@ -167,9 +167,9 @@ services:
       - rabbitmq
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      interval: 10s
+      timeout: 10s
+      retries: 10
 {% endfor %}
 
   aggregator_movies:
@@ -190,9 +190,9 @@ services:
       - rabbitmq
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      interval: 10s
+      timeout: 10s
+      retries: 10
 
   aggregator_top_5:
     container_name: aggregator_top_5
@@ -212,9 +212,9 @@ services:
       - rabbitmq
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      interval: 10s
+      timeout: 10s
+      retries: 10
 
   aggregator_top_10:
     container_name: aggregator_top_10
@@ -234,9 +234,9 @@ services:
       - rabbitmq
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      interval: 10s
+      timeout: 10s
+      retries: 10
 
   aggregator_top_and_bottom:
     container_name: aggregator_top_and_bottom
@@ -256,9 +256,9 @@ services:
       - rabbitmq
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      interval: 10s
+      timeout: 10s
+      retries: 10
 
   aggregator_metrics:
     container_name: aggregator_metrics
@@ -279,9 +279,9 @@ services:
       - rabbitmq
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      interval: 10s
+      timeout: 10s
+      retries: 10
 
 {% for i in range(1, nlp_nodes + 1) %}
   nlp-{{ i }}:
@@ -311,9 +311,9 @@ services:
       - tp1_net
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      interval: 10s
+      timeout: 10s
+      retries: 10
     depends_on:
 {%- for i in range(1, filter_nodes_2000s + 1) %}
       2000s-filter-{{ i }}:
@@ -369,9 +369,9 @@ services:
       - tp1_net
     healthcheck:
       test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
-      interval: 5s
-      timeout: 3s
-      retries: 5
+      interval: 10s
+      timeout: 10s
+      retries: 10
 
 
 networks:

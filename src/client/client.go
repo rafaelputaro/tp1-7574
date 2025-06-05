@@ -19,8 +19,8 @@ import (
 )
 
 const (
-	batchSize          = 1000
-	ratingsBatchSize   = 10000
+	batchSize          = 5000
+	ratingsBatchSize   = 50000
 	controllerGrpcAddr = "controller:50051"
 )
 

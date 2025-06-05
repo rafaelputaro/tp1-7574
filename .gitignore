@@ -29,7 +29,8 @@ go.work.sum
 
 # Custom
 src/client/datasets/
-reports/
+reports/*
+!reports/expected_report.txt
 nlp-cache/
 logs.txt
 .DS_Store

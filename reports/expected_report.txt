@@ -1,0 +1,54 @@
+=== Report Summary ===
+
+[1] Movies:
+ - ID: 8898 | Title: The Headless Woman | Genres: [Drama Mystery Thriller]
+ - ID: 11556 | Title: Nicotina | Genres: [Drama Action Comedy Thriller]
+ - ID: 11928 | Title: Tetro | Genres: [Drama Mystery]
+ - ID: 13653 | Title: The Aura | Genres: [Crime Drama Thriller]
+ - ID: 16092 | Title: The Appeared | Genres: [Horror Thriller Mystery]
+ - ID: 20316 | Title: The City of No Limits | Genres: [Thriller Drama]
+ - ID: 21043 | Title: The Method | Genres: [Drama Thriller]
+ - ID: 25376 | Title: The Secret in Their Eyes | Genres: [Crime Drama Mystery Romance]
+ - ID: 26864 | Title: The Fish Child | Genres: [Drama Thriller Romance Foreign]
+ - ID: 27092 | Title: Burnt Money | Genres: [Crime]
+ - ID: 29952 | Title: Bombón: The Dog | Genres: [Drama]
+ - ID: 35005 | Title: Conversations with Mother | Genres: [Comedy Drama Foreign]
+ - ID: 36971 | Title: Whisky | Genres: [Comedy Drama Foreign]
+ - ID: 43432 | Title: Roma | Genres: [Drama Foreign]
+ - ID: 44413 | Title: The Holy Girl | Genres: [Drama Foreign]
+ - ID: 49681 | Title: Lost Embrace | Genres: [Drama Foreign]
+ - ID: 57489 | Title: The Last Summer of La Boyita | Genres: [Drama]
+ - ID: 58429 | Title: La Cienaga | Genres: [Comedy Drama]
+ - ID: 65795 | Title: The Education of Fairies | Genres: [Drama]
+ - ID: 71114 | Title: Cleopatra | Genres: [Drama Comedy Foreign]
+ - ID: 79767 | Title: Rolling Family | Genres: [Drama Comedy]
+ - ID: 101006 | Title: Liverpool | Genres: [Drama]
+ - ID: 127257 | Title: Every Stewardess Goes to Heaven | Genres: [Drama Romance Foreign]
+ - ID: 196324 | Title: The Good Life | Genres: [Drama]
+
+[2] Budgets by Country:
+ - United States of America: $120153886644
+ - France: $2256831838
+ - United Kingdom: $1611604610
+ - India: $1169682797
+ - Japan: $832585873
+
+[3] Rating Extremes:
+ - Highest: ID 0 | Title: Violeta Went to Heaven | Rating: 5.00
+ - Lowest: ID 1 | Title: Phase 7 | Rating: 2.75
+
+[4] Frequent Actors:
+ - Name: Ricardo Darín | Appearances: 10
+ - Name: Inés Efron | Appearances: 7
+ - Name: Valeria Bertuccelli | Appearances: 7
+ - Name: Diego Peretti | Appearances: 6
+ - Name: Rafael Spregelburd | Appearances: 6
+ - Name: Rodrigo de la Serna | Appearances: 6
+ - Name: Adrián Suar | Appearances: 5
+ - Name: Mercedes Morán | Appearances: 5
+ - Name: Norma Aleandro | Appearances: 5
+ - Name: Pablo Echarri | Appearances: 5
+
+[5] Sentiment Analysis:
+ - Positive (positive): 3328.59
+ - Negative (negative): 3466.60

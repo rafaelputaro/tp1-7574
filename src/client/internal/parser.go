@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"bufio"
 	"encoding/csv"
 	"fmt"
 	"google.golang.org/protobuf/proto"
@@ -61,7 +62,8 @@ func newBatchCSVParser[T any](path string, fn func([]string) (*T, error), size i
 		return nil, fmt.Errorf("failed to open file %s: %w", path, err)
 	}
 
-	reader := csv.NewReader(file)
+	bufferedReader := bufio.NewReaderSize(file, 1024*1024)
+	reader := csv.NewReader(bufferedReader)
 
 	// skip header
 	_, err = reader.Read()
@@ -120,11 +122,27 @@ func parseRating(record []string) (*pb.Rating, error) {
 	rating, _ := strconv.ParseFloat(record[2], 32)
 	timestamp, _ := strconv.ParseInt(record[3], 10, 64)
 
-	return &pb.Rating{
+	r := &pb.Rating{
 		MovieId:   proto.Int64(movieID),
 		Rating:    proto.Float32(float32(rating)),
 		Timestamp: proto.Int64(timestamp),
-	}, nil
+	}
+
+	if r.MovieId == nil || r.GetMovieId() <= 0 {
+		return nil, fmt.Errorf("invalid movie id")
+	}
+	if r.Rating == nil || r.GetRating() < 0.0 || r.GetRating() > 5.0 {
+		return nil, fmt.Errorf("invalid rating value")
+	}
+	if r.Timestamp == nil || r.GetTimestamp() <= 0 {
+		return nil, fmt.Errorf("invalid timestamp")
+	}
+
+	if r.GetRating() < 0.0 || r.GetRating() > 5.0 {
+		return nil, fmt.Errorf("invalid rating value: %v", r.GetRating())
+	}
+
+	return r, nil
 }
 
 func parseCredit(record []string) (*pb.Credit, error) {
