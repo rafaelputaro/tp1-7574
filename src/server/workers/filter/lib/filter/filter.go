@@ -565,20 +565,6 @@ func (f *Filter) runShardedFilter(inputQueue string, declareInput bool, outputEx
 		}
 	}
 
-	// Create a direct exchange (that uses sharding)
-	err := f.channel.ExchangeDeclare(
-		outputExchange, // name
-		"direct",       // type
-		true,           // durable
-		false,          // auto-deleted
-		false,          // internal
-		false,          // no-wait
-		nil,            // arguments
-	)
-	if err != nil {
-		f.log.Fatalf("failed to declare exchange %s: %v", outputExchange, err)
-	}
-
 	// Declare and bind sharded queues to the exchange
 	for i := 1; i <= f.config.Shards; i++ {
 		queueName := strings.Replace(outputExchange, "exchange", fmt.Sprintf("shard_%d", i), 1)
@@ -591,12 +577,11 @@ func (f *Filter) runShardedFilter(inputQueue string, declareInput bool, outputEx
 			f.log.Fatalf("failed to declare queue '%s': %v", queueName, err)
 		}
 
-		err = f.channel.QueueBind(
-			queueName,      // queue name
-			routingKey,     // routing key
-			outputExchange, // exchange name
-			false,          // no-wait
-			nil,            // args
+		err = rabbitmq.BindQueueWithFreshChannel(
+			f.conn,
+			queueName,
+			outputExchange,
+			routingKey,
 		)
 		if err != nil {
 			f.log.Fatalf("failed to bind queue '%s' to exchange '%s': %v", queueName, outputExchange, err)

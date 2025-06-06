@@ -62,25 +62,6 @@ func DeclareTemporaryQueue(channel *amqp.Channel) (amqp.Queue, error) {
 	return queue, nil
 }
 
-func DeclareFanoutExchanges(channel *amqp.Channel, exchanges ...string) error {
-	for _, name := range exchanges {
-		err := channel.ExchangeDeclare(
-			name,
-			"fanout",
-			true,
-			false,
-			false,
-			false,
-			nil,
-		)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 func DeclareTopicExchanges(channel *amqp.Channel, exchanges ...string) error {
 	for _, name := range exchanges {
 		err := channel.ExchangeDeclare(
@@ -127,6 +108,18 @@ func BindQueueToExchange(channel *amqp.Channel, queue, exchange, routingKey stri
 		false,
 		nil,
 	)
+}
+
+func BindQueueWithFreshChannel(conn *amqp.Connection, queue, exchange, routingKey string) error {
+	ch, err := conn.Channel()
+	if err != nil {
+		return err
+	}
+	defer func(ch *amqp.Channel) {
+		_ = ch.Close()
+	}(ch)
+
+	return ch.QueueBind(queue, routingKey, exchange, false, nil)
 }
 
 func ConsumeFromQueue(channel *amqp.Channel, queue string) (<-chan amqp.Delivery, error) {
