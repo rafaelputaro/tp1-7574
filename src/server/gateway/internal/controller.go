@@ -159,7 +159,7 @@ func (c *Controller) StreamCredits(stream pb.CreditService_StreamCreditsServer) 
 			return err
 		}
 
-		err = c.publishToExchange(globalconfig.CreditsExchange, data)
+		err = c.publishToShardedQueue(data, globalconfig.CreditsQueue, sanitized.GetId())
 		if err != nil {
 			return err
 		}
@@ -255,7 +255,7 @@ func (c *Controller) publishCreditEof(clientID string, messageId int64) error {
 		return err
 	}
 
-	err = c.publishToExchange(globalconfig.CreditsExchange, data)
+	err = c.publishToAllShardedQueues(data, globalconfig.CreditsQueue)
 	if err != nil {
 		return err
 	}

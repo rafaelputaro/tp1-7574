@@ -37,11 +37,6 @@ func main() {
 	}
 	defer rabbitmq.ShutdownChannel(ch)
 
-	err = rabbitmq.DeclareFanoutExchanges(ch, globalconfig.Exchanges...)
-	if err != nil {
-		logger.Fatalf("Failed to declare exchanges: %v", err)
-	}
-
 	err = rabbitmq.DeclareDirectQueues(ch, globalconfig.MoviesQueues...)
 	if err != nil {
 		logger.Fatalf("Failed to declare movies: %v", err)

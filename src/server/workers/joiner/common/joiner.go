@@ -1,7 +1,6 @@
 package common
 
 import (
-	"tp1/globalconfig"
 	"tp1/protobuf/protopb"
 	"tp1/rabbitmq"
 
@@ -107,7 +106,7 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 		Shutdown(joiner.Log, joiner.Connection, joiner.Channel, "failed to declare exchange", err)
 	}
 
-	err = rabbitmq.DeclareDirectQueues(joiner.Channel, joiner.Config.InputQueueName)
+	err = rabbitmq.DeclareDirectQueues(joiner.Channel, joiner.Config.InputQueueName, joiner.Config.InputQueueSecName)
 	if err != nil {
 		Shutdown(joiner.Log, joiner.Connection, joiner.Channel, "failed to declare queue", err)
 	}
@@ -115,21 +114,6 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 	err = rabbitmq.BindQueueToExchange(joiner.Channel, joiner.Config.InputQueueName, inputExchange, joiner.Config.ID)
 	if err != nil {
 		Shutdown(joiner.Log, joiner.Connection, joiner.Channel, "failed to bind queue to exchange", err)
-	}
-
-	err = rabbitmq.DeclareFanoutExchanges(joiner.Channel, globalconfig.CreditsExchange)
-	if err != nil {
-		Shutdown(joiner.Log, joiner.Connection, joiner.Channel, "failed to declare fanout exchange", err)
-	}
-
-	inputQueue, err := rabbitmq.DeclareTemporaryQueue(joiner.Channel)
-	if err != nil {
-		Shutdown(joiner.Log, joiner.Connection, joiner.Channel, "failed to declare temporary queue", err)
-	}
-
-	err = rabbitmq.BindQueueToExchange(joiner.Channel, inputQueue.Name, globalconfig.CreditsExchange, "")
-	if err != nil {
-		Shutdown(joiner.Log, joiner.Connection, joiner.Channel, "failed to bind temporary queue to exchange", err)
 	}
 
 	// Store client-specific data
@@ -238,18 +222,19 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 	}()
 
 	go func() {
-		msgs, err := rabbitmq.ConsumeFromQueue(joiner.Channel, inputQueue.Name)
-		if err == nil {
-			for msg := range msgs {
-				err := rabbitmq.SingleAck(msg)
-				if err != nil {
-					joiner.Log.Fatalf("failed to ack message: %v", err)
-				}
-				processMessage(msg, true)
-			}
-		} else {
-			joiner.Log.Fatalf("[queue:%s] failed to consume: %v", joiner.Config.InputQueueName, err)
+		msgs, err := rabbitmq.ConsumeFromQueue(joiner.Channel, joiner.Config.InputQueueSecName)
+		if err != nil {
+			joiner.Log.Fatalf("[queue:%s] failed to consume: %v", joiner.Config.InputQueueSecName, err)
 		}
+
+		for msg := range msgs {
+			err := rabbitmq.SingleAck(msg)
+			if err != nil {
+				joiner.Log.Fatalf("failed to ack message: %v", err)
+			}
+			processMessage(msg, true)
+		}
+
 	}()
 
 	// Keep the joiner running indefinitely
@@ -388,7 +373,7 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 			if err != nil {
 				joiner.Log.Fatalf("failed to ack message: %v", err)
 			}
-			processMessage(msg, true) // Rating messages
+			processMessage(msg, true)
 		}
 	}()
 
