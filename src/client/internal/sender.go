@@ -113,16 +113,16 @@ func SendRatings(ctx context.Context, client pb.RatingServiceClient, parser Pars
 			protoUtils.SetMessageIdRating(item, int64(count))
 			filteredBatch = append(filteredBatch, item)
 			count++
+
+			if count%1000000 == 0 {
+				logger.Infof("Progress: sent %d ratings", count)
+			}
 		}
 
 		for _, item := range filteredBatch {
 			if err := stream.Send(item); err != nil {
 				logger.Errorf("failed to send rating: %v", err)
 			}
-		}
-
-		if count%1000000 == 0 {
-			logger.Infof("Progress: sent %d ratings", count)
 		}
 	}
 
