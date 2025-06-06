@@ -22,6 +22,7 @@ func (messageWindow MessageWindow) IsDuplicate(messageId int64) bool {
 // NewMessageWindow creates a new MessageWindow with a maximum length of MAX_LENGTH.
 func (messageWindow MessageWindow) AddMessage(messageId int64) {
 	messageWindow.cleanOld()
+	// TODO: Setear directamente la fecha de vencimiento
 	messageWindow[messageId] = time.Now().UTC().Format(LAYOUT_TIMESTAMP)
 }
 
