@@ -24,7 +24,7 @@ services:
     environment:
       - FILTER_TYPE=2000s_filter
       - FILTER_NUM=1
-      - SHARDS=3
+      - SHARDS=2
     networks:
       - tp1_net
     healthcheck:
@@ -48,31 +48,7 @@ services:
     environment:
       - FILTER_TYPE=2000s_filter
       - FILTER_NUM=2
-      - SHARDS=3
-    networks:
-      - tp1_net
-    healthcheck:
-      test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
-      interval: 10s
-      timeout: 10s
-      retries: 10
-    depends_on:
-
-      ar-es-filter-1:
-        condition: service_healthy
-      ar-es-filter-2:
-        condition: service_healthy
-      ar-filter-1:
-        condition: service_healthy
-      ar-filter-2:
-        condition: service_healthy
-  2000s-filter-3:
-    container_name: 2000s-filter-3
-    image: filter:latest
-    environment:
-      - FILTER_TYPE=2000s_filter
-      - FILTER_NUM=3
-      - SHARDS=3
+      - SHARDS=2
     networks:
       - tp1_net
     healthcheck:
@@ -98,7 +74,7 @@ services:
     environment:
       - FILTER_TYPE=ar_es_filter
       - FILTER_NUM=1
-      - SHARDS=3
+      - SHARDS=2
     networks:
       - tp1_net
     depends_on:
@@ -116,7 +92,7 @@ services:
     environment:
       - FILTER_TYPE=ar_es_filter
       - FILTER_NUM=2
-      - SHARDS=3
+      - SHARDS=2
     networks:
       - tp1_net
     depends_on:
@@ -136,7 +112,7 @@ services:
     environment:
       - FILTER_TYPE=ar_filter
       - FILTER_NUM=1
-      - SHARDS=3
+      - SHARDS=2
     networks:
       - tp1_net
     healthcheck:
@@ -153,10 +129,6 @@ services:
       joiner_group_by_movie_id_credits-2:
         condition: service_healthy
       joiner_group_by_movie_id_ratings-2:
-        condition: service_healthy
-      joiner_group_by_movie_id_credits-3:
-        condition: service_healthy
-      joiner_group_by_movie_id_ratings-3:
         condition: service_healthy
 
   ar-filter-2:
@@ -165,7 +137,7 @@ services:
     environment:
       - FILTER_TYPE=ar_filter
       - FILTER_NUM=2
-      - SHARDS=3
+      - SHARDS=2
     networks:
       - tp1_net
     healthcheck:
@@ -182,10 +154,6 @@ services:
       joiner_group_by_movie_id_credits-2:
         condition: service_healthy
       joiner_group_by_movie_id_ratings-2:
-        condition: service_healthy
-      joiner_group_by_movie_id_credits-3:
-        condition: service_healthy
-      joiner_group_by_movie_id_ratings-3:
         condition: service_healthy
 
 
@@ -196,8 +164,8 @@ services:
     environment:
       - FILTER_TYPE=single_country_origin_filter
       - FILTER_NUM=1
-      - SHARDS=3
-      - FILTER_NODES=3
+      - SHARDS=2
+      - FILTER_NODES=2
       - NODE_NAME=single-country-origin-filter-1
     networks:
       - tp1_net
@@ -216,29 +184,9 @@ services:
     environment:
       - FILTER_TYPE=single_country_origin_filter
       - FILTER_NUM=2
-      - SHARDS=3
-      - FILTER_NODES=3
+      - SHARDS=2
+      - FILTER_NODES=2
       - NODE_NAME=single-country-origin-filter-2
-    networks:
-      - tp1_net
-    depends_on:
-      aggregator_top_5:
-        condition: service_healthy
-    healthcheck:
-      test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
-      interval: 10s
-      timeout: 10s
-      retries: 10
-
-  single-country-origin-filter-3:
-    container_name: single-country-origin-filter-3
-    image: filter:latest
-    environment:
-      - FILTER_TYPE=single_country_origin_filter
-      - FILTER_NUM=3
-      - SHARDS=3
-      - FILTER_NODES=3
-      - NODE_NAME=single-country-origin-filter-3
     networks:
       - tp1_net
     depends_on:
@@ -258,7 +206,7 @@ services:
     environment:
       - FILTER_TYPE=top_5_investors_filter
       - FILTER_NUM=1
-      - SHARDS=3
+      - SHARDS=2
     networks:
       - tp1_net
     depends_on:
@@ -271,20 +219,7 @@ services:
     environment:
       - FILTER_TYPE=top_5_investors_filter
       - FILTER_NUM=2
-      - SHARDS=3
-    networks:
-      - tp1_net
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-
-  top-5-investors-filter-3:
-    container_name: top-5-investors-filter-3
-    image: filter:latest
-    environment:
-      - FILTER_TYPE=top_5_investors_filter
-      - FILTER_NUM=3
-      - SHARDS=3
+      - SHARDS=2
     networks:
       - tp1_net
     depends_on:
@@ -337,28 +272,6 @@ services:
       timeout: 10s
       retries: 10
 
-  joiner_group_by_movie_id_ratings-3:
-    container_name: joiner_group_by_movie_id_ratings-3
-    image: joiner:latest
-    environment:
-      - JOINER_TYPE=group_by_movie_id_ratings
-      - JOINER_ID=3
-      - JOINER_INPUT_QUEUE_BASE_NAME=ar_movies_2000_and_later
-      - JOINER_INPUT_QUEUE_SEC_NAME=ratings_3
-      - JOINER_OUTPUT_QUEUE_NAME=movies_top_and_bottom
-    networks:
-      - tp1_net
-    depends_on:
-      aggregator_top_and_bottom:
-        condition: service_healthy
-    links:
-      - rabbitmq
-    healthcheck:
-      test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
-      interval: 10s
-      timeout: 10s
-      retries: 10
-
 
 
   joiner_group_by_movie_id_credits-1:
@@ -391,28 +304,6 @@ services:
       - JOINER_ID=2
       - JOINER_INPUT_QUEUE_BASE_NAME=ar_movies_after_2000
       - JOINER_INPUT_QUEUE_SEC_NAME=credits_2
-      - JOINER_OUTPUT_QUEUE_NAME=actor_movies_count
-    networks:
-      - tp1_net
-    depends_on:
-      aggregator_top_10:
-        condition: service_healthy
-    links:
-      - rabbitmq
-    healthcheck:
-      test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
-      interval: 10s
-      timeout: 10s
-      retries: 10
-
-  joiner_group_by_movie_id_credits-3:
-    container_name: joiner_group_by_movie_id_credits-3
-    image: joiner:latest
-    environment:
-      - JOINER_TYPE=group_by_movie_id_credits
-      - JOINER_ID=3
-      - JOINER_INPUT_QUEUE_BASE_NAME=ar_movies_after_2000
-      - JOINER_INPUT_QUEUE_SEC_NAME=credits_3
       - JOINER_OUTPUT_QUEUE_NAME=actor_movies_count
     networks:
       - tp1_net
@@ -478,7 +369,7 @@ services:
     environment:
       - AGGREGATOR_TYPE=top_10
       - AGGREGATOR_ID=3
-      - AGGREGATOR_AMOUNT_SOURCES=3
+      - AGGREGATOR_AMOUNT_SOURCES=2
       - AGGREGATOR_INPUT_QUEUE_NAME=actor_movies_count
       - AGGREGATOR_OUTPUT_QUEUE_NAME=top_10_report
     networks:
@@ -500,7 +391,7 @@ services:
     environment:
       - AGGREGATOR_TYPE=top_and_bottom
       - AGGREGATOR_ID=4
-      - AGGREGATOR_AMOUNT_SOURCES=3
+      - AGGREGATOR_AMOUNT_SOURCES=2
       - AGGREGATOR_INPUT_QUEUE_NAME=movies_top_and_bottom
       - AGGREGATOR_OUTPUT_QUEUE_NAME=top_and_bottom_report
     networks:
@@ -545,8 +436,8 @@ services:
     image: nlp:latest
     environment:
       - NODE_NUM=1
-      - SHARDS=3
-      - NLP_NODES=5
+      - SHARDS=2
+      - NLP_NODES=2
       - NODE_NAME=nlp-1
     networks:
       - tp1_net
@@ -561,57 +452,9 @@ services:
     image: nlp:latest
     environment:
       - NODE_NUM=2
-      - SHARDS=3
-      - NLP_NODES=5
+      - SHARDS=2
+      - NLP_NODES=2
       - NODE_NAME=nlp-2
-    networks:
-      - tp1_net
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-    volumes:
-      - ./nlp-cache:/app/cache
-
-  nlp-3:
-    container_name: nlp-3
-    image: nlp:latest
-    environment:
-      - NODE_NUM=3
-      - SHARDS=3
-      - NLP_NODES=5
-      - NODE_NAME=nlp-3
-    networks:
-      - tp1_net
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-    volumes:
-      - ./nlp-cache:/app/cache
-
-  nlp-4:
-    container_name: nlp-4
-    image: nlp:latest
-    environment:
-      - NODE_NUM=4
-      - SHARDS=3
-      - NLP_NODES=5
-      - NODE_NAME=nlp-4
-    networks:
-      - tp1_net
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-    volumes:
-      - ./nlp-cache:/app/cache
-
-  nlp-5:
-    container_name: nlp-5
-    image: nlp:latest
-    environment:
-      - NODE_NUM=5
-      - SHARDS=3
-      - NLP_NODES=5
-      - NODE_NAME=nlp-5
     networks:
       - tp1_net
     depends_on:
@@ -628,7 +471,7 @@ services:
       context: .
       dockerfile: src/server/gateway/Dockerfile
     environment:
-      - SHARDS=3
+      - SHARDS=2
     networks:
       - tp1_net
     healthcheck:
@@ -641,13 +484,9 @@ services:
         condition: service_healthy
       2000s-filter-2:
         condition: service_healthy
-      2000s-filter-3:
-        condition: service_healthy
       single-country-origin-filter-1:
         condition: service_healthy
       single-country-origin-filter-2:
-        condition: service_healthy
-      single-country-origin-filter-3:
         condition: service_healthy
       joiner_group_by_movie_id_credits-1:
         condition: service_healthy
@@ -657,19 +496,9 @@ services:
         condition: service_healthy
       joiner_group_by_movie_id_ratings-2:
         condition: service_healthy
-      joiner_group_by_movie_id_credits-3:
-        condition: service_healthy
-      joiner_group_by_movie_id_ratings-3:
-        condition: service_healthy
       nlp-1:
         condition: service_started
       nlp-2:
-        condition: service_started
-      nlp-3:
-        condition: service_started
-      nlp-4:
-        condition: service_started
-      nlp-5:
         condition: service_started
 
 
@@ -695,26 +524,6 @@ services:
 
   client-2:
     container_name: client-2
-    image: client:latest
-    build:
-      context: .
-      dockerfile: src/client/Dockerfile
-    networks:
-      - tp1_net
-    depends_on:
-      controller:
-        condition: service_healthy
-    volumes:
-      - ./src/client/datasets:/app/datasets
-      - ./reports:/app
-    entrypoint: /client
-    command:
-      - /app/datasets/movies.csv
-      - /app/datasets/ratings.csv
-      - /app/datasets/credits.csv
-
-  client-3:
-    container_name: client-3
     image: client:latest
     build:
       context: .

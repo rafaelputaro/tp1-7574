@@ -24,7 +24,8 @@ docker-image: deps
 .PHONY: docker-image
 
 docker-compose-up: docker-compose-dev.yaml docker-image
-	docker compose -f docker-compose-dev.yaml up -d --build
+	docker compose -f docker-compose-dev.yaml down --remove-orphans || true
+	docker compose -f docker-compose-dev.yaml up -d --build --force-recreate
 .PHONY: docker-compose-up
 
 docker-compose-logs:
