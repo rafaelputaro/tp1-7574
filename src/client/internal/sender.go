@@ -55,8 +55,8 @@ func SendMovies(ctx context.Context, client pb.MovieServiceClient, parser Parser
 			if err := stream.Send(item); err != nil {
 				logger.Errorf("failed to send movie: %v", err)
 			}
+			count++
 		}
-		count += len(batch)
 	}
 
 	if _, err := stream.CloseAndRecv(); err != nil {
@@ -164,8 +164,8 @@ func SendCredits(ctx context.Context, client pb.CreditServiceClient, parser Pars
 			if err := stream.Send(item); err != nil {
 				logger.Errorf("failed to send credit: %v", err)
 			}
+			count++
 		}
-		count += len(batch)
 	}
 
 	if _, err := stream.CloseAndRecv(); err != nil {

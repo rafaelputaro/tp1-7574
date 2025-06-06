@@ -93,7 +93,7 @@ func main() {
 		resp, errRep = controllerReportClient.GetReport(ctx, &emptypb.Empty{})
 		if errRep != nil {
 			logger.Errorf("Failed to get report: %v", errRep)
-			time.Sleep(60 * time.Second) // todo esto no va a funcionar con la cache de nlp vacia
+			time.Sleep(60 * time.Second)
 			continue
 		}
 		break
@@ -101,10 +101,10 @@ func main() {
 
 	// logger.Infof("Received report response: %+v", resp)
 
-	printReport(resp)
+	saveReportAndCompare(resp)
 }
 
-func printReport(report *pb.ReportResponse) {
+func saveReportAndCompare(report *pb.ReportResponse) {
 	var output string
 	output += "=== Report Summary ===\n"
 
