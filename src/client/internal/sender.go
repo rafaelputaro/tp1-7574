@@ -25,7 +25,7 @@ func SendMovies(ctx context.Context, client pb.MovieServiceClient, parser Parser
 		logger.Fatalf("Failed to open movies stream after retries: %v", err)
 	}
 
-	ValidMovieIDs = make(map[int64]struct{})
+	ValidMovieIDs = make(map[int64]struct{}, parser.GetSize())
 
 	for {
 		select {
@@ -49,6 +49,10 @@ func SendMovies(ctx context.Context, client pb.MovieServiceClient, parser Parser
 		for _, item := range batch {
 			movieID := int64(item.GetId())
 
+			if _, exists := ValidMovieIDs[movieID]; exists {
+				continue
+			}
+
 			ValidMovieIDs[movieID] = struct{}{}
 
 			protoUtils.SetMessageIdMovie(item, int64(count))
@@ -63,12 +67,11 @@ func SendMovies(ctx context.Context, client pb.MovieServiceClient, parser Parser
 		logger.Errorf("movie stream close error: %v", err)
 	}
 
-	logger.Infof("Processed %d movies, collected %d unique movie IDs", count, len(ValidMovieIDs)) // todo we are sending movies with repeated ids
+	logger.Infof("Sent %d movies", count)
 }
 
 func SendRatings(ctx context.Context, client pb.RatingServiceClient, parser Parser[pb.Rating]) {
 	count := 0
-	totalRatings := 0
 
 	stream, err := RetryWithBackoff(
 		func() (pb.RatingService_StreamRatingsClient, error) {
@@ -100,7 +103,6 @@ func SendRatings(ctx context.Context, client pb.RatingServiceClient, parser Pars
 		}
 
 		filteredBatch = filteredBatch[:0]
-		totalRatings += len(batch)
 
 		for _, item := range batch {
 			movieID := item.GetMovieId()
@@ -119,14 +121,16 @@ func SendRatings(ctx context.Context, client pb.RatingServiceClient, parser Pars
 			}
 		}
 
-		if totalRatings%1000000 == 0 {
-			logger.Infof("Progress: processed %d ratings", totalRatings)
+		if count%1000000 == 0 {
+			logger.Infof("Progress: sent %d ratings", count)
 		}
 	}
 
 	if _, err := stream.CloseAndRecv(); err != nil {
 		logger.Errorf("rating stream close error: %v", err)
 	}
+
+	logger.Infof("Sent %d ratings", count)
 }
 
 func SendCredits(ctx context.Context, client pb.CreditServiceClient, parser Parser[pb.Credit]) {
@@ -139,6 +143,8 @@ func SendCredits(ctx context.Context, client pb.CreditServiceClient, parser Pars
 	if err != nil {
 		logger.Fatalf("Failed to open credits stream after retries: %v", err)
 	}
+
+	filteredBatch := make([]*pb.Credit, 0, parser.GetSize())
 
 	for {
 		select {
@@ -159,12 +165,24 @@ func SendCredits(ctx context.Context, client pb.CreditServiceClient, parser Pars
 			break
 		}
 
+		filteredBatch = filteredBatch[:0]
+
 		for _, item := range batch {
+			movieID := item.GetId()
+
+			if _, exists := ValidMovieIDs[movieID]; !exists {
+				continue
+			}
+
 			protoUtils.SetMessageIdCredit(item, int64(count))
+			filteredBatch = append(filteredBatch, item)
+			count++
+		}
+
+		for _, item := range filteredBatch {
 			if err := stream.Send(item); err != nil {
 				logger.Errorf("failed to send credit: %v", err)
 			}
-			count++
 		}
 	}
 

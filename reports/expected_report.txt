@@ -27,11 +27,11 @@
  - ID: 196324 | Title: The Good Life | Genres: [Drama]
 
 [2] Budgets by Country:
- - United States of America: $120153886644
- - France: $2256831838
+ - United States of America: $120096286640
+ - France: $2253319384
  - United Kingdom: $1611604610
  - India: $1169682797
- - Japan: $832585873
+ - Japan: $816585873
 
 [3] Rating Extremes:
  - Highest: ID 0 | Title: The forbidden education | Rating: 4.00
@@ -50,5 +50,5 @@
  - Name: Pablo Echarri | Appearances: 5
 
 [5] Sentiment Analysis:
- - Positive (positive): 3328.59
- - Negative (negative): 3466.60
+ - Positive (positive): 3332.62
+ - Negative (negative): 3470.18
