@@ -68,12 +68,8 @@ func main() {
 	}
 
 	shards, err := strconv.ParseInt(shardsEnv, 10, 64)
-	if err != nil {
-		logger.Fatalf("Invalid SHARDS value '%s': %v", shardsEnv, err)
-	}
-
-	if shards <= 0 {
-		logger.Fatalf("SHARDS must be a positive integer, got: %d", shards)
+	if err != nil || shards <= 0 {
+		logger.Fatal("Invalid SHARDS value")
 	}
 
 	ctrl := internal.NewController(ch, reportClient, clientRegistry, shards)

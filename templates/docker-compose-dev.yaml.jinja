@@ -109,21 +109,6 @@ services:
       retries: 10
 {% endfor %}
 
-{% for i in range(1, top_5_investors_filter_nodes + 1) %}
-  top-5-investors-filter-{{ i }}:
-    container_name: top-5-investors-filter-{{ i }}
-    image: filter:latest
-    environment:
-      - FILTER_TYPE=top_5_investors_filter
-      - FILTER_NUM={{ i }}
-      - SHARDS={{ shards }}
-    networks:
-      - tp1_net
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-{% endfor %}
-
 {% for i in range(1, shards + 1) %}
   joiner_group_by_movie_id_ratings-{{ i }}:
     container_name: joiner_group_by_movie_id_ratings-{{ i }}
@@ -358,7 +343,6 @@ services:
       - /app/datasets/credits.csv
 {% endfor %}
 
-
   report:
     build:
       context: .
@@ -375,6 +359,57 @@ services:
       timeout: 10s
       retries: 10
 
+  resilience_manager:
+    container_name: resilience_manager
+    image: resilience_manager:latest
+    build:
+      context: .
+      dockerfile: src/server/resilience_manager/Dockerfile
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - tp1_net
+    depends_on:
+      controller:
+        condition: service_healthy
+    environment:
+      - RESILIENCE_CHECK_INTERVAL=5
+      - RESILIENCE_UNHEALTHY_THRESHOLD=3
+      - RESILIENCE_RESTART_WAIT=15
+      - HEALTH_ENDPOINT=/ping
+{% for i in range(1, filter_nodes_2000s + 1) %}
+      - MONITOR_SERVICE_FILTER_{{ i }}=2000s-filter-{{ i }}
+{%- endfor %}
+{% for i in range(1, ar_es_filter_nodes + 1) %}
+      - MONITOR_SERVICE_FILTER_{{ filter_nodes_2000s + i }}=ar-es-filter-{{ i }}
+{%- endfor %}
+{% for i in range(1, ar_filter_nodes + 1) %}
+      - MONITOR_SERVICE_FILTER_{{ ar_es_filter_nodes + filter_nodes_2000s + i }}=ar-filter-{{ i }}
+{%- endfor %}
+{% for i in range(1, single_country_origin_filter_nodes + 1) %}
+      - MONITOR_SERVICE_FILTER_{{ ar_filter_nodes + ar_es_filter_nodes + filter_nodes_2000s + i }}=single-country-origin-filter-{{ i }}
+{%- endfor %}
+{% for i in range(1, shards + 1) %}
+      - MONITOR_SERVICE_JOINER_{{ i }}=joiner_group_by_movie_id_ratings-{{ i }}
+{%- endfor %}
+{% for i in range(1, shards + 1) %}
+      - MONITOR_SERVICE_JOINER_{{ shards + i }}=joiner_group_by_movie_id_credits-{{ i }}
+{%- endfor %}
+      - MONITOR_SERVICE_AGGREGATOR_1=aggregator_movies
+      - MONITOR_SERVICE_AGGREGATOR_2=aggregator_top_5
+      - MONITOR_SERVICE_AGGREGATOR_3=aggregator_top_10
+      - MONITOR_SERVICE_AGGREGATOR_4=aggregator_top_and_bottom
+      - MONITOR_SERVICE_AGGREGATOR_5=aggregator_metrics
+
+      - MONITOR_SERVICE_CONTROLLER_1=controller
+      - MONITOR_SERVICE_REPORT_1=report
+    restart: always
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
 networks:
   tp1_net:

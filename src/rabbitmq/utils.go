@@ -46,6 +46,18 @@ func DeclareDirectQueues(channel *amqp.Channel, queues ...string) error {
 	return nil
 }
 
+func DeclareDirectQueuesWithFreshChannel(conn *amqp.Connection, queues ...string) error {
+	ch, err := conn.Channel()
+	if err != nil {
+		return err
+	}
+	defer func(ch *amqp.Channel) {
+		_ = ch.Close()
+	}(ch)
+
+	return DeclareDirectQueues(ch, queues...)
+}
+
 func DeclareTemporaryQueue(channel *amqp.Channel) (amqp.Queue, error) {
 	queue, err := channel.QueueDeclare(
 		"",

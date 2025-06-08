@@ -488,14 +488,9 @@ func (f *Filter) processSingleCountryOriginFilter() {
 
 	coord := coordinator.NewEOFLeader(f.log, f.channel, "single_country_origin_filter")
 
-	err := rabbitmq.DeclareDirectQueues(f.channel, inputQueue)
+	err := rabbitmq.DeclareDirectQueuesWithFreshChannel(f.conn, inputQueue, outputQueue)
 	if err != nil {
 		f.log.Fatalf("Failed to declare queue: %v", err)
-	}
-
-	err = rabbitmq.DeclareDirectQueues(f.channel, outputQueue)
-	if err != nil {
-		f.log.Fatalf("failed to declare queue %v", err)
 	}
 
 	msgs, err := rabbitmq.ConsumeFromQueue(f.channel, inputQueue)
@@ -559,7 +554,7 @@ func (f *Filter) processSingleCountryOriginFilter() {
 func (f *Filter) runShardedFilter(inputQueue string, declareInput bool, outputExchange string, filterFunc func(movie *protopb.MovieSanit) bool, shardingFunc func(movie *protopb.MovieSanit) int) {
 	// TODO: sacar esta lógica de acá
 	if declareInput {
-		err := rabbitmq.DeclareDirectQueues(f.channel, inputQueue)
+		err := rabbitmq.DeclareDirectQueuesWithFreshChannel(f.conn, inputQueue)
 		if err != nil {
 			f.log.Fatalf("failed to declare queue '%s': %v", inputQueue, err)
 		}
@@ -571,7 +566,7 @@ func (f *Filter) runShardedFilter(inputQueue string, declareInput bool, outputEx
 
 		routingKey := fmt.Sprintf("%d", i)
 
-		err := rabbitmq.DeclareDirectQueues(f.channel, queueName)
+		err := rabbitmq.DeclareDirectQueuesWithFreshChannel(f.conn, queueName)
 		f.log.Debugf("Declaring %v", queueName)
 		if err != nil {
 			f.log.Fatalf("failed to declare queue '%s': %v", queueName, err)
