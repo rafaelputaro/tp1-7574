@@ -17,8 +17,8 @@ var StatesDir = initStatesDir()
 const MODULE_NAME = "state"
 const DEFAULT_STATES_DIR = "/tmp/states"
 const STATES_DIR_ENV_VAR = "STATES_DIR"
-const MAX_VALIDS_STATES = 5            // Maximum number of valids states per state file
-const MAX_FILE_SIZE = 10 * 1024 * 1024 // Maximum file size in bytes (10 MB)
+const MAX_VALIDS_STATES = 5       // Maximum number of valids states per state file
+const MAX_FILE_SIZE = 1024 * 1024 // Maximum file size in bytes (1 MB)
 const LAYOUT_TIMESTAMP = "2006-01-02 15:04:05.000000000"
 
 const MSG_FAILED_TO_OPEN_STATE_FILE = "Failed to open state file: %v"
@@ -59,21 +59,21 @@ func initStatesDir() string {
 	return statesDir
 }
 
-// generateFilePath constructs the file path for the state file based on client ID, module name, and shard.
-func generateFilePath(clientId string, moduleName string, shard string) string {
+// GenerateFilePath constructs the file path for the state file based on client ID, module name, and shard.
+func GenerateFilePath(clientId string, moduleName string, shard string) string {
 	return StatesDir + "/" + clientId + "_" + moduleName + "_" + shard + ".ndjson"
 }
 
-// generateAuxFilePath constructs the file path for the auxiliary state file based on client ID, module name, and shard.
-func generateAuxFilePath(clientId string, moduleName string, shard string) string {
+// GenerateAuxFilePath constructs the file path for the auxiliary state file based on client ID, module name, and shard.
+func GenerateAuxFilePath(clientId string, moduleName string, shard string) string {
 	return StatesDir + "/" + clientId + "_" + moduleName + "_" + shard + "_aux.ndjson"
 }
 
 // NewStateHelper creates a new StateHelper instance with the specified client ID, module name, and shard.
 func NewStateHelper[T any](clientId string, moduleName string, shard string) *StateHelper[T] {
 	logger := logging.MustGetLogger(MODULE_NAME)
-	filePath := generateFilePath(clientId, moduleName, shard)
-	auxFilePath := generateAuxFilePath(clientId, moduleName, shard)
+	filePath := GenerateFilePath(clientId, moduleName, shard)
+	auxFilePath := GenerateAuxFilePath(clientId, moduleName, shard)
 	// Ensure the states directory exists
 	err := os.MkdirAll(StatesDir, 0755)
 	if err != nil {
@@ -238,6 +238,8 @@ func (stateHelper *StateHelper[T]) tryCleanFile() {
 	if !stateHelper.shouldClean() {
 		return
 	}
+	// clean aux file and save las valid state
+	os.Remove(stateHelper.auxFilePath)
 	// Open the aux file
 	fileAux, err := os.OpenFile(stateHelper.auxFilePath, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {

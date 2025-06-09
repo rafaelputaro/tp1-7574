@@ -1,6 +1,7 @@
 package state
 
 import (
+	"bufio"
 	"os"
 	"strconv"
 	"testing"
@@ -8,7 +9,13 @@ import (
 )
 
 // go test -timeout 30m
-func TestState(t *testing.T) {
+
+type Data struct {
+	Name string
+	Id   int
+}
+
+func TestStateCorrectFiles(t *testing.T) {
 	// Configuration
 	clientId := "cli-1"
 	moduleName := "testing"
@@ -19,10 +26,7 @@ func TestState(t *testing.T) {
 	if err != nil {
 		t.Errorf("Error on clean folder: %v", err)
 	}
-	type Data struct {
-		Name string
-		Id   int
-	}
+
 	stateHelper := NewStateHelper[Data](clientId, moduleName, shard)
 	state, windowP := GetLastValidState(stateHelper)
 	if state != nil || windowP != nil {
@@ -78,5 +82,275 @@ func TestState(t *testing.T) {
 			t.Errorf("Error insert states %v", state.Id)
 		}
 	}
-	// TODO más test con archivos en estado inválidos etcétera
+	// Check files
+	countLinesFile := countLines(stateHelper.filePath)
+	if countLinesFile != 1 {
+		t.Errorf("Error file must have one line %v", countLinesFile)
+	}
+	countLinesAuxFile := countLines(stateHelper.auxFilePath)
+	if countLinesAuxFile != 1 {
+		t.Errorf("Error aux file must be empty %v", countLinesAuxFile)
+	}
+	// Close files
+	stateHelper.Dispose()
+	// Insert Invalids states
+	insertInvalidStatesUntilExceedingMaximumSize(stateHelper.filePath)
+	// Load the files
+	stateHelper = NewStateHelper[Data](clientId, moduleName, shard)
+	// Check window and state
+	state, windowP = GetLastValidState(stateHelper)
+	if state == nil || windowP == nil {
+		t.Errorf("Error reload files: %v", err)
+	} else {
+		for message := range messageIds {
+			if !windowP.IsDuplicate(int64(message)) {
+				t.Errorf("Error insert window")
+			}
+		}
+		if state.Id != MAX_VALIDS_STATES {
+			t.Errorf("Error insert states %v", state.Id)
+		}
+	}
+	// Force clean by size
+	{
+		id := MAX_VALIDS_STATES + 1
+		data := Data{
+			Name: "Subject " + strconv.Itoa(id),
+			Id:   id,
+		}
+		SaveState(stateHelper, data, windowData)
+	}
+	// Check files
+	countLinesFile = countLines(stateHelper.filePath)
+	if countLinesFile != 1 {
+		t.Errorf("Error file must have one line %v", countLinesFile)
+	}
+	countLinesAuxFile = countLines(stateHelper.auxFilePath)
+	if countLinesAuxFile != 1 {
+		t.Errorf("Error aux file must be empty %v", countLinesAuxFile)
+	}
 }
+
+func TestTimeStampFileGreaterThanAux(t *testing.T) {
+	// Configuration
+	clientId := "cli-1"
+	moduleName := "testing"
+	shard := "0"
+	// original file
+	filePath := GenerateFilePath(clientId, moduleName, shard)
+	os.Remove(filePath)
+	fileWr, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return
+	}
+	defer fileWr.Close()
+	data := `{"State":{"Name":"Subject 6","Id":7},"Window":{"0":"2025-06-09 14:28:12.807811640","1":"2025-06-09 14:28:12.807813293","2":"2025-06-09 14:28:12.807813925"},"TimeStamp":"2025-06-09 14:28:21.161415296"}` + "\n"
+	fileWr.WriteString(data)
+	// aux file
+	auxFilePath := GenerateAuxFilePath(clientId, moduleName, shard)
+	os.Remove(auxFilePath)
+	auxFileWr, err := os.OpenFile(auxFilePath, os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return
+	}
+	defer auxFileWr.Close()
+	data = `{"State":{"Name":"Subject 6","Id":6},"Window":{"0":"2025-06-09 14:28:12.807811640","1":"2025-06-09 14:28:12.807813293","2":"2025-06-09 14:28:12.807813925"},"TimeStamp":"2025-06-09 14:28:21.161415294"}` + "\n"
+	auxFileWr.WriteString(data)
+	// Check loader
+	stateHelper := NewStateHelper[Data](clientId, moduleName, shard)
+	state, windowP := GetLastValidState(stateHelper)
+	if state == nil || windowP == nil {
+		t.Errorf("Error load state or window")
+	} else {
+		if state.Id != 7 {
+			t.Errorf("Error states %v", state.Id)
+		}
+	}
+}
+
+func TestTimeStampFileLessThanAux(t *testing.T) {
+	// Configuration
+	clientId := "cli-1"
+	moduleName := "testing"
+	shard := "0"
+	// original file
+	filePath := GenerateFilePath(clientId, moduleName, shard)
+	os.Remove(filePath)
+	fileWr, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return
+	}
+	defer fileWr.Close()
+	data := `{"State":{"Name":"Subject 6","Id":7},"Window":{"0":"2025-06-09 14:28:12.807811640","1":"2025-06-09 14:28:12.807813293","2":"2025-06-09 14:28:12.807813925"},"TimeStamp":"2025-06-09 14:28:21.161415296"}` + "\n"
+	fileWr.WriteString(data)
+	// aux file
+	auxFilePath := GenerateAuxFilePath(clientId, moduleName, shard)
+	os.Remove(auxFilePath)
+	auxFileWr, err := os.OpenFile(auxFilePath, os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return
+	}
+	defer auxFileWr.Close()
+	data = `{"State":{"Name":"Subject 6","Id":6},"Window":{"0":"2025-06-09 14:28:12.807811640","1":"2025-06-09 14:28:12.807813293","2":"2025-06-09 14:28:12.807813925"},"TimeStamp":"2025-06-09 14:28:21.161415298"}` + "\n"
+	auxFileWr.WriteString(data)
+	// Check loader
+	stateHelper := NewStateHelper[Data](clientId, moduleName, shard)
+	state, windowP := GetLastValidState(stateHelper)
+	if state == nil || windowP == nil {
+		t.Errorf("Error load state or window")
+	} else {
+		if state.Id != 6 {
+			t.Errorf("Error states %v", state.Id)
+		}
+	}
+}
+
+func TestStateOriginalFileBroken(t *testing.T) {
+	// Configuration
+	clientId := "cli-1"
+	moduleName := "testing"
+	shard := "0"
+	// original file
+	filePath := GenerateFilePath(clientId, moduleName, shard)
+	os.Remove(filePath)
+	fileWr, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return
+	}
+	defer fileWr.Close()
+	data := `{"State":{"Name":"Subject 6","Id":7},"Window":{"0":"2025-06-09 14:28:12.807811640","1":"2025-06-09 14:28:12.807813293","2":"2025-06-09 14:28:12.807813925"},"TimeStamp":"2025-06-09 14:28:21.161415296"` + "\n"
+	fileWr.WriteString(data)
+	// aux file
+	auxFilePath := GenerateAuxFilePath(clientId, moduleName, shard)
+	os.Remove(auxFilePath)
+	auxFileWr, err := os.OpenFile(auxFilePath, os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return
+	}
+	defer auxFileWr.Close()
+	data = `{"State":{"Name":"Subject 6","Id":6},"Window":{"0":"2025-06-09 14:28:12.807811640","1":"2025-06-09 14:28:12.807813293","2":"2025-06-09 14:28:12.807813925"},"TimeStamp":"2025-06-09 14:28:21.161415298"}` + "\n"
+	auxFileWr.WriteString(data)
+	// Check loader
+	stateHelper := NewStateHelper[Data](clientId, moduleName, shard)
+	state, windowP := GetLastValidState(stateHelper)
+	if state == nil || windowP == nil {
+		t.Errorf("Error load state or window")
+	} else {
+		if state.Id != 6 {
+			t.Errorf("Error states %v", state.Id)
+		}
+	}
+}
+
+func TestStateAuxFileBroken(t *testing.T) {
+	// Configuration
+	clientId := "cli-1"
+	moduleName := "testing"
+	shard := "0"
+	// original file
+	filePath := GenerateFilePath(clientId, moduleName, shard)
+	os.Remove(filePath)
+	fileWr, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return
+	}
+	defer fileWr.Close()
+	data := `{"State":{"Name":"Subject 6","Id":7},"Window":{"0":"2025-06-09 14:28:12.807811640","1":"2025-06-09 14:28:12.807813293","2":"2025-06-09 14:28:12.807813925"},"TimeStamp":"2025-06-09 14:28:21.161415296"}` + "\n"
+	fileWr.WriteString(data)
+	// aux file
+	auxFilePath := GenerateAuxFilePath(clientId, moduleName, shard)
+	os.Remove(auxFilePath)
+	auxFileWr, err := os.OpenFile(auxFilePath, os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return
+	}
+	defer auxFileWr.Close()
+	data = `{"State":{"Name":"Subject 6","Id":6},"Window":{"0":"2025-06-09 14:28:12.807811640","1":"2025-06-09 14:28:12.807813293","2":"2025-06-09 14:28:12.807813925"},"TimeStamp":"2025-06-09 14:28:21.161415298"}1` + "\n"
+	auxFileWr.WriteString(data)
+	// Check loader
+	stateHelper := NewStateHelper[Data](clientId, moduleName, shard)
+	state, windowP := GetLastValidState(stateHelper)
+	if state == nil || windowP == nil {
+		t.Errorf("Error load state or window")
+	} else {
+		if state.Id != 7 {
+			t.Errorf("Error states %v", state.Id)
+		}
+	}
+}
+
+func TestStateBohtFilesBroken(t *testing.T) {
+	// Configuration
+	clientId := "cli-1"
+	moduleName := "testing"
+	shard := "0"
+	// original file
+	filePath := GenerateFilePath(clientId, moduleName, shard)
+	os.Remove(filePath)
+	fileWr, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return
+	}
+	defer fileWr.Close()
+	data := `{"State":{"Name":"Subject 6","Id":7},"Window":{"0":"2025-06-09 14:28:12.807811640","1":"2025-06-09 14:28:12.807813293","2":"2025-06-09 14:28:12.807813925"},"TimeStamp":"2025-06-09 14:28:21.161415296"}2` + "\n"
+	fileWr.WriteString(data)
+	// aux file
+	auxFilePath := GenerateAuxFilePath(clientId, moduleName, shard)
+	os.Remove(auxFilePath)
+	auxFileWr, err := os.OpenFile(auxFilePath, os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return
+	}
+	defer auxFileWr.Close()
+	data = `{"State":{"Name":"Subject 6","Id":6},"Window":{"0":"2025-06-09 14:28:12.807811640","1":"2025-06-09 14:28:12.807813293","2":"2025-06-09 14:28:12.807813925"},"TimeStamp":"2025-06-09 14:28:21.161415298"}1` + "\n"
+	auxFileWr.WriteString(data)
+	// Check loader
+	stateHelper := NewStateHelper[Data](clientId, moduleName, shard)
+	state, windowP := GetLastValidState(stateHelper)
+	if state != nil || windowP != nil {
+		t.Errorf("Error load state or window")
+	}
+}
+
+func insertInvalidStatesUntilExceedingMaximumSize(filePath string) {
+	// Insert invalid states until exceeding maximum file size
+	fileWr, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+	if err != nil {
+		return
+	}
+	defer fileWr.Close()
+	stop := false
+	count := 0
+	for !stop {
+		fileWr.WriteString(strconv.Itoa(count) + "\n")
+		fileInfo, err := os.Stat(filePath)
+		if err != nil {
+			stop = true
+			continue
+		}
+		if fileInfo.Size() >= MAX_FILE_SIZE {
+			stop = true
+		}
+	}
+	println("Invalids states inserted")
+}
+
+func countLines(filePath string) int {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return 0
+	}
+	defer file.Close()
+	scanner := bufio.NewScanner(file)
+	lineCount := 0
+	for scanner.Scan() {
+		lineCount++
+	}
+	return lineCount
+}
+
+/*
+// check file size
+	fileInfo, err := os.Stat(stateHelper.filePath)
+
+*/
