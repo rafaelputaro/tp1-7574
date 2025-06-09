@@ -17,8 +17,8 @@ var StatesDir = initStatesDir()
 const MODULE_NAME = "state"
 const DEFAULT_STATES_DIR = "/tmp/states"
 const STATES_DIR_ENV_VAR = "STATES_DIR"
-const MAX_VALIDS_STATES = 5       // Maximum number of valids states per state file
-const MAX_FILE_SIZE = 1024 * 1024 // Maximum file size in bytes (1 MB)
+const MAX_VALIDS_STATES = 100          // Maximum number of valids states per state file
+const MAX_FILE_SIZE = 10 * 1024 * 1024 // Maximum file size in bytes (10 MB)
 const LAYOUT_TIMESTAMP = "2006-01-02 15:04:05.000000000"
 
 const MSG_FAILED_TO_OPEN_STATE_FILE = "Failed to open state file: %v"

@@ -3,12 +3,13 @@ package window
 import "time"
 
 const LAYOUT_TIMESTAMP = "2006-01-02 15:04:05.000000000"
-const MAX_LENGTH_TO_CLEAN = 10
+const MAX_LENGTH_TO_CLEAN = 100
 const MAX_AGE = 2 * time.Minute
 
-// MessageWindow is a map that holds message IDs and their corresponding timestamps.
+// MessageWindow is a map that holds message IDs and their corresponding valid timestamps.
 type MessageWindow map[int64]string
 
+// NewMessageWindow creates a new MessageWindow with a maximum length of MAX_LENGTH.
 func NewMessageWindow() MessageWindow {
 	return make(map[int64]string)
 }
@@ -19,11 +20,10 @@ func (messageWindow MessageWindow) IsDuplicate(messageId int64) bool {
 	return exists
 }
 
-// NewMessageWindow creates a new MessageWindow with a maximum length of MAX_LENGTH.
+// Adds new message to the window
 func (messageWindow MessageWindow) AddMessage(messageId int64) {
-	messageWindow.cleanOld()
-	// TODO: Setear directamente la fecha de vencimiento
-	messageWindow[messageId] = time.Now().UTC().Format(LAYOUT_TIMESTAMP)
+	messageWindow.tryCleanOld()
+	messageWindow[messageId] = time.Now().Add(MAX_AGE).UTC().Format(LAYOUT_TIMESTAMP)
 }
 
 // RemoveMessage removes a message from the messageWindow by its ID.
@@ -31,8 +31,8 @@ func (messageWindow MessageWindow) RemoveMessage(messageId int64) {
 	delete(messageWindow, messageId)
 }
 
-// cleanOld removes messages from the messageWindow that are older than MAX_AGE.
-func (messageWindow MessageWindow) cleanOld() {
+// tryCleanOld removes messages from the messageWindow that are older than MAX_AGE.
+func (messageWindow MessageWindow) tryCleanOld() {
 	if len(messageWindow) < MAX_LENGTH_TO_CLEAN {
 		return
 	}
@@ -47,8 +47,7 @@ func (messageWindow MessageWindow) CleanOldByTime() {
 			continue
 		}
 		now := time.Now().UTC()
-		elapsed := now.Sub(t)
-		if elapsed > MAX_AGE {
+		if t.Before(now) {
 			messageWindow.RemoveMessage(id)
 		}
 	}

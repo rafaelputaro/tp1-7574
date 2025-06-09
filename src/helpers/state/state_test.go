@@ -29,6 +29,7 @@ func TestStateCorrectFiles(t *testing.T) {
 
 	stateHelper := NewStateHelper[Data](clientId, moduleName, shard)
 	state, windowP := GetLastValidState(stateHelper)
+
 	if state != nil || windowP != nil {
 		t.Errorf("Error new state helper: %v", err)
 	}
@@ -37,6 +38,7 @@ func TestStateCorrectFiles(t *testing.T) {
 	for message := range messageIds {
 		windowData.AddMessage(int64(message))
 	}
+
 	// Insert states
 	for id := range MAX_VALIDS_STATES {
 		data := Data{
@@ -348,9 +350,3 @@ func countLines(filePath string) int {
 	}
 	return lineCount
 }
-
-/*
-// check file size
-	fileInfo, err := os.Stat(stateHelper.filePath)
-
-*/
