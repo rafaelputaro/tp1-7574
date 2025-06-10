@@ -32,6 +32,10 @@ services:
       interval: 10s
       timeout: 10s
       retries: 10
+#    tmpfs:
+#      - /tmp/states
+    volumes:
+      - /tmp/states:/tmp/states
     depends_on:
 {% for i in range(1, ar_es_filter_nodes + 1) %}
       ar-es-filter-{{ i }}:

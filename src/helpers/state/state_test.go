@@ -30,7 +30,7 @@ func TestStateCorrectFiles(t *testing.T) {
 	stateHelper := NewStateHelper[Data](clientId, moduleName, shard)
 	state, windowP := GetLastValidState(stateHelper)
 
-	if state != nil || windowP != nil {
+	if state != nil || !windowP.IsEmpty() {
 		t.Errorf("Error new state helper: %v", err)
 	}
 	// window to test
@@ -49,7 +49,7 @@ func TestStateCorrectFiles(t *testing.T) {
 	}
 	// Check window and state
 	state, windowP = GetLastValidState(stateHelper)
-	if state == nil || windowP == nil {
+	if state == nil || windowP.IsEmpty() {
 		t.Errorf("Error insert windows or window")
 	} else {
 		for message := range messageIds {
@@ -72,7 +72,7 @@ func TestStateCorrectFiles(t *testing.T) {
 	}
 	// Check window and state
 	state, windowP = GetLastValidState(stateHelper)
-	if state == nil || windowP == nil {
+	if state == nil || windowP.IsEmpty() {
 		t.Errorf("Error clean files: %v", err)
 	} else {
 		for message := range messageIds {
@@ -125,7 +125,7 @@ func TestTimeStampFileGreaterThanAux(t *testing.T) {
 	// Check loader
 	stateHelper := NewStateHelper[Data](clientId, moduleName, shard)
 	state, windowP := GetLastValidState(stateHelper)
-	if state == nil || windowP == nil {
+	if state == nil || windowP.IsEmpty() {
 		t.Errorf("Error load state or window")
 	} else {
 		if state.Id != 7 {
@@ -162,7 +162,7 @@ func TestTimeStampFileLessThanAux(t *testing.T) {
 	// Check loader
 	stateHelper := NewStateHelper[Data](clientId, moduleName, shard)
 	state, windowP := GetLastValidState(stateHelper)
-	if state == nil || windowP == nil {
+	if state == nil || windowP.IsEmpty() {
 		t.Errorf("Error load state or window")
 	} else {
 		if state.Id != 6 {
@@ -199,7 +199,7 @@ func TestStateOriginalFileBroken(t *testing.T) {
 	// Check loader
 	stateHelper := NewStateHelper[Data](clientId, moduleName, shard)
 	state, windowP := GetLastValidState(stateHelper)
-	if state == nil || windowP == nil {
+	if state == nil || windowP.IsEmpty() {
 		t.Errorf("Error load state or window")
 	} else {
 		if state.Id != 6 {
@@ -236,7 +236,7 @@ func TestStateAuxFileBroken(t *testing.T) {
 	// Check loader
 	stateHelper := NewStateHelper[Data](clientId, moduleName, shard)
 	state, windowP := GetLastValidState(stateHelper)
-	if state == nil || windowP == nil {
+	if state == nil || windowP.IsEmpty() {
 		t.Errorf("Error load state or window")
 	} else {
 		if state.Id != 7 {
@@ -273,7 +273,7 @@ func TestStateBohtFilesBroken(t *testing.T) {
 	// Check loader
 	stateHelper := NewStateHelper[Data](clientId, moduleName, shard)
 	state, windowP := GetLastValidState(stateHelper)
-	if state != nil || windowP != nil {
+	if state != nil || !windowP.IsEmpty() {
 		t.Errorf("Error load state or window")
 	}
 }

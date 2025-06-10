@@ -32,6 +32,10 @@ services:
       interval: 10s
       timeout: 10s
       retries: 10
+#    tmpfs:
+#      - /tmp/states
+    volumes:
+      - /tmp/states:/tmp/states
     depends_on:
 
       ar-es-filter-1:
@@ -56,6 +60,10 @@ services:
       interval: 10s
       timeout: 10s
       retries: 10
+#    tmpfs:
+#      - /tmp/states
+    volumes:
+      - /tmp/states:/tmp/states
     depends_on:
 
       ar-es-filter-1:

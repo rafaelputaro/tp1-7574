@@ -17,7 +17,7 @@ var StatesDir = initStatesDir()
 const MODULE_NAME = "state"
 const DEFAULT_STATES_DIR = "/tmp/states"
 const STATES_DIR_ENV_VAR = "STATES_DIR"
-const MAX_STATES = 100 // Maximum number of states per state file
+const MAX_STATES = 2000 // Maximum number of states per state file
 const LAYOUT_TIMESTAMP = "2006-01-02 15:04:05.000000000"
 
 const MSG_FAILED_TO_OPEN_STATE_FILE = "Failed to open state file: %v"
@@ -106,12 +106,12 @@ func (stateHelper *StateHelper[T]) Dispose() {
 	logger.Debugf(MSG_FILE_CLOSED, stateHelper.filePath)
 }
 
-// GetLastValidState returns the last valid state.
-func GetLastValidState[T any](stateHelper *StateHelper[T]) (*T, *window.MessageWindow) {
+// GetLastValidState returns the last valid state. If there is no valid state, an empty window is returned.
+func GetLastValidState[T any](stateHelper *StateHelper[T]) (*T, window.MessageWindow) {
 	if stateHelper.lastValidState != nil {
-		return &stateHelper.lastValidState.State, &stateHelper.lastValidState.Window
+		return &stateHelper.lastValidState.State, stateHelper.lastValidState.Window
 	}
-	return nil, nil
+	return nil, window.NewMessageWindow()
 }
 
 // Load a valid state from state file and the aux files, parallel the timestamps

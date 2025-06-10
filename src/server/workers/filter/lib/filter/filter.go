@@ -3,10 +3,13 @@ package filter
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"tp1/coordinator"
 	"tp1/globalconfig"
+	"tp1/helpers/state"
+	"tp1/helpers/window"
 	"tp1/protobuf/protopb"
 	protoUtils "tp1/protobuf/utils"
 	"tp1/rabbitmq"
@@ -19,6 +22,8 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
+type FilterState string
+
 type FilterConfig struct {
 	Type   string
 	Shards int
@@ -26,10 +31,12 @@ type FilterConfig struct {
 }
 
 type Filter struct {
-	config  FilterConfig
-	log     *logging.Logger
-	conn    *amqp.Connection
-	channel *amqp.Channel
+	config        FilterConfig
+	log           *logging.Logger
+	conn          *amqp.Connection
+	channel       *amqp.Channel
+	stateHelper   *state.StateHelper[FilterState]
+	messageWindow window.MessageWindow
 }
 
 // Creates a new filter with an established connection to rabbitmq (if succesful).
@@ -49,11 +56,20 @@ func NewFilter(config *FilterConfig, log *logging.Logger) *Filter {
 
 	log.Info("Successful connection with RabbitMQ")
 
+	stateHelper := state.NewStateHelper[FilterState](strconv.Itoa(config.ID), config.Type, strconv.Itoa(config.Shards))
+	if stateHelper == nil {
+		log.Fatalf("Failed to create state helper")
+	}
+
+	_, messageWindow := state.GetLastValidState(stateHelper)
+
 	return &Filter{
-		config:  *config,
-		log:     log,
-		conn:    conn,
-		channel: ch,
+		config:        *config,
+		log:           log,
+		conn:          conn,
+		channel:       ch,
+		stateHelper:   stateHelper,
+		messageWindow: messageWindow,
 	}
 }
 
@@ -88,6 +104,10 @@ func (f *Filter) Close() {
 
 	if f.conn != nil {
 		_ = f.conn.Close()
+	}
+
+	if f.stateHelper != nil {
+		f.stateHelper.Dispose()
 	}
 }
 
@@ -391,11 +411,12 @@ func (f *Filter) processYearFilters() {
 	f.log.Infof("waiting for messages...")
 
 	for msg := range msgs {
-		err := rabbitmq.SingleAck(msg)
+
+		/*err := rabbitmq.SingleAck(msg)
 		if err != nil {
 			f.log.Fatalf("failed to ack message: %v", err)
 		}
-
+		*/
 		var movie protopb.MovieSanit
 		if err := proto.Unmarshal(msg.Body, &movie); err != nil {
 			f.log.Errorf("failed to unmarshal message: %v", err)
@@ -422,7 +443,7 @@ func (f *Filter) processYearFilters() {
 
 				f.log.Infof("[client_id:%s] propagated EOF to %s", movie.GetClientId(), queueName)
 			}
-
+			f.saveStateAndSendAck(msg, *movie.MessageId)
 			continue
 		}
 
@@ -446,6 +467,7 @@ func (f *Filter) processYearFilters() {
 				}
 			}
 		}
+		f.saveStateAndSendAck(msg, *movie.MessageId)
 	}
 
 	f.log.Infof("job finished")
@@ -666,4 +688,23 @@ func (f *Filter) runShardedFilter(inputQueue string, declareInput bool, outputEx
 			// f.log.Debugf("[client_id:%s] message published to queue: %s (routing key: %s)", clientID, queueName, routingKey)
 		}
 	}
+}
+
+// Refresh the window, save the state and send the ack
+func (f *Filter) saveStateAndSendAck(msg amqp.Delivery, messageId int64) error {
+	// update window
+	//f.messageWindow.AddMessage(messageId)
+	// save state
+	/*	err := state.SaveState(f.stateHelper, "", f.messageWindow)
+		if err != nil {
+			f.log.Fatalf("Unable to save state")
+			return err
+		}*/
+	// send ack
+	err := rabbitmq.SingleAck(msg)
+	if err != nil {
+		f.log.Fatalf("failed to ack message: %v", err)
+		return err
+	}
+	return nil
 }
