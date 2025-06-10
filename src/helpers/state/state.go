@@ -17,8 +17,7 @@ var StatesDir = initStatesDir()
 const MODULE_NAME = "state"
 const DEFAULT_STATES_DIR = "/tmp/states"
 const STATES_DIR_ENV_VAR = "STATES_DIR"
-const MAX_VALIDS_STATES = 100          // Maximum number of valids states per state file
-const MAX_FILE_SIZE = 10 * 1024 * 1024 // Maximum file size in bytes (10 MB)
+const MAX_STATES = 100 // Maximum number of states per state file
 const LAYOUT_TIMESTAMP = "2006-01-02 15:04:05.000000000"
 
 const MSG_FAILED_TO_OPEN_STATE_FILE = "Failed to open state file: %v"
@@ -33,13 +32,14 @@ const MSG_NO_FILEDESC_AVAILABLE = "No file descriptor available for writing stat
 const MSG_ERROR_DECODING_STATE = "Error decoding state: %s"
 const MSG_NO_VALID_STATE_FOUND = "No valid state found in state file"
 const MSG_ERROR_ENCODING_STATE = "Error encoding state: %s"
+const MSG_CLEAN_FILE = "Clean File"
 
 // StateHelper is a struct that helps manage state files for different clients and modules.
 type StateHelper[T any] struct {
 	filePath       string   // Path to the state file
 	auxFilePath    string   // Path to the auxiliary state file
 	filedescWriter *os.File // File descriptor for writing to the state file
-	countValids    int      // Counter to keep track of the number of valids states written to the state file
+	countStates    int      // Counter to keep track of the number of states written to the state file
 	lastValidState *CompleteState[T]
 }
 
@@ -86,13 +86,13 @@ func NewStateHelper[T any](clientId string, moduleName string, shard string) *St
 		logger.Errorf(MSG_FAILED_TO_OPEN_STATE_FILE, err)
 		return nil
 	}
-	state, countValidStates, _ := loadLastValidState[T](filePath, auxFilePath)
+	state, countStates, _ := loadLastValidState[T](filePath, auxFilePath)
 	return &StateHelper[T]{
 		filePath:       filePath,
 		auxFilePath:    auxFilePath,
 		filedescWriter: fileWr,
 		lastValidState: state,
-		countValids:    countValidStates,
+		countStates:    countStates,
 	}
 }
 
@@ -116,59 +116,62 @@ func GetLastValidState[T any](stateHelper *StateHelper[T]) (*T, *window.MessageW
 
 // Load a valid state from state file and the aux files, parallel the timestamps
 func loadLastValidState[T any](filePath string, auxFilePath string) (*CompleteState[T], int, error) {
-	stateFile, amountValidsFile, errFile := loadLastValidStateFromPath[T](filePath)
-	stateAux, amountValidsAux, errAux := loadLastValidStateFromPath[T](auxFilePath)
+	stateFile, amountStatesFile, errFile := loadLastValidStateFromPath[T](filePath)
+	stateAux, _, errAux := loadLastValidStateFromPath[T](auxFilePath)
 	if errAux != nil {
-		return stateFile, amountValidsFile, errFile
+		return stateFile, amountStatesFile, errFile
 	}
 	if errFile != nil {
-		return stateAux, amountValidsAux, errAux
+		return stateAux, amountStatesFile, errAux
 	}
 	// Parallel both files
 	timeStampFileParsed, errParseFile := time.Parse(LAYOUT_TIMESTAMP, stateFile.TimeStamp)
 	timeStampAuxParsed, errParseAux := time.Parse(LAYOUT_TIMESTAMP, stateAux.TimeStamp)
 	if errParseAux != nil {
-		return stateFile, amountValidsFile, errParseFile
+		return stateFile, amountStatesFile, errParseFile
 	}
 	if errParseFile != nil {
-		return stateAux, amountValidsAux, errParseAux
+		return stateAux, amountStatesFile, errParseAux
 	}
 	if timeStampAuxParsed.After(timeStampFileParsed) {
-		return stateAux, amountValidsAux, errAux
+		return stateAux, amountStatesFile, errAux
 	}
-	return stateFile, amountValidsFile, errFile
+	return stateFile, amountStatesFile, errFile
 }
 
 // loadLastValidState reads the last valid state from a state file and returns it as a pointer to type T.
+// It also returns the total number of lines including invalid ones.
 func loadLastValidStateFromPath[T any](filePath string) (*CompleteState[T], int, error) {
 	logger := logging.MustGetLogger(MODULE_NAME)
-	lines, err := readLines[T](filePath)
+	lines, count, err := readLines[T](filePath)
 	if err != nil {
-		return nil, 0, err
+		return nil, count, err
 	}
 	if len(lines) == 0 {
 		logger.Debugf("%v: %v", MSG_NO_VALID_STATE_FOUND, filePath)
-		return nil, 0, errors.New(strings.ToLower(MSG_NO_VALID_STATE_FOUND))
+		return nil, count, errors.New(strings.ToLower(MSG_NO_VALID_STATE_FOUND))
 	}
-	countValidStates := len(lines)
-	return &lines[len(lines)-1], countValidStates, nil
+	return &lines[len(lines)-1], count, nil
 }
 
 // ReadLines reads the state file line by line and decodes each line into a slice of type T.
-func readLines[T any](filePath string) ([]CompleteState[T], error) {
+// It also returns the total number of lines including invalid ones.
+func readLines[T any](filePath string) ([]CompleteState[T], int, error) {
 	logger := logging.MustGetLogger(MODULE_NAME)
 	fileRd, err := os.OpenFile(filePath, os.O_RDONLY, 0644)
 	if err != nil {
 		logger.Errorf(MSG_FAILED_TO_OPEN_STATE_FILE_FOR_READING, err)
-		return nil, err
+		return nil, 0, err
 	}
 	logger.Debugf(MSG_FILE_OPENED, filePath)
 	// Decode the file line by line
 	var lines []CompleteState[T]
 	scanner := bufio.NewScanner(fileRd)
+	count := 0
 	for scanner.Scan() {
 		var decoded CompleteState[T]
 		err := json.Unmarshal([]byte(scanner.Text()), &decoded)
+		count++
 		if err != nil {
 			logger.Errorf(MSG_ERROR_DECODING_STATE, err)
 			continue
@@ -178,9 +181,9 @@ func readLines[T any](filePath string) ([]CompleteState[T], error) {
 	// Close the file after decoding
 	if err := fileRd.Close(); err != nil {
 		logger.Errorf(MSG_FAILED_TO_READ_STATE, filePath, err)
-		return nil, err
+		return nil, count, err
 	}
-	return lines, nil
+	return lines, count, nil
 }
 
 // SaveState encodes the provided state and message window into JSON format and writes it to the state file.
@@ -205,7 +208,7 @@ func SaveState[T any](stateHelper *StateHelper[T], state T, messageWindow window
 		return err
 	}
 	// Update state helper
-	stateHelper.countValids++
+	stateHelper.countStates++
 	stateHelper.lastValidState = &completeState
 	stateHelper.tryCleanFile()
 	return nil
@@ -213,19 +216,10 @@ func SaveState[T any](stateHelper *StateHelper[T], state T, messageWindow window
 
 // check clean conditiones
 func (stateHelper *StateHelper[T]) shouldClean() bool {
-	logger := logging.MustGetLogger(MODULE_NAME)
 	// check count valids states
-	if stateHelper.countValids > MAX_VALIDS_STATES {
-		return true
-	}
-	// check file size
-	fileInfo, err := os.Stat(stateHelper.filePath)
-	if err != nil {
-		return false
-	}
-	fileSize := fileInfo.Size()
-	if fileSize > MAX_FILE_SIZE {
-		logger.Debugf("Maximum file size reached: %s", fileSize)
+	if stateHelper.countStates > MAX_STATES {
+		logger := logging.MustGetLogger(MODULE_NAME)
+		logger.Debugf(MSG_CLEAN_FILE)
 		return true
 	}
 	return false
@@ -271,5 +265,5 @@ func (stateHelper *StateHelper[T]) tryCleanFile() {
 		logger.Errorf(MSG_FAILED_TO_WRITE_STATE, stateHelper.filePath, err)
 		return
 	}
-	stateHelper.countValids = 1
+	stateHelper.countStates = 1
 }

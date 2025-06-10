@@ -40,7 +40,7 @@ func TestStateCorrectFiles(t *testing.T) {
 	}
 
 	// Insert states
-	for id := range MAX_VALIDS_STATES {
+	for id := range MAX_STATES {
 		data := Data{
 			Name: "Subject " + strconv.Itoa(id),
 			Id:   id,
@@ -57,13 +57,13 @@ func TestStateCorrectFiles(t *testing.T) {
 				t.Errorf("Error insert window")
 			}
 		}
-		if state.Id != MAX_VALIDS_STATES-1 {
+		if state.Id != MAX_STATES-1 {
 			t.Errorf("Error insert states %v", state.Id)
 		}
 	}
 	// Exceed the maximum number of valid states
 	{
-		id := MAX_VALIDS_STATES
+		id := MAX_STATES
 		data := Data{
 			Name: "Subject " + strconv.Itoa(id),
 			Id:   id,
@@ -80,7 +80,7 @@ func TestStateCorrectFiles(t *testing.T) {
 				t.Errorf("Error insert window")
 			}
 		}
-		if state.Id != MAX_VALIDS_STATES {
+		if state.Id != MAX_STATES {
 			t.Errorf("Error insert states %v", state.Id)
 		}
 	}
@@ -95,42 +95,6 @@ func TestStateCorrectFiles(t *testing.T) {
 	}
 	// Close files
 	stateHelper.Dispose()
-	// Insert Invalids states
-	insertInvalidStatesUntilExceedingMaximumSize(stateHelper.filePath)
-	// Load the files
-	stateHelper = NewStateHelper[Data](clientId, moduleName, shard)
-	// Check window and state
-	state, windowP = GetLastValidState(stateHelper)
-	if state == nil || windowP == nil {
-		t.Errorf("Error reload files: %v", err)
-	} else {
-		for message := range messageIds {
-			if !windowP.IsDuplicate(int64(message)) {
-				t.Errorf("Error insert window")
-			}
-		}
-		if state.Id != MAX_VALIDS_STATES {
-			t.Errorf("Error insert states %v", state.Id)
-		}
-	}
-	// Force clean by size
-	{
-		id := MAX_VALIDS_STATES + 1
-		data := Data{
-			Name: "Subject " + strconv.Itoa(id),
-			Id:   id,
-		}
-		SaveState(stateHelper, data, windowData)
-	}
-	// Check files
-	countLinesFile = countLines(stateHelper.filePath)
-	if countLinesFile != 1 {
-		t.Errorf("Error file must have one line %v", countLinesFile)
-	}
-	countLinesAuxFile = countLines(stateHelper.auxFilePath)
-	if countLinesAuxFile != 1 {
-		t.Errorf("Error aux file must be empty %v", countLinesAuxFile)
-	}
 }
 
 func TestTimeStampFileGreaterThanAux(t *testing.T) {
@@ -312,29 +276,6 @@ func TestStateBohtFilesBroken(t *testing.T) {
 	if state != nil || windowP != nil {
 		t.Errorf("Error load state or window")
 	}
-}
-
-func insertInvalidStatesUntilExceedingMaximumSize(filePath string) {
-	// Insert invalid states until exceeding maximum file size
-	fileWr, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
-	if err != nil {
-		return
-	}
-	defer fileWr.Close()
-	stop := false
-	count := 0
-	for !stop {
-		fileWr.WriteString(strconv.Itoa(count) + "\n")
-		fileInfo, err := os.Stat(filePath)
-		if err != nil {
-			stop = true
-			continue
-		}
-		if fileInfo.Size() >= MAX_FILE_SIZE {
-			stop = true
-		}
-	}
-	println("Invalids states inserted")
 }
 
 func countLines(filePath string) int {
