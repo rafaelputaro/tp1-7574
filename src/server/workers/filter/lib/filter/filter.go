@@ -693,9 +693,10 @@ func (f *Filter) runShardedFilter(inputQueue string, declareInput bool, outputEx
 // Refresh the window, save the state and send the ack
 func (f *Filter) saveStateAndSendAck(msg amqp.Delivery, messageId int64) error {
 	// update window
-	//f.messageWindow.AddMessage(messageId)
-	// save state
-	/*	err := state.SaveState(f.stateHelper, "", f.messageWindow)
+	/*
+		f.messageWindow.AddMessage(messageId)
+		// save state
+		err := state.SaveState(f.stateHelper, "", f.messageWindow)
 		if err != nil {
 			f.log.Fatalf("Unable to save state")
 			return err

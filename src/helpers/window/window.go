@@ -2,10 +2,9 @@ package window
 
 import "time"
 
-// TODO Cambiarlo para que limpio menos haciendo que tambièn tenga en cuenta el MAX_AGE
 const LAYOUT_TIMESTAMP = "2006-01-02 15:04:05.000000000"
-const MAX_LENGTH_TO_CLEAN = 300
-const MAX_AGE = 10 * time.Second
+const MAX_LENGTH_TO_CLEAN = 1000
+const MAX_AGE = 2 * time.Second
 
 // MessageWindow is a map that holds message IDs and their corresponding valid timestamps.
 type MessageWindow map[int64]string

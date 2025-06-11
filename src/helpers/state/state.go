@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 	"tp1/helpers/window"
@@ -13,11 +14,14 @@ import (
 )
 
 var StatesDir = initStatesDir()
+var CleanOnStart = initCleanOnStart()
 
 const MODULE_NAME = "state"
 const DEFAULT_STATES_DIR = "/tmp/states"
 const STATES_DIR_ENV_VAR = "STATES_DIR"
-const MAX_STATES = 2000 // Maximum number of states per state file
+const CLEAN_ON_START_ENV_VAR = "CLEAN_ON_START"
+const MAX_STATES = 2000         // Maximum number of states per state file
+const MAX_AGE = 5 * time.Minute // Discard files from previous runs
 const LAYOUT_TIMESTAMP = "2006-01-02 15:04:05.000000000"
 
 const MSG_FAILED_TO_OPEN_STATE_FILE = "Failed to open state file: %v"
@@ -32,7 +36,8 @@ const MSG_NO_FILEDESC_AVAILABLE = "No file descriptor available for writing stat
 const MSG_ERROR_DECODING_STATE = "Error decoding state: %s"
 const MSG_NO_VALID_STATE_FOUND = "No valid state found in state file"
 const MSG_ERROR_ENCODING_STATE = "Error encoding state: %s"
-const MSG_CLEAN_FILE = "Clean File"
+const MSG_CLEAN_FILE = "Clean file"
+const MSG_CLEAN_FILES_ON_START = "Clean files on start"
 
 // StateHelper is a struct that helps manage state files for different clients and modules.
 type StateHelper[T any] struct {
@@ -59,6 +64,26 @@ func initStatesDir() string {
 	return statesDir
 }
 
+// initializes the variable CleanOnStart from the environment variable or uses a default value.
+func initCleanOnStart() bool {
+	env := os.Getenv(CLEAN_ON_START_ENV_VAR)
+	value, err := strconv.ParseBool(env)
+	if err == nil {
+		return value
+	}
+	return true
+}
+
+// if CleanOnStart true delete all files
+func tryCleanFilesOnStart(filePath string, auxFilePath string) {
+	if CleanOnStart {
+		logger := logging.MustGetLogger(MODULE_NAME)
+		os.Remove(filePath)
+		os.Remove(auxFilePath)
+		logger.Infof(MSG_CLEAN_FILES_ON_START)
+	}
+}
+
 // GenerateFilePath constructs the file path for the state file based on client ID, module name, and shard.
 func GenerateFilePath(clientId string, moduleName string, shard string) string {
 	return StatesDir + "/" + clientId + "_" + moduleName + "_" + shard + ".ndjson"
@@ -80,6 +105,8 @@ func NewStateHelper[T any](clientId string, moduleName string, shard string) *St
 		logger.Errorf(MSG_FAILED_TO_CREATE_STATES_DIR, StatesDir, err)
 		return nil
 	}
+	// ¿Clean on Start?
+	tryCleanFilesOnStart(filePath, auxFilePath)
 	// Open the state file for appending and writing
 	fileWr, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {

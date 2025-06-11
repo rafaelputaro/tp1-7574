@@ -21,12 +21,12 @@ func TestStateCorrectFiles(t *testing.T) {
 	moduleName := "testing"
 	shard := "0"
 	messageIds := []int{100, 102, 99}
+	StatesDir = "/tmp/states_test"
 	// Clean files
 	err := os.RemoveAll(StatesDir)
 	if err != nil {
 		t.Errorf("Error on clean folder: %v", err)
 	}
-
 	stateHelper := NewStateHelper[Data](clientId, moduleName, shard)
 	state, windowP := GetLastValidState(stateHelper)
 
@@ -102,6 +102,7 @@ func TestTimeStampFileGreaterThanAux(t *testing.T) {
 	clientId := "cli-1"
 	moduleName := "testing"
 	shard := "0"
+	StatesDir = "/tmp/states_test"
 	// original file
 	filePath := GenerateFilePath(clientId, moduleName, shard)
 	os.Remove(filePath)
@@ -139,6 +140,7 @@ func TestTimeStampFileLessThanAux(t *testing.T) {
 	clientId := "cli-1"
 	moduleName := "testing"
 	shard := "0"
+	StatesDir = "/tmp/states_test"
 	// original file
 	filePath := GenerateFilePath(clientId, moduleName, shard)
 	os.Remove(filePath)
@@ -176,6 +178,7 @@ func TestStateOriginalFileBroken(t *testing.T) {
 	clientId := "cli-1"
 	moduleName := "testing"
 	shard := "0"
+	StatesDir = "/tmp/states_test"
 	// original file
 	filePath := GenerateFilePath(clientId, moduleName, shard)
 	os.Remove(filePath)
@@ -213,6 +216,7 @@ func TestStateAuxFileBroken(t *testing.T) {
 	clientId := "cli-1"
 	moduleName := "testing"
 	shard := "0"
+	StatesDir = "/tmp/states_test"
 	// original file
 	filePath := GenerateFilePath(clientId, moduleName, shard)
 	os.Remove(filePath)
@@ -250,6 +254,7 @@ func TestStateBohtFilesBroken(t *testing.T) {
 	clientId := "cli-1"
 	moduleName := "testing"
 	shard := "0"
+	StatesDir = "/tmp/states_test"
 	// original file
 	filePath := GenerateFilePath(clientId, moduleName, shard)
 	os.Remove(filePath)
