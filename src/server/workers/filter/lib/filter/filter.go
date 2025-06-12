@@ -3,12 +3,14 @@ package filter
 import (
 	"fmt"
 	"sort"
-	"strconv"
+
+	//"strconv"
 	"strings"
 	"sync"
 	"tp1/coordinator"
 	"tp1/globalconfig"
-	"tp1/helpers/state"
+
+	//"tp1/helpers/state"
 	"tp1/helpers/window"
 	"tp1/protobuf/protopb"
 	protoUtils "tp1/protobuf/utils"
@@ -31,11 +33,11 @@ type FilterConfig struct {
 }
 
 type Filter struct {
-	config        FilterConfig
-	log           *logging.Logger
-	conn          *amqp.Connection
-	channel       *amqp.Channel
-	stateHelper   *state.StateHelper[FilterState]
+	config  FilterConfig
+	log     *logging.Logger
+	conn    *amqp.Connection
+	channel *amqp.Channel
+	//stateHelper   *state.StateHelper[FilterState]
 	messageWindow window.MessageWindow
 }
 
@@ -55,21 +57,21 @@ func NewFilter(config *FilterConfig, log *logging.Logger) *Filter {
 	}
 
 	log.Info("Successful connection with RabbitMQ")
+	/*
+		stateHelper := state.NewStateHelper[FilterState](strconv.Itoa(config.ID), config.Type, strconv.Itoa(config.Shards))
+		if stateHelper == nil {
+			log.Fatalf("Failed to create state helper")
+		}
 
-	stateHelper := state.NewStateHelper[FilterState](strconv.Itoa(config.ID), config.Type, strconv.Itoa(config.Shards))
-	if stateHelper == nil {
-		log.Fatalf("Failed to create state helper")
-	}
-
-	_, messageWindow := state.GetLastValidState(stateHelper)
-
+		_, messageWindow := state.GetLastValidState(stateHelper)
+	*/
 	return &Filter{
-		config:        *config,
-		log:           log,
-		conn:          conn,
-		channel:       ch,
-		stateHelper:   stateHelper,
-		messageWindow: messageWindow,
+		config:  *config,
+		log:     log,
+		conn:    conn,
+		channel: ch,
+		//stateHelper:   stateHelper,
+		//messageWindow: messageWindow,
 	}
 }
 
@@ -105,10 +107,11 @@ func (f *Filter) Close() {
 	if f.conn != nil {
 		_ = f.conn.Close()
 	}
-
-	if f.stateHelper != nil {
-		f.stateHelper.Dispose()
-	}
+	/*
+		if f.stateHelper != nil {
+			f.stateHelper.Dispose()
+		}
+	*/
 }
 
 // Jobs --------------------------------------------------------------------------------------------

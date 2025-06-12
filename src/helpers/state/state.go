@@ -28,6 +28,7 @@ const MSG_FAILED_TO_OPEN_STATE_FILE = "Failed to open state file: %v"
 const MSG_FAILED_TO_OPEN_AUX_FILE = "Failed to open auxiliary file: %v"
 const MSG_FAILED_TO_OPEN_STATE_FILE_FOR_READING = "Failed to open state file for reading: %v"
 const MSG_FAILED_TO_WRITE_STATE = "Failed to write state to file %s: %v"
+const MSG_FAILED_TO_WRITE_UPDATE_ARGS = "Failed to write update arguments to file %s: %v"
 const MSG_FAILED_TO_READ_STATE = "Failed to read state from file %s: %v"
 const MSG_FAILED_TO_CREATE_STATES_DIR = "Failed to create states directory %s: %v"
 const MSG_FILE_OPENED = "State file %s opened successfully for writing and reading"
@@ -36,23 +37,26 @@ const MSG_NO_FILEDESC_AVAILABLE = "No file descriptor available for writing stat
 const MSG_ERROR_DECODING_STATE = "Error decoding state: %s"
 const MSG_NO_VALID_STATE_FOUND = "No valid state found in state file"
 const MSG_ERROR_ENCODING_STATE = "Error encoding state: %s"
+const MSG_ERROR_ENCODING_UPDATE_ARGS = "Error encoding update arguments: %s"
 const MSG_CLEAN_FILE = "Clean file"
 const MSG_CLEAN_FILES_ON_START = "Clean files on start"
 
 // StateHelper is a struct that helps manage state files for different clients and modules.
-type StateHelper[T any] struct {
+type StateHelper[TState any, TUpdateArgs any] struct {
 	filePath       string   // Path to the state file
 	auxFilePath    string   // Path to the auxiliary state file
 	filedescWriter *os.File // File descriptor for writing to the state file
 	countStates    int      // Counter to keep track of the number of states written to the state file
-	lastValidState *CompleteState[T]
+	lastValidState *DataToSave[TState, TUpdateArgs]
 }
 
-// CompleteState is a generic struct that holds the state of type T and a message window.
-type CompleteState[T any] struct {
-	State     T
-	Window    window.MessageWindow
-	TimeStamp string
+// DataToSave is a generic struct that holds the state of type T and a message window or holds a sequece of update args
+type DataToSave[TState any, TUpdateArgs any] struct {
+	State           TState
+	Window          window.MessageWindow
+	TimeStamp       string
+	UpdateArgs      TUpdateArgs
+	IsCompleteState bool
 }
 
 // initStatesDir initializes the states directory from the environment variable or uses a default value.
@@ -95,7 +99,7 @@ func GenerateAuxFilePath(clientId string, moduleName string, shard string) strin
 }
 
 // NewStateHelper creates a new StateHelper instance with the specified client ID, module name, and shard.
-func NewStateHelper[T any](clientId string, moduleName string, shard string) *StateHelper[T] {
+func NewStateHelper[TState any, TUpdateArgs any](clientId string, moduleName string, shard string, updateState func(state *TState, messageWindow *window.MessageWindow, updateArgs *TUpdateArgs)) *StateHelper[TState, TUpdateArgs] {
 	logger := logging.MustGetLogger(MODULE_NAME)
 	filePath := GenerateFilePath(clientId, moduleName, shard)
 	auxFilePath := GenerateAuxFilePath(clientId, moduleName, shard)
@@ -113,8 +117,8 @@ func NewStateHelper[T any](clientId string, moduleName string, shard string) *St
 		logger.Errorf(MSG_FAILED_TO_OPEN_STATE_FILE, err)
 		return nil
 	}
-	state, countStates, _ := loadLastValidState[T](filePath, auxFilePath)
-	return &StateHelper[T]{
+	state, countStates, _ := loadLastValidState[TState](filePath, auxFilePath, updateState)
+	return &StateHelper[TState, TUpdateArgs]{
 		filePath:       filePath,
 		auxFilePath:    auxFilePath,
 		filedescWriter: fileWr,
@@ -124,7 +128,7 @@ func NewStateHelper[T any](clientId string, moduleName string, shard string) *St
 }
 
 // Dispose closes the file descriptors used by the StateHelper.
-func (stateHelper *StateHelper[T]) Dispose() {
+func (stateHelper *StateHelper[TState, TUpdateArgs]) Dispose() {
 	logger := logging.MustGetLogger(MODULE_NAME)
 	if err := stateHelper.filedescWriter.Close(); err != nil {
 		logger.Errorf(MSG_FAILED_TO_WRITE_STATE, stateHelper.filePath, err)
@@ -134,17 +138,17 @@ func (stateHelper *StateHelper[T]) Dispose() {
 }
 
 // GetLastValidState returns the last valid state. If there is no valid state, an empty window is returned.
-func GetLastValidState[T any](stateHelper *StateHelper[T]) (*T, window.MessageWindow) {
+func GetLastValidState[TState any, TUpdateArgs any](stateHelper *StateHelper[TState, TUpdateArgs]) (*TState, window.MessageWindow) {
 	if stateHelper.lastValidState != nil {
 		return &stateHelper.lastValidState.State, stateHelper.lastValidState.Window
 	}
-	return nil, window.NewMessageWindow()
+	return nil, *window.NewMessageWindow()
 }
 
 // Load a valid state from state file and the aux files, parallel the timestamps
-func loadLastValidState[T any](filePath string, auxFilePath string) (*CompleteState[T], int, error) {
-	stateFile, amountStatesFile, errFile := loadLastValidStateFromPath[T](filePath)
-	stateAux, _, errAux := loadLastValidStateFromPath[T](auxFilePath)
+func loadLastValidState[TState any, TUpdateArgs any](filePath string, auxFilePath string, updateState func(state *TState, messageWindow *window.MessageWindow, updateArgs *TUpdateArgs)) (*DataToSave[TState, TUpdateArgs], int, error) {
+	stateFile, amountStatesFile, errFile := loadLastValidStateFromPath[TState](filePath, updateState)
+	stateAux, _, errAux := loadLastValidStateFromPath[TState](auxFilePath, updateState)
 	if errAux != nil {
 		return stateFile, amountStatesFile, errFile
 	}
@@ -168,9 +172,9 @@ func loadLastValidState[T any](filePath string, auxFilePath string) (*CompleteSt
 
 // loadLastValidState reads the last valid state from a state file and returns it as a pointer to type T.
 // It also returns the total number of lines including invalid ones.
-func loadLastValidStateFromPath[T any](filePath string) (*CompleteState[T], int, error) {
+func loadLastValidStateFromPath[TState any, TUpdateArgs any](filePath string, updateState func(state *TState, messageWindow *window.MessageWindow, updateArgs *TUpdateArgs)) (*DataToSave[TState, TUpdateArgs], int, error) {
 	logger := logging.MustGetLogger(MODULE_NAME)
-	lines, count, err := readLines[T](filePath)
+	lines, count, err := readLines[TState, TUpdateArgs](filePath)
 	if err != nil {
 		return nil, count, err
 	}
@@ -178,12 +182,40 @@ func loadLastValidStateFromPath[T any](filePath string) (*CompleteState[T], int,
 		logger.Debugf("%v: %v", MSG_NO_VALID_STATE_FOUND, filePath)
 		return nil, count, errors.New(strings.ToLower(MSG_NO_VALID_STATE_FOUND))
 	}
-	return &lines[len(lines)-1], count, nil
+	lastValidStateData, err := processLines(lines, updateState)
+	return lastValidStateData, count, err
+}
+
+// reconstructs the last valid state from the file
+func processLines[TState any, TUpdateArgs any](lines []DataToSave[TState, TUpdateArgs], updateState func(state *TState, messageWindow *window.MessageWindow, updateArgs *TUpdateArgs)) (*DataToSave[TState, TUpdateArgs], error) {
+	// first valid state
+	firstValidStateIndex := -1
+	for index, line := range lines {
+		if line.IsCompleteState {
+			firstValidStateIndex = index
+			break
+		}
+	}
+	if firstValidStateIndex < 0 {
+		return nil, errors.New(strings.ToLower(MSG_NO_VALID_STATE_FOUND))
+	}
+	// state reconstruction
+	validState := lines[firstValidStateIndex]
+	for index := firstValidStateIndex + 1; index < len(lines); index++ {
+		// if new state take this
+		if lines[index].IsCompleteState {
+			validState = lines[index]
+			continue
+		}
+		updateState(&validState.State, &validState.Window, &lines[index].UpdateArgs)
+		validState.TimeStamp = lines[index].TimeStamp
+	}
+	return &validState, nil
 }
 
 // ReadLines reads the state file line by line and decodes each line into a slice of type T.
 // It also returns the total number of lines including invalid ones.
-func readLines[T any](filePath string) ([]CompleteState[T], int, error) {
+func readLines[TState any, TUpdateArgs any](filePath string) ([]DataToSave[TState, TUpdateArgs], int, error) {
 	logger := logging.MustGetLogger(MODULE_NAME)
 	fileRd, err := os.OpenFile(filePath, os.O_RDONLY, 0644)
 	if err != nil {
@@ -192,11 +224,11 @@ func readLines[T any](filePath string) ([]CompleteState[T], int, error) {
 	}
 	logger.Debugf(MSG_FILE_OPENED, filePath)
 	// Decode the file line by line
-	var lines []CompleteState[T]
+	var lines []DataToSave[TState, TUpdateArgs]
 	scanner := bufio.NewScanner(fileRd)
 	count := 0
 	for scanner.Scan() {
-		var decoded CompleteState[T]
+		var decoded DataToSave[TState, TUpdateArgs]
 		err := json.Unmarshal([]byte(scanner.Text()), &decoded)
 		count++
 		if err != nil {
@@ -214,35 +246,80 @@ func readLines[T any](filePath string) ([]CompleteState[T], int, error) {
 }
 
 // SaveState encodes the provided state and message window into JSON format and writes it to the state file.
-func SaveState[T any](stateHelper *StateHelper[T], state T, messageWindow window.MessageWindow) error {
+func SaveState[TState any, TUpdateArgs any](stateHelper *StateHelper[TState, TUpdateArgs], state TState, messageWindow window.MessageWindow, updateArgs TUpdateArgs) error {
+	// Save Complete state
+	tryToSaveCompleteState(stateHelper, state, messageWindow)
+	// Save operation
+	err := tryToSaveUpdateArgs(stateHelper, state, messageWindow, updateArgs)
+	if err != nil {
+		return err
+	}
+	// Try to clean
+	stateHelper.tryCleanFile()
+	return nil
+}
+
+func tryToSaveCompleteState[TState any, TUpdateArgs any](stateHelper *StateHelper[TState, TUpdateArgs], state TState, messageWindow window.MessageWindow) error {
+	if stateHelper.lastValidState == nil {
+		logger := logging.MustGetLogger(MODULE_NAME)
+		// Update state helper
+		completeState := DataToSave[TState, TUpdateArgs]{
+			State:           state,
+			Window:          messageWindow,
+			TimeStamp:       time.Now().UTC().Format(LAYOUT_TIMESTAMP),
+			IsCompleteState: true,
+		}
+		stateHelper.countStates++
+		stateHelper.lastValidState = &completeState
+		// Save on file
+		encodedState, err := json.Marshal(completeState)
+		if err != nil {
+			logger.Errorf(MSG_ERROR_ENCODING_STATE, err)
+			return err
+		}
+		if _, err := stateHelper.filedescWriter.WriteString(string(encodedState) + "\n"); err != nil {
+			logger.Errorf(MSG_FAILED_TO_WRITE_STATE, stateHelper.filePath, err)
+			return err
+		}
+	}
+	return nil
+}
+
+// encodes the provided updateArgs into JSON format and writes it to the state file.
+func tryToSaveUpdateArgs[TState any, TUpdateArgs any](stateHelper *StateHelper[TState, TUpdateArgs], state TState, messageWindow window.MessageWindow, updateArgs TUpdateArgs) error {
 	logger := logging.MustGetLogger(MODULE_NAME)
 	if stateHelper.filedescWriter == nil {
 		logger.Warningf("%s: %v", MSG_NO_FILEDESC_AVAILABLE, stateHelper.filePath)
 		return errors.New(strings.ToLower(MSG_NO_FILEDESC_AVAILABLE))
 	}
-	completeState := CompleteState[T]{
-		State:     state,
-		Window:    messageWindow,
-		TimeStamp: time.Now().UTC().Format(LAYOUT_TIMESTAMP),
+	operationState := DataToSave[TState, TUpdateArgs]{
+		UpdateArgs:      updateArgs,
+		TimeStamp:       time.Now().UTC().Format(LAYOUT_TIMESTAMP),
+		IsCompleteState: false,
 	}
-	encodedState, err := json.Marshal(completeState)
+	encodedState, err := json.Marshal(operationState)
 	if err != nil {
-		logger.Errorf(MSG_ERROR_ENCODING_STATE, err)
+		logger.Errorf(MSG_ERROR_ENCODING_UPDATE_ARGS, err)
 		return err
 	}
 	if _, err := stateHelper.filedescWriter.WriteString(string(encodedState) + "\n"); err != nil {
-		logger.Errorf(MSG_FAILED_TO_WRITE_STATE, stateHelper.filePath, err)
+		logger.Errorf(MSG_FAILED_TO_WRITE_UPDATE_ARGS, stateHelper.filePath, err)
 		return err
 	}
 	// Update state helper
+	completeState := DataToSave[TState, TUpdateArgs]{
+		State:           state,
+		Window:          messageWindow,
+		TimeStamp:       time.Now().UTC().Format(LAYOUT_TIMESTAMP),
+		IsCompleteState: true,
+	}
 	stateHelper.countStates++
 	stateHelper.lastValidState = &completeState
-	stateHelper.tryCleanFile()
 	return nil
 }
 
 // check clean conditiones
-func (stateHelper *StateHelper[T]) shouldClean() bool {
+func (stateHelper *StateHelper[TState, TOperation]) shouldClean() bool {
 	// check count valids states
 	if stateHelper.countStates > MAX_STATES {
 		logger := logging.MustGetLogger(MODULE_NAME)
@@ -253,7 +330,7 @@ func (stateHelper *StateHelper[T]) shouldClean() bool {
 }
 
 // tries to clean up files in a fail-safe manner
-func (stateHelper *StateHelper[T]) tryCleanFile() {
+func (stateHelper *StateHelper[TState, TOperation]) tryCleanFile() {
 	logger := logging.MustGetLogger(MODULE_NAME)
 	// check clean
 	if !stateHelper.shouldClean() {

@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// go test -timeout 30m
+// go test -timeout 2*MAX_AGE
 func TestGetWindow(t *testing.T) {
 	extend := 5
 	messageWindow := NewMessageWindow()
