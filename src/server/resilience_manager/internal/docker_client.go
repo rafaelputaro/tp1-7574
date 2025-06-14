@@ -3,6 +3,8 @@ package internal
 import (
 	"context"
 	"fmt"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	"github.com/op/go-logging"
 )
@@ -16,7 +18,11 @@ type DockerClient struct {
 
 // NewDockerClient creates a new Docker client
 func NewDockerClient(config *Config, log *logging.Logger) (*DockerClient, error) {
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithHost("unix://"+config.DockerSocket))
+	// Set API version explicitly to avoid version compatibility issues
+	cli, err := client.NewClientWithOpts(
+		client.FromEnv,
+		client.WithHost("unix://"+config.DockerSocket),
+		client.WithVersion("1.48"))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Docker client: %w", err)
 	}
@@ -37,47 +43,48 @@ func NewDockerClient(config *Config, log *logging.Logger) (*DockerClient, error)
 }
 
 func (d *DockerClient) RestartContainer(ctx context.Context, containerName string) error {
-	/*
-		f := filters.NewArgs()
-		f.Add("name", containerName)
 
-		containers, err := d.client.ContainerList(ctx, types.ContainerListOptions{
-			Filters: f,
-			All:     true, // Include stopped containers
-		})
+	f := filters.NewArgs()
+	f.Add("name", containerName)
+
+	containers, err := d.client.ContainerList(ctx, container.ListOptions{
+		Filters: f,
+		All:     true, // Include stopped containers
+	})
+	if err != nil {
+		return fmt.Errorf("failed to list containers: %w", err)
+	}
+
+	if len(containers) == 0 {
+		d.log.Errorf("Container %s not found", containerName)
+		return fmt.Errorf("container %s not found", containerName)
+	}
+
+	containerID := containers[0].ID
+	d.log.Infof("Found container %s with ID %s, restarting...", containerName, containerID)
+
+	// Check if container is running
+	isRunning := containers[0].State == "running" // todo: me parece que no se puede usar docker para ver el estado
+
+	if !isRunning {
+		// If container is stopped, start it
+		d.log.Infof("Container %s is not running, starting it...", containerName)
+		err = d.client.ContainerStart(ctx, containerID, container.StartOptions{})
 		if err != nil {
-			return fmt.Errorf("failed to list containers: %w", err)
+			return fmt.Errorf("failed to start container %s: %w", containerName, err)
 		}
-
-		if len(containers) == 0 {
-			d.log.Errorf("Container %s not found", containerName)
-			return fmt.Errorf("container %s not found", containerName)
+	} else {
+		// If container is running, restart it
+		timeoutSeconds := int(d.config.RestartWaitTime.Seconds())
+		opts := container.StopOptions{Timeout: &timeoutSeconds}
+		err = d.client.ContainerRestart(ctx, containerID, opts)
+		if err != nil {
+			return fmt.Errorf("failed to restart container %s: %w", containerName, err)
 		}
+	}
 
-		containerID := containers[0].ID
-		d.log.Infof("Found container %s with ID %s, restarting...", containerName, containerID)
+	d.log.Infof("Container %s restarted successfully", containerName)
 
-		// Check if container is running
-		isRunning := containers[0].State == "running"
-
-		if !isRunning {
-			// If container is stopped, start it
-			d.log.Infof("Container %s is not running, starting it...", containerName)
-			err = d.client.ContainerStart(ctx, containerID, types.ContainerStartOptions{})
-			if err != nil {
-				return fmt.Errorf("failed to start container %s: %w", containerName, err)
-			}
-		} else {
-			// If container is running, restart it
-			timeout := d.config.RestartWaitTime
-			err = d.client.ContainerRestart(ctx, containerID, &timeout)
-			if err != nil {
-				return fmt.Errorf("failed to restart container %s: %w", containerName, err)
-			}
-		}
-
-		d.log.Infof("Container %s restarted successfully", containerName)
-	*/
 	return nil
 }
 
