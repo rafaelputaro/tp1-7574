@@ -1,9 +1,10 @@
 package state
 
 import (
-	"bufio"
+	//"bufio"
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -20,7 +21,7 @@ const MODULE_NAME = "state"
 const DEFAULT_STATES_DIR = "/tmp/states"
 const STATES_DIR_ENV_VAR = "STATES_DIR"
 const CLEAN_ON_START_ENV_VAR = "CLEAN_ON_START"
-const MAX_STATES = 10           //2000         // Maximum number of states per state file
+const MAX_STATES = 2000         // Maximum number of states per state file
 const MAX_AGE = 5 * time.Minute // Discard files from previous runs
 const LAYOUT_TIMESTAMP = "2006-01-02 15:04:05.000000000"
 
@@ -47,8 +48,6 @@ const MSG_ERROR_ENCODING_UPDATE_ARGS = "Error encoding update arguments: %s"
 const MSG_CLEAN_A_FILE = "Clean file: %v"
 const MSG_CLEAN_FILES_ON_SAVE = "Clean files on save state"
 const MSG_CLEAN_FILES_ON_START = "Clean files on start"
-
-// TODO buscar una alternativa para scanner porque no lee más de cierto tamaño
 
 // StateHelper is a struct that helps manage state files for different clients and modules.
 type StateHelper[TState any, TUpdateArgs any] struct {
@@ -273,7 +272,7 @@ func processLines[TState any, TUpdateArgs any](lines []DataToSave[TState, TUpdat
 // It also returns the total number of lines including invalid ones.
 func readLines[TState any, TUpdateArgs any](filePath string) ([]DataToSave[TState, TUpdateArgs], int, error) {
 	logger := logging.MustGetLogger(MODULE_NAME)
-	fileRd, err := os.Open(filePath) //os.OpenFile(filePath, os.O_RDONLY, 0644)
+	fileRd, err := os.Open(filePath)
 	if err != nil {
 		logger.Errorf(MSG_FAILED_TO_OPEN_STATE_FILE_FOR_READING, err)
 		return nil, 0, err
@@ -282,23 +281,28 @@ func readLines[TState any, TUpdateArgs any](filePath string) ([]DataToSave[TStat
 	logger.Debugf(MSG_FILE_OPENED_FOR_READING, filePath)
 	// Decode the file line by line
 	var lines []DataToSave[TState, TUpdateArgs]
-	scanner := bufio.NewScanner(fileRd)
-	if err := scanner.Err(); err != nil {
-		logger.Fatalf("Error while reading file: %s", err)
-	}
+	reader := NewReader(fileRd)
 	count := 0
-	for scanner.Scan() {
-		//println("Escaneo algo")
+	foundEof := false
+	for !foundEof {
 		var decoded DataToSave[TState, TUpdateArgs]
-		err := json.Unmarshal([]byte(scanner.Text()), &decoded)
+		readed, errRead := reader.ReadLine()
+		if errRead != nil {
+			if errRead != io.EOF {
+				break
+			}
+			foundEof = true
+		}
+		err := json.Unmarshal([]byte(readed), &decoded)
 		count++
 		if err != nil {
-			logger.Errorf(MSG_ERROR_DECODING_STATE, err)
+			if len(readed) != 0 {
+				logger.Errorf(MSG_ERROR_DECODING_STATE, err)
+			}
 			continue
 		}
 		lines = append(lines, decoded)
 	}
-
 	return lines, count, nil
 }
 
