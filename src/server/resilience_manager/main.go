@@ -64,8 +64,6 @@ func registerServices(manager *internal.ResilienceManager) {
 	logger.Infof("Registered %d services for monitoring", len(registeredServices))
 }
 
-// registerServiceType registers all instances of a particular service type
-// by simply iterating through sequentially numbered environment variables
 func registerServiceType(manager *internal.ResilienceManager, serviceType string, registered map[string]bool) {
 	serviceCount := 0
 	maxAttempts := 100 // Reasonable upper limit to avoid infinite loop
