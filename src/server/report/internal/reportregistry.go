@@ -107,16 +107,11 @@ func (rr *ReportRegistry) applyUpdate(reportState *ReportState, msgWindow *windo
 		if reportState.Reports[clientID].Answer1 == nil {
 			reportState.Reports[clientID].Answer1 = &pb.Answer1{}
 		}
-		// Movies are added incrementally, so we need to derive the entry and append it
-		var movie pb.MovieSanit
-		_ = unmarshalProto(updateArgs.Data, &movie)
-		entry := &pb.MovieEntry{
-			Id:     movie.Id,
-			Title:  movie.Title,
-			Genres: movie.Genres,
-		}
+		// Movies are added incrementally, so we need to unmarshal the MovieEntry and append it
+		var entry pb.MovieEntry
+		_ = unmarshalProto(updateArgs.Data, &entry)
 		reportState.Reports[clientID].Answer1.Movies = append(
-			reportState.Reports[clientID].Answer1.Movies, entry)
+			reportState.Reports[clientID].Answer1.Movies, &entry)
 
 	case 2:
 		// Directly replace Answer2
@@ -245,13 +240,8 @@ func (rr *ReportRegistry) AddToAnswer1(clientID string, entry *pb.MovieEntry) {
 
 	rr.reports[clientID].Answer1.Movies = append(rr.reports[clientID].Answer1.Movies, entry)
 
-	// Create serialized movie data for update
-	data := serializeProto(&pb.MovieSanit{
-		Id:       entry.Id,
-		Title:    entry.Title,
-		Genres:   entry.Genres,
-		ClientId: &clientID,
-	})
+	// Create serialized movie entry data for update
+	data := serializeProto(entry)
 
 	// Save the state update
 	updateArgs := ReportUpdateArgs{
