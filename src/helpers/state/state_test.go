@@ -193,79 +193,99 @@ func TestTimeStampFileGreaterThanAux(t *testing.T) {
 	}
 	// Close files
 	stateHelper.Dispose()
+	// Filepath is the one that contains the newest state
 	MakeTimeStampBigger(t, GenerateFilePath(clientId, moduleName, shard))
-	/*
-	   // Set env
-	   CleanOnStart = false
-	   // Reload
-	   stateHelper = NewStateHelper(clientId, moduleName, shard, UpdateState)
-	   // Check window and state
-	   stateReaded, windowReaded = GetLastValidState(stateHelper)
-
-	   	if stateReaded == nil {
-	   		t.Errorf("Error on reload state")
-	   	} else {
-
-	   		if stateReaded.Id != state.Id || stateReaded.Name != state.Name {
-	   			t.Errorf("Error in reloaded state")
-	   		}
-	   	}
-
-	   // Check window
-
-	   	if windowReaded.IsEmpty() {
-	   		t.Errorf("Error on reload window")
-	   	} else {
-
-	   		for id := range MAX_STATES - 1 {
-	   			if windowData.IsDuplicate(int64(id)) != windowReaded.IsDuplicate(int64(id)) {
-	   				t.Errorf("Error in reloaded window")
-	   			}
-	   		}
-	   	}
-
-	   // Close files
-	   stateHelper.Dispose()
-	*/
+	// Set env
+	CleanOnStart = false
+	// Reload
+	stateHelper = NewStateHelper(clientId, moduleName, shard, UpdateState)
+	// Check window and state
+	stateReaded, windowReaded = GetLastValidState(stateHelper)
+	if stateReaded == nil {
+		t.Errorf("Error on reload state")
+	} else {
+		if stateReaded.Id != state.Id || stateReaded.Name == state.Name {
+			t.Errorf("Error in reloaded state")
+		}
+	}
+	// Check window
+	if windowReaded.IsEmpty() {
+		t.Errorf("Error on reload window")
+	} else {
+		for id := range MAX_STATES - 1 {
+			if windowData.IsDuplicate(int64(id)) != windowReaded.IsDuplicate(int64(id)) {
+				t.Errorf("Error in reloaded window")
+			}
+		}
+	}
+	// Close files
+	stateHelper.Dispose()
 }
 
-/*
-func TestTimeStampFileLessThanAux(t *testing.T) {
+func TestTimeStampFileLowerThanAux(t *testing.T) {
 	// Configuration
 	clientId := "cli-1"
 	moduleName := "testing"
 	shard := "0"
 	StatesDir = "/tmp/states_test"
-	// original file
-	filePath := GenerateFilePath(clientId, moduleName, shard)
-	os.Remove(filePath)
-	fileWr, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return
+	// Set env to clean previus files
+	CleanOnStart = true
+	// New State Helper
+	stateHelper := NewStateHelper(clientId, moduleName, shard, UpdateState)
+	state, windowMessage := GetLastValidState(stateHelper)
+	// Check new helper
+	if state != nil || !windowMessage.IsEmpty() {
+		t.Errorf("Error new state helper")
 	}
-	defer fileWr.Close()
-	data := `{"State":{"Name":"Subject 6","Id":7},"Window":{"0":"2025-06-09 14:28:12.807811640","1":"2025-06-09 14:28:12.807813293","2":"2025-06-09 14:28:12.807813925"},"TimeStamp":"2025-06-09 14:28:21.161415296"}` + "\n"
-	fileWr.WriteString(data)
-	// aux file
-	auxFilePath := GenerateAuxFilePath(clientId, moduleName, shard)
-	os.Remove(auxFilePath)
-	auxFileWr, err := os.OpenFile(auxFilePath, os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return
+	state = &Data{
+		Name: "Pepe",
+		Id:   1,
 	}
-	defer auxFileWr.Close()
-	data = `{"State":{"Name":"Subject 6","Id":6},"Window":{"0":"2025-06-09 14:28:12.807811640","1":"2025-06-09 14:28:12.807813293","2":"2025-06-09 14:28:12.807813925"},"TimeStamp":"2025-06-09 14:28:21.161415298"}` + "\n"
-	auxFileWr.WriteString(data)
-	// Check loader
-	stateHelper := NewStateHelper[Data](clientId, moduleName, shard)
-	state, windowP := GetLastValidState(stateHelper)
-	if state == nil || windowP.IsEmpty() {
-		t.Errorf("Error load state or window")
+	// Window to test
+	windowData := window.NewMessageWindow()
+	// Insert states
+	for id := range MAX_STATES + 1 {
+		args := UpdateArgs{
+			ConcatToName: int64(id + 10),
+			MessageId:    int64(id),
+		}
+		UpdateState(state, windowData, &args)
+		SaveState(stateHelper, *state, *windowData, args)
+	}
+	// Check window and state
+	stateReaded, windowReaded := GetLastValidState(stateHelper)
+	if stateReaded == nil || windowReaded.IsEmpty() {
+		t.Errorf("Error insert windows or state")
+	}
+	// Close files
+	stateHelper.Dispose()
+	// Filepath is the one that contains the newest state
+	MakeTimeStampBigger(t, GenerateAuxFilePath(clientId, moduleName, shard))
+	// Set env
+	CleanOnStart = false
+	// Reload
+	stateHelper = NewStateHelper(clientId, moduleName, shard, UpdateState)
+	// Check window and state
+	stateReaded, windowReaded = GetLastValidState(stateHelper)
+	if stateReaded == nil {
+		t.Errorf("Error on reload state")
 	} else {
-		if state.Id != 6 {
-			t.Errorf("Error states %v", state.Id)
+		if stateReaded.Id != state.Id || stateReaded.Name == state.Name {
+			t.Errorf("Error in reloaded state")
 		}
 	}
+	// Check window
+	if windowReaded.IsEmpty() {
+		t.Errorf("Error on reload window")
+	} else {
+		for id := range MAX_STATES - 1 {
+			if windowData.IsDuplicate(int64(id)) != windowReaded.IsDuplicate(int64(id)) {
+				t.Errorf("Error in reloaded window")
+			}
+		}
+	}
+	// Close files
+	stateHelper.Dispose()
 }
 
 func TestStateOriginalFileBroken(t *testing.T) {
@@ -274,36 +294,64 @@ func TestStateOriginalFileBroken(t *testing.T) {
 	moduleName := "testing"
 	shard := "0"
 	StatesDir = "/tmp/states_test"
-	// original file
-	filePath := GenerateFilePath(clientId, moduleName, shard)
-	os.Remove(filePath)
-	fileWr, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return
+	// Set env to clean previus files
+	CleanOnStart = true
+	// New State Helper
+	stateHelper := NewStateHelper(clientId, moduleName, shard, UpdateState)
+	state, windowMessage := GetLastValidState(stateHelper)
+	// Check new helper
+	if state != nil || !windowMessage.IsEmpty() {
+		t.Errorf("Error new state helper")
 	}
-	defer fileWr.Close()
-	data := `{"State":{"Name":"Subject 6","Id":7},"Window":{"0":"2025-06-09 14:28:12.807811640","1":"2025-06-09 14:28:12.807813293","2":"2025-06-09 14:28:12.807813925"},"TimeStamp":"2025-06-09 14:28:21.161415296"` + "\n"
-	fileWr.WriteString(data)
-	// aux file
-	auxFilePath := GenerateAuxFilePath(clientId, moduleName, shard)
-	os.Remove(auxFilePath)
-	auxFileWr, err := os.OpenFile(auxFilePath, os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return
+	state = &Data{
+		Name: "Pepe",
+		Id:   1,
 	}
-	defer auxFileWr.Close()
-	data = `{"State":{"Name":"Subject 6","Id":6},"Window":{"0":"2025-06-09 14:28:12.807811640","1":"2025-06-09 14:28:12.807813293","2":"2025-06-09 14:28:12.807813925"},"TimeStamp":"2025-06-09 14:28:21.161415298"}` + "\n"
-	auxFileWr.WriteString(data)
-	// Check loader
-	stateHelper := NewStateHelper[Data](clientId, moduleName, shard)
-	state, windowP := GetLastValidState(stateHelper)
-	if state == nil || windowP.IsEmpty() {
-		t.Errorf("Error load state or window")
+	// Window to test
+	windowData := window.NewMessageWindow()
+	// Insert states
+	for id := range MAX_STATES + 1 {
+		args := UpdateArgs{
+			ConcatToName: int64(id + 10),
+			MessageId:    int64(id),
+		}
+		UpdateState(state, windowData, &args)
+		SaveState(stateHelper, *state, *windowData, args)
+	}
+	// Check window and state
+	stateReaded, windowReaded := GetLastValidState(stateHelper)
+	if stateReaded == nil || windowReaded.IsEmpty() {
+		t.Errorf("Error insert windows or state")
+	}
+	// Close files
+	stateHelper.Dispose()
+	// Filepath is broken
+	BreakFile(t, GenerateFilePath(clientId, moduleName, shard))
+	// Set env
+	CleanOnStart = false
+	// Reload
+	stateHelper = NewStateHelper(clientId, moduleName, shard, UpdateState)
+	// Check window and state
+	stateReaded, windowReaded = GetLastValidState(stateHelper)
+	if stateReaded == nil {
+		t.Errorf("Error on reload state")
 	} else {
-		if state.Id != 6 {
-			t.Errorf("Error states %v", state.Id)
+		if stateReaded.Id != state.Id || stateReaded.Name == state.Name {
+			t.Errorf("Error in reloaded state")
 		}
 	}
+	// Check window
+	if windowReaded.IsEmpty() {
+		t.Errorf("Error on reload window")
+	} else {
+		for id := range MAX_STATES - 1 {
+			if windowData.IsDuplicate(int64(id)) != windowReaded.IsDuplicate(int64(id)) {
+				t.Errorf("Error in reloaded window")
+			}
+		}
+	}
+	// Close files
+	stateHelper.Dispose()
 }
 
 func TestStateAuxFileBroken(t *testing.T) {
@@ -312,36 +360,64 @@ func TestStateAuxFileBroken(t *testing.T) {
 	moduleName := "testing"
 	shard := "0"
 	StatesDir = "/tmp/states_test"
-	// original file
-	filePath := GenerateFilePath(clientId, moduleName, shard)
-	os.Remove(filePath)
-	fileWr, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return
+	// Set env to clean previus files
+	CleanOnStart = true
+	// New State Helper
+	stateHelper := NewStateHelper(clientId, moduleName, shard, UpdateState)
+	state, windowMessage := GetLastValidState(stateHelper)
+	// Check new helper
+	if state != nil || !windowMessage.IsEmpty() {
+		t.Errorf("Error new state helper")
 	}
-	defer fileWr.Close()
-	data := `{"State":{"Name":"Subject 6","Id":7},"Window":{"0":"2025-06-09 14:28:12.807811640","1":"2025-06-09 14:28:12.807813293","2":"2025-06-09 14:28:12.807813925"},"TimeStamp":"2025-06-09 14:28:21.161415296"}` + "\n"
-	fileWr.WriteString(data)
-	// aux file
-	auxFilePath := GenerateAuxFilePath(clientId, moduleName, shard)
-	os.Remove(auxFilePath)
-	auxFileWr, err := os.OpenFile(auxFilePath, os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return
+	state = &Data{
+		Name: "Pepe",
+		Id:   1,
 	}
-	defer auxFileWr.Close()
-	data = `{"State":{"Name":"Subject 6","Id":6},"Window":{"0":"2025-06-09 14:28:12.807811640","1":"2025-06-09 14:28:12.807813293","2":"2025-06-09 14:28:12.807813925"},"TimeStamp":"2025-06-09 14:28:21.161415298"}1` + "\n"
-	auxFileWr.WriteString(data)
-	// Check loader
-	stateHelper := NewStateHelper[Data](clientId, moduleName, shard)
-	state, windowP := GetLastValidState(stateHelper)
-	if state == nil || windowP.IsEmpty() {
-		t.Errorf("Error load state or window")
+	// Window to test
+	windowData := window.NewMessageWindow()
+	// Insert states
+	for id := range MAX_STATES + 1 {
+		args := UpdateArgs{
+			ConcatToName: int64(id + 10),
+			MessageId:    int64(id),
+		}
+		UpdateState(state, windowData, &args)
+		SaveState(stateHelper, *state, *windowData, args)
+	}
+	// Check window and state
+	stateReaded, windowReaded := GetLastValidState(stateHelper)
+	if stateReaded == nil || windowReaded.IsEmpty() {
+		t.Errorf("Error insert windows or state")
+	}
+	// Close files
+	stateHelper.Dispose()
+	// AuxFilepath is broken
+	BreakFile(t, GenerateAuxFilePath(clientId, moduleName, shard))
+	// Set env
+	CleanOnStart = false
+	// Reload
+	stateHelper = NewStateHelper(clientId, moduleName, shard, UpdateState)
+	// Check window and state
+	stateReaded, windowReaded = GetLastValidState(stateHelper)
+	if stateReaded == nil {
+		t.Errorf("Error on reload state")
 	} else {
-		if state.Id != 7 {
-			t.Errorf("Error states %v", state.Id)
+		if stateReaded.Id != state.Id || stateReaded.Name != state.Name {
+			t.Errorf("Error in reloaded state")
 		}
 	}
+	// Check window
+	if windowReaded.IsEmpty() {
+		t.Errorf("Error on reload window")
+	} else {
+		for id := range MAX_STATES - 1 {
+			if windowData.IsDuplicate(int64(id)) != windowReaded.IsDuplicate(int64(id)) {
+				t.Errorf("Error in reloaded window")
+			}
+		}
+	}
+	// Close files
+	stateHelper.Dispose()
 }
 
 func TestStateBohtFilesBroken(t *testing.T) {
@@ -350,48 +426,78 @@ func TestStateBohtFilesBroken(t *testing.T) {
 	moduleName := "testing"
 	shard := "0"
 	StatesDir = "/tmp/states_test"
-	// original file
-	filePath := GenerateFilePath(clientId, moduleName, shard)
-	os.Remove(filePath)
-	fileWr, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return
+	// Set env to clean previus files
+	CleanOnStart = true
+	// New State Helper
+	stateHelper := NewStateHelper(clientId, moduleName, shard, UpdateState)
+	state, windowMessage := GetLastValidState(stateHelper)
+	// Check new helper
+	if state != nil || !windowMessage.IsEmpty() {
+		t.Errorf("Error new state helper")
 	}
-	defer fileWr.Close()
-	data := `{"State":{"Name":"Subject 6","Id":7},"Window":{"0":"2025-06-09 14:28:12.807811640","1":"2025-06-09 14:28:12.807813293","2":"2025-06-09 14:28:12.807813925"},"TimeStamp":"2025-06-09 14:28:21.161415296"}2` + "\n"
-	fileWr.WriteString(data)
-	// aux file
-	auxFilePath := GenerateAuxFilePath(clientId, moduleName, shard)
-	os.Remove(auxFilePath)
-	auxFileWr, err := os.OpenFile(auxFilePath, os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return
+	state = &Data{
+		Name: "Pepe",
+		Id:   1,
 	}
-	defer auxFileWr.Close()
-	data = `{"State":{"Name":"Subject 6","Id":6},"Window":{"0":"2025-06-09 14:28:12.807811640","1":"2025-06-09 14:28:12.807813293","2":"2025-06-09 14:28:12.807813925"},"TimeStamp":"2025-06-09 14:28:21.161415298"}1` + "\n"
-	auxFileWr.WriteString(data)
-	// Check loader
-	stateHelper := NewStateHelper[Data](clientId, moduleName, shard)
-	state, windowP := GetLastValidState(stateHelper)
-	if state != nil || !windowP.IsEmpty() {
-		t.Errorf("Error load state or window")
+	// Window to test
+	windowData := window.NewMessageWindow()
+	// Insert states
+	for id := range MAX_STATES + 1 {
+		args := UpdateArgs{
+			ConcatToName: int64(id + 10),
+			MessageId:    int64(id),
+		}
+		UpdateState(state, windowData, &args)
+		SaveState(stateHelper, *state, *windowData, args)
 	}
+	// Check window and state
+	stateReaded, windowReaded := GetLastValidState(stateHelper)
+	if stateReaded == nil || windowReaded.IsEmpty() {
+		t.Errorf("Error insert windows or state")
+	}
+	// Close files
+	stateHelper.Dispose()
+	// Both files are broken
+	BreakFile(t, GenerateFilePath(clientId, moduleName, shard))
+	BreakFile(t, GenerateAuxFilePath(clientId, moduleName, shard))
+	// Set env
+	CleanOnStart = false
+	// Reload
+	stateHelper = NewStateHelper(clientId, moduleName, shard, UpdateState)
+	// Check window and state
+	stateReaded, windowReaded = GetLastValidState(stateHelper)
+	if stateReaded != nil {
+		t.Errorf("Error on reload state")
+	}
+	// Close files
+	stateHelper.Dispose()
 }
 
-func countLines(filePath string) int {
-	file, err := os.Open(filePath)
+func BreakFile(t *testing.T, filePath string) {
+	// read file
+	fileRd, err := os.Open(filePath)
 	if err != nil {
-		return 0
+		t.Errorf("Error on open file %v: ", err)
+		return
 	}
-	defer file.Close()
-	scanner := bufio.NewScanner(file)
-	lineCount := 0
-	for scanner.Scan() {
-		lineCount++
+	reader := NewReader(fileRd)
+	line, err := reader.ReadLine()
+	if err != nil {
+		t.Errorf("Error on read file %v: ", err)
+		return
 	}
-	return lineCount
+	fileRd.Close()
+	// change date
+	newContent := strings.ReplaceAll(line, `"TimeStamp":"2025-`, `TimeStamp":"2025-`)
+	fileWr, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+	if err != nil {
+		t.Errorf("Error on open file %v: ", err)
+		return
+	}
+	fileWr.Truncate(0)
+	fileWr.WriteString(newContent)
+	fileWr.Close()
 }
-*/
 
 func MakeTimeStampBigger(t *testing.T, filePath string) {
 	// read file
