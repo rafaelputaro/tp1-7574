@@ -610,6 +610,9 @@ services:
       - MONITOR_SERVICE_FILTER_7=single-country-origin-filter-1
       - MONITOR_SERVICE_FILTER_8=single-country-origin-filter-2
 
+      - MONITOR_SERVICE_FILTER_9=nlp-1
+      - MONITOR_SERVICE_FILTER_10=nlp-2
+
       - MONITOR_SERVICE_JOINER_1=joiner_group_by_movie_id_ratings-1
       - MONITOR_SERVICE_JOINER_2=joiner_group_by_movie_id_ratings-2
 
