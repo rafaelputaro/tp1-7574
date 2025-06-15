@@ -3,14 +3,13 @@ package filter
 import (
 	"fmt"
 	"sort"
-
-	//"strconv"
+	"strconv"
 	"strings"
 	"sync"
 	"tp1/coordinator"
 	"tp1/globalconfig"
 
-	//"tp1/helpers/state"
+	"tp1/helpers/state"
 	"tp1/helpers/window"
 	"tp1/protobuf/protopb"
 	protoUtils "tp1/protobuf/utils"
@@ -26,6 +25,14 @@ import (
 
 type FilterState string
 
+type UpdateArgs struct {
+	MessageId int64
+}
+
+func UpdateState(state *FilterState, messageWindow *window.MessageWindow, updateArgs *UpdateArgs) {
+	messageWindow.AddMessage(updateArgs.MessageId)
+}
+
 type FilterConfig struct {
 	Type   string
 	Shards int
@@ -33,11 +40,11 @@ type FilterConfig struct {
 }
 
 type Filter struct {
-	config  FilterConfig
-	log     *logging.Logger
-	conn    *amqp.Connection
-	channel *amqp.Channel
-	//stateHelper   *state.StateHelper[FilterState]
+	config        FilterConfig
+	log           *logging.Logger
+	conn          *amqp.Connection
+	channel       *amqp.Channel
+	stateHelper   *state.StateHelper[FilterState, UpdateArgs]
 	messageWindow window.MessageWindow
 }
 
@@ -57,21 +64,21 @@ func NewFilter(config *FilterConfig, log *logging.Logger) *Filter {
 	}
 
 	log.Info("Successful connection with RabbitMQ")
-	/*
-		stateHelper := state.NewStateHelper[FilterState](strconv.Itoa(config.ID), config.Type, strconv.Itoa(config.Shards))
-		if stateHelper == nil {
-			log.Fatalf("Failed to create state helper")
-		}
 
-		_, messageWindow := state.GetLastValidState(stateHelper)
-	*/
+	stateHelper := state.NewStateHelper[FilterState](strconv.Itoa(config.ID), config.Type, strconv.Itoa(config.Shards), UpdateState)
+	if stateHelper == nil {
+		log.Fatalf("Failed to create state helper")
+	}
+
+	_, messageWindow := state.GetLastValidState(stateHelper)
+
 	return &Filter{
-		config:  *config,
-		log:     log,
-		conn:    conn,
-		channel: ch,
-		//stateHelper:   stateHelper,
-		//messageWindow: messageWindow,
+		config:        *config,
+		log:           log,
+		conn:          conn,
+		channel:       ch,
+		stateHelper:   stateHelper,
+		messageWindow: messageWindow,
 	}
 }
 
@@ -107,11 +114,9 @@ func (f *Filter) Close() {
 	if f.conn != nil {
 		_ = f.conn.Close()
 	}
-	/*
-		if f.stateHelper != nil {
-			f.stateHelper.Dispose()
-		}
-	*/
+	if f.stateHelper != nil {
+		f.stateHelper.Dispose()
+	}
 }
 
 // Jobs --------------------------------------------------------------------------------------------
@@ -696,16 +701,15 @@ func (f *Filter) runShardedFilter(inputQueue string, declareInput bool, outputEx
 // Refresh the window, save the state and send the ack
 func (f *Filter) saveStateAndSendAck(msg amqp.Delivery, messageId int64) error {
 	// update window
-	/*
-		f.messageWindow.AddMessage(messageId)
-		// save state
-		err := state.SaveState(f.stateHelper, "", f.messageWindow)
-		if err != nil {
-			f.log.Fatalf("Unable to save state")
-			return err
-		}*/
+	f.messageWindow.AddMessage(messageId)
+	// save state
+	err := state.SaveState(f.stateHelper, "", f.messageWindow, UpdateArgs{MessageId: messageId})
+	if err != nil {
+		f.log.Fatalf("Unable to save state")
+		return err
+	}
 	// send ack
-	err := rabbitmq.SingleAck(msg)
+	err = rabbitmq.SingleAck(msg)
 	if err != nil {
 		f.log.Fatalf("failed to ack message: %v", err)
 		return err
