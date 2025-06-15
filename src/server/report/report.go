@@ -21,10 +21,10 @@ var logger = logging.MustGetLogger("report")
 type ReportGenerator struct {
 	pb.UnimplementedReportServiceServer
 	ch *amqp.Channel
-	rr *internal.ResilientReportRegistry
+	rr *internal.ReportRegistry
 }
 
-func NewReportGenerator(ch *amqp.Channel, rr *internal.ResilientReportRegistry) *ReportGenerator {
+func NewReportGenerator(ch *amqp.Channel, rr *internal.ReportRegistry) *ReportGenerator {
 	return &ReportGenerator{ch: ch, rr: rr}
 }
 
@@ -93,11 +93,11 @@ func (r *ReportGenerator) GetReport(_ context.Context, req *pb.ReportRequest) (*
 
 type queueConfig struct {
 	Name    string
-	IsEOF   func([]byte, *internal.ResilientReportRegistry) bool
-	Process func([]byte, *internal.ResilientReportRegistry)
+	IsEOF   func([]byte, *internal.ReportRegistry) bool
+	Process func([]byte, *internal.ReportRegistry)
 }
 
-func isMoviesEOF(data []byte, rr *internal.ResilientReportRegistry) bool {
+func isMoviesEOF(data []byte, rr *internal.ReportRegistry) bool {
 	var movie pb.MovieSanit
 	_ = proto.Unmarshal(data, &movie)
 
@@ -110,7 +110,7 @@ func isMoviesEOF(data []byte, rr *internal.ResilientReportRegistry) bool {
 	return eof
 }
 
-func processMovies(data []byte, rr *internal.ResilientReportRegistry) {
+func processMovies(data []byte, rr *internal.ReportRegistry) {
 
 	var movie pb.MovieSanit
 	_ = proto.Unmarshal(data, &movie)
@@ -125,7 +125,7 @@ func processMovies(data []byte, rr *internal.ResilientReportRegistry) {
 	rr.AddToAnswer1(movie.GetClientId(), &entry)
 }
 
-func isTop5EOF(data []byte, rr *internal.ResilientReportRegistry) bool {
+func isTop5EOF(data []byte, rr *internal.ReportRegistry) bool {
 	var country pb.Top5Country
 	_ = proto.Unmarshal(data, &country)
 
@@ -138,7 +138,7 @@ func isTop5EOF(data []byte, rr *internal.ResilientReportRegistry) bool {
 	return eof
 }
 
-func processTop5(data []byte, rr *internal.ResilientReportRegistry) {
+func processTop5(data []byte, rr *internal.ReportRegistry) {
 	answer2 := pb.Answer2{}
 
 	var top5 pb.Top5Country
@@ -157,7 +157,7 @@ func processTop5(data []byte, rr *internal.ResilientReportRegistry) {
 	rr.AddAnswer2(top5.GetClientId(), &answer2)
 }
 
-func isTopAndBottomEOF(data []byte, rr *internal.ResilientReportRegistry) bool {
+func isTopAndBottomEOF(data []byte, rr *internal.ReportRegistry) bool {
 	var ratingAvg pb.TopAndBottomRatingAvg
 	_ = proto.Unmarshal(data, &ratingAvg)
 
@@ -170,7 +170,7 @@ func isTopAndBottomEOF(data []byte, rr *internal.ResilientReportRegistry) bool {
 	return eof
 }
 
-func processTopAndBottom(data []byte, rr *internal.ResilientReportRegistry) {
+func processTopAndBottom(data []byte, rr *internal.ReportRegistry) {
 	answer3 := pb.Answer3{}
 
 	var ratingAvg pb.TopAndBottomRatingAvg
@@ -196,7 +196,7 @@ func processTopAndBottom(data []byte, rr *internal.ResilientReportRegistry) {
 	rr.AddAnswer3(ratingAvg.GetClientId(), &answer3)
 }
 
-func isTop10EOF(data []byte, rr *internal.ResilientReportRegistry) bool {
+func isTop10EOF(data []byte, rr *internal.ReportRegistry) bool {
 	var top10 pb.Top10
 	_ = proto.Unmarshal(data, &top10)
 
@@ -209,7 +209,7 @@ func isTop10EOF(data []byte, rr *internal.ResilientReportRegistry) bool {
 	return eof
 }
 
-func processTop10(data []byte, rr *internal.ResilientReportRegistry) {
+func processTop10(data []byte, rr *internal.ReportRegistry) {
 	answer4 := pb.Answer4{}
 
 	var top10 pb.Top10
@@ -228,7 +228,7 @@ func processTop10(data []byte, rr *internal.ResilientReportRegistry) {
 	rr.AddAnswer4(top10.GetClientId(), &answer4)
 }
 
-func isMetricsEOF(data []byte, rr *internal.ResilientReportRegistry) bool {
+func isMetricsEOF(data []byte, rr *internal.ReportRegistry) bool {
 	var metrics pb.Metrics
 	_ = proto.Unmarshal(data, &metrics)
 
@@ -241,7 +241,7 @@ func isMetricsEOF(data []byte, rr *internal.ResilientReportRegistry) bool {
 	return eof
 }
 
-func processMetrics(data []byte, rr *internal.ResilientReportRegistry) {
+func processMetrics(data []byte, rr *internal.ReportRegistry) {
 	answer5 := pb.Answer5{}
 
 	var metrics pb.Metrics
@@ -285,7 +285,7 @@ func main() {
 	}
 
 	grpcServer := grpc.NewServer()
-	rr := internal.NewResilientReportRegistry("report_service")
+	rr := internal.NewReportRegistry("report_service")
 	defer rr.Dispose()
 	reportGenerator := NewReportGenerator(ch, rr)
 	pb.RegisterReportServiceServer(grpcServer, reportGenerator)
