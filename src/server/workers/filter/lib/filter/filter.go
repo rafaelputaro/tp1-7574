@@ -420,14 +420,15 @@ func (f *Filter) processYearFilters() {
 
 	for msg := range msgs {
 
-		/*err := rabbitmq.SingleAck(msg)
-		if err != nil {
-			f.log.Fatalf("failed to ack message: %v", err)
-		}
-		*/
 		var movie protopb.MovieSanit
 		if err := proto.Unmarshal(msg.Body, &movie); err != nil {
 			f.log.Errorf("failed to unmarshal message: %v", err)
+			continue
+		}
+		// check duplicate
+		if f.messageWindow.IsDuplicate(*movie.MessageId) {
+			f.log.Debugf("duplicate message: %v", *movie.MessageId)
+			f.sendAck(msg)
 			continue
 		}
 
@@ -709,7 +710,13 @@ func (f *Filter) saveStateAndSendAck(msg amqp.Delivery, messageId int64) error {
 		return err
 	}
 	// send ack
-	err = rabbitmq.SingleAck(msg)
+	return f.sendAck(msg)
+}
+
+// Send the ack
+func (f *Filter) sendAck(msg amqp.Delivery) error {
+	// send ack
+	err := rabbitmq.SingleAck(msg)
 	if err != nil {
 		f.log.Fatalf("failed to ack message: %v", err)
 		return err
