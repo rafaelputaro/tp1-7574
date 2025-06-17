@@ -2,6 +2,7 @@ package filter
 
 import (
 	"strconv"
+	"tp1/coordinator"
 	"tp1/helpers/state"
 	"tp1/helpers/window"
 
@@ -31,6 +32,7 @@ func UpdateFilterTop5Investors(state *FilterTop5InvestorsState, messageWindow *w
 	messageWindow.AddMessage(updateArgs.ClientId, updateArgs.MessageId)
 }
 
+// Return the state helpers and the window
 func CreateStateHelpers(config *FilterConfig, log *logging.Logger) (*state.StateHelper[FilterDefaultState, FilterDefaultUpdateArgs], *state.StateHelper[FilterTop5InvestorsState, FilterTop5InvestorsUpdateArgs], window.MessageWindow) {
 	switch config.Type {
 	case "top_5_investors_filter":
@@ -82,4 +84,22 @@ func (f *Filter) SaveTop5StateAndSendAck(msg amqp.Delivery, clientId string, mes
 	}
 	// send ack
 	return f.sendAck(msg)
+}
+
+// Refresh the window, save the state and send the ack
+func (f *Filter) SaveDefaultStateAndSendAckCoordinator(coordinator *coordinator.EOFLeader, msg amqp.Delivery, clientId string, messageId int64) error {
+	// update window
+	f.messageWindow.AddMessage(clientId, messageId)
+	// save state
+	err := state.SaveState(f.stateHelperDefault, "", f.messageWindow, FilterDefaultUpdateArgs{
+		ClientId:  clientId,
+		MessageId: messageId,
+	})
+	if err != nil {
+		f.log.Fatalf("Unable to save state")
+		return err
+	}
+	// send ack
+	coordinator.SendACKs()
+	return nil
 }

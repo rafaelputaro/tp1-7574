@@ -532,11 +532,6 @@ func (f *Filter) processSingleCountryOriginFilter() {
 	}
 
 	for msg := range msgs {
-		err := rabbitmq.SingleAck(msg)
-		if err != nil {
-			f.log.Fatalf("failed to ack message: %v", err)
-		}
-
 		var movie protopb.MovieSanit
 		err = proto.Unmarshal(msg.Body, &movie)
 		if err != nil {
@@ -545,6 +540,13 @@ func (f *Filter) processSingleCountryOriginFilter() {
 		}
 
 		clientID := movie.GetClientId()
+
+		// check duplicate
+		if f.messageWindow.IsDuplicate(clientID, *movie.MessageId) {
+			f.log.Debugf("duplicate message: %v", *movie.MessageId)
+			f.sendAck(msg)
+			continue
+		}
 
 		if movie.GetEof() {
 			f.log.Infof("[client_id:%s] received EOF marker", clientID)
@@ -563,6 +565,7 @@ func (f *Filter) processSingleCountryOriginFilter() {
 			}
 
 			f.log.Infof("[client_id:%s] published eof", clientID)
+			f.SaveDefaultStateAndSendAck(msg, *movie.ClientId, *movie.MessageId)
 			continue
 		}
 
@@ -572,8 +575,7 @@ func (f *Filter) processSingleCountryOriginFilter() {
 				f.log.Errorf("[client_id:%s] failed to publish movie: %v", clientID, err)
 			}
 			// f.log.Debugf("[client_id:%s] published movie: %s", clientID, movie.GetTitle())
-
-			coord.SendACKs()
+			f.SaveDefaultStateAndSendAckCoordinator(coord, msg, *movie.ClientId, *movie.MessageId)
 		}
 	}
 }
