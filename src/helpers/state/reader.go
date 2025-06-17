@@ -23,7 +23,7 @@ func NewReader(fileDesc *os.File) *Reader {
 }
 
 // Returns a line from the file. When the file ends it returns io.Eof as an error.
-func (reader *Reader) ReadLine() (string, error) {
+func (reader *Reader) ReadLine() (string, int, error) {
 	var errToReturn error = nil
 	toReturn := ""
 	foundEndLn := false
@@ -62,5 +62,9 @@ func (reader *Reader) ReadLine() (string, error) {
 		reader.bufferLen -= count
 		copy(reader.buffer, reader.buffer[count:])
 	}
-	return toReturn, errToReturn
+	lenReaded := len(toReturn)
+	if errToReturn == io.EOF && lenReaded > 0 {
+		errToReturn = nil
+	}
+	return toReturn, lenReaded, errToReturn
 }

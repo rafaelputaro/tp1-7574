@@ -27,10 +27,11 @@ type FilterState string
 
 type UpdateArgs struct {
 	MessageId int64
+	ClientId  string
 }
 
 func UpdateState(state *FilterState, messageWindow *window.MessageWindow, updateArgs *UpdateArgs) {
-	messageWindow.AddMessage(updateArgs.MessageId)
+	messageWindow.AddMessage(updateArgs.ClientId, updateArgs.MessageId)
 }
 
 type FilterConfig struct {
@@ -426,7 +427,7 @@ func (f *Filter) processYearFilters() {
 			continue
 		}
 		// check duplicate
-		if f.messageWindow.IsDuplicate(*movie.MessageId) {
+		if f.messageWindow.IsDuplicate(*movie.ClientId, *movie.MessageId) {
 			f.log.Debugf("duplicate message: %v", *movie.MessageId)
 			f.sendAck(msg)
 			continue
@@ -452,7 +453,7 @@ func (f *Filter) processYearFilters() {
 
 				f.log.Infof("[client_id:%s] propagated EOF to %s", movie.GetClientId(), queueName)
 			}
-			f.saveStateAndSendAck(msg, *movie.MessageId)
+			f.saveStateAndSendAck(msg, *movie.ClientId, *movie.MessageId)
 			continue
 		}
 
@@ -476,7 +477,7 @@ func (f *Filter) processYearFilters() {
 				}
 			}
 		}
-		f.saveStateAndSendAck(msg, *movie.MessageId)
+		f.saveStateAndSendAck(msg, *movie.ClientId, *movie.MessageId)
 	}
 
 	f.log.Infof("job finished")
@@ -700,9 +701,9 @@ func (f *Filter) runShardedFilter(inputQueue string, declareInput bool, outputEx
 }
 
 // Refresh the window, save the state and send the ack
-func (f *Filter) saveStateAndSendAck(msg amqp.Delivery, messageId int64) error {
+func (f *Filter) saveStateAndSendAck(msg amqp.Delivery, clientId string, messageId int64) error {
 	// update window
-	f.messageWindow.AddMessage(messageId)
+	f.messageWindow.AddMessage(clientId, messageId)
 	// save state
 	err := state.SaveState(f.stateHelper, "", f.messageWindow, UpdateArgs{MessageId: messageId})
 	if err != nil {

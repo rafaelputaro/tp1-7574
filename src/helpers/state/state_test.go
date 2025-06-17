@@ -21,15 +21,17 @@ type Data struct {
 type UpdateArgs struct {
 	ConcatToName int64
 	MessageId    int64
+	ClientId     string
 }
 
 func UpdateState(state *Data, messageWindow *window.MessageWindow, updateArgs *UpdateArgs) {
 	state.Name = "Pepe" + strconv.FormatInt(updateArgs.ConcatToName, 10)
-	messageWindow.AddMessage(updateArgs.MessageId)
+	messageWindow.AddMessage(updateArgs.ClientId, updateArgs.MessageId)
 }
 
 func TestStateCorrectFilesWithoutExceedingMaximumCapacity(t *testing.T) {
 	// Configuration
+	moduleId := "1"
 	clientId := "cli-1"
 	moduleName := "testing"
 	shard := "0"
@@ -37,7 +39,7 @@ func TestStateCorrectFilesWithoutExceedingMaximumCapacity(t *testing.T) {
 	// Set env to clean previus files
 	CleanOnStart = true
 	// New State Helper
-	stateHelper := NewStateHelper(clientId, moduleName, shard, UpdateState)
+	stateHelper := NewStateHelper(moduleId, moduleName, shard, UpdateState)
 	state, windowMessage := GetLastValidState(stateHelper)
 	// Check new helper
 	if state != nil || !windowMessage.IsEmpty() {
@@ -52,11 +54,16 @@ func TestStateCorrectFilesWithoutExceedingMaximumCapacity(t *testing.T) {
 	// Insert states
 	for id := range MAX_STATES - 1 {
 		args := UpdateArgs{
-			ConcatToName: int64(id + 10),
+			ConcatToName: int64(id),
 			MessageId:    int64(id),
+			ClientId:     clientId,
 		}
 		UpdateState(state, windowData, &args)
 		SaveState(stateHelper, *state, *windowData, args)
+		stateReaded, _ := GetLastValidState(stateHelper)
+		if stateReaded.Id != state.Id || stateReaded.Name != state.Name {
+			t.Errorf("Error in reloaded state")
+		}
 	}
 	// Check window and state
 	stateReaded, windowReaded := GetLastValidState(stateHelper)
@@ -68,7 +75,7 @@ func TestStateCorrectFilesWithoutExceedingMaximumCapacity(t *testing.T) {
 	// Set env
 	CleanOnStart = false
 	// Reload
-	stateHelper = NewStateHelper(clientId, moduleName, shard, UpdateState)
+	stateHelper = NewStateHelper(moduleId, moduleName, shard, UpdateState)
 	// Check window and state
 	stateReaded, windowReaded = GetLastValidState(stateHelper)
 	if stateReaded == nil {
@@ -78,12 +85,13 @@ func TestStateCorrectFilesWithoutExceedingMaximumCapacity(t *testing.T) {
 			t.Errorf("Error in reloaded state")
 		}
 	}
+
 	// Check window
 	if windowReaded.IsEmpty() {
 		t.Errorf("Error on reload window")
 	} else {
 		for id := range MAX_STATES - 1 {
-			if windowData.IsDuplicate(int64(id)) != windowReaded.IsDuplicate(int64(id)) {
+			if windowData.IsDuplicate(clientId, int64(id)) != windowReaded.IsDuplicate(clientId, int64(id)) {
 				t.Errorf("Error in reloaded window")
 			}
 		}
@@ -94,6 +102,7 @@ func TestStateCorrectFilesWithoutExceedingMaximumCapacity(t *testing.T) {
 
 func TestStateCorrectFilesExceedingMaximumCapacity(t *testing.T) {
 	// Configuration
+	moduleId := "1"
 	clientId := "cli-1"
 	moduleName := "testing"
 	shard := "0"
@@ -101,7 +110,7 @@ func TestStateCorrectFilesExceedingMaximumCapacity(t *testing.T) {
 	// Set env to clean previus files
 	CleanOnStart = true
 	// New State Helper
-	stateHelper := NewStateHelper(clientId, moduleName, shard, UpdateState)
+	stateHelper := NewStateHelper(moduleId, moduleName, shard, UpdateState)
 	state, windowMessage := GetLastValidState(stateHelper)
 	// Check new helper
 	if state != nil || !windowMessage.IsEmpty() {
@@ -118,6 +127,7 @@ func TestStateCorrectFilesExceedingMaximumCapacity(t *testing.T) {
 		args := UpdateArgs{
 			ConcatToName: int64(id + 10),
 			MessageId:    int64(id),
+			ClientId:     clientId,
 		}
 		UpdateState(state, windowData, &args)
 		SaveState(stateHelper, *state, *windowData, args)
@@ -132,7 +142,7 @@ func TestStateCorrectFilesExceedingMaximumCapacity(t *testing.T) {
 	// Set env
 	CleanOnStart = false
 	// Reload
-	stateHelper = NewStateHelper(clientId, moduleName, shard, UpdateState)
+	stateHelper = NewStateHelper(moduleId, moduleName, shard, UpdateState)
 	// Check window and state
 	stateReaded, windowReaded = GetLastValidState(stateHelper)
 	if stateReaded == nil {
@@ -147,7 +157,7 @@ func TestStateCorrectFilesExceedingMaximumCapacity(t *testing.T) {
 		t.Errorf("Error on reload window")
 	} else {
 		for id := range MAX_STATES - 1 {
-			if windowData.IsDuplicate(int64(id)) != windowReaded.IsDuplicate(int64(id)) {
+			if windowData.IsDuplicate(clientId, int64(id)) != windowReaded.IsDuplicate(clientId, int64(id)) {
 				t.Errorf("Error in reloaded window")
 			}
 		}
@@ -158,6 +168,7 @@ func TestStateCorrectFilesExceedingMaximumCapacity(t *testing.T) {
 
 func TestTimeStampFileGreaterThanAux(t *testing.T) {
 	// Configuration
+	moduleId := "1"
 	clientId := "cli-1"
 	moduleName := "testing"
 	shard := "0"
@@ -165,7 +176,7 @@ func TestTimeStampFileGreaterThanAux(t *testing.T) {
 	// Set env to clean previus files
 	CleanOnStart = true
 	// New State Helper
-	stateHelper := NewStateHelper(clientId, moduleName, shard, UpdateState)
+	stateHelper := NewStateHelper(moduleId, moduleName, shard, UpdateState)
 	state, windowMessage := GetLastValidState(stateHelper)
 	// Check new helper
 	if state != nil || !windowMessage.IsEmpty() {
@@ -182,6 +193,7 @@ func TestTimeStampFileGreaterThanAux(t *testing.T) {
 		args := UpdateArgs{
 			ConcatToName: int64(id + 10),
 			MessageId:    int64(id),
+			ClientId:     clientId,
 		}
 		UpdateState(state, windowData, &args)
 		SaveState(stateHelper, *state, *windowData, args)
@@ -194,11 +206,11 @@ func TestTimeStampFileGreaterThanAux(t *testing.T) {
 	// Close files
 	stateHelper.Dispose()
 	// Filepath is the one that contains the newest state
-	MakeTimeStampBigger(t, GenerateFilePath(clientId, moduleName, shard))
+	MakeTimeStampBigger(t, GenerateFilePath(moduleId, moduleName, shard))
 	// Set env
 	CleanOnStart = false
 	// Reload
-	stateHelper = NewStateHelper(clientId, moduleName, shard, UpdateState)
+	stateHelper = NewStateHelper(moduleId, moduleName, shard, UpdateState)
 	// Check window and state
 	stateReaded, windowReaded = GetLastValidState(stateHelper)
 	if stateReaded == nil {
@@ -213,7 +225,7 @@ func TestTimeStampFileGreaterThanAux(t *testing.T) {
 		t.Errorf("Error on reload window")
 	} else {
 		for id := range MAX_STATES - 1 {
-			if windowData.IsDuplicate(int64(id)) != windowReaded.IsDuplicate(int64(id)) {
+			if windowData.IsDuplicate(clientId, int64(id)) != windowReaded.IsDuplicate(clientId, int64(id)) {
 				t.Errorf("Error in reloaded window")
 			}
 		}
@@ -224,6 +236,7 @@ func TestTimeStampFileGreaterThanAux(t *testing.T) {
 
 func TestTimeStampFileLowerThanAux(t *testing.T) {
 	// Configuration
+	moduleId := "1"
 	clientId := "cli-1"
 	moduleName := "testing"
 	shard := "0"
@@ -231,7 +244,7 @@ func TestTimeStampFileLowerThanAux(t *testing.T) {
 	// Set env to clean previus files
 	CleanOnStart = true
 	// New State Helper
-	stateHelper := NewStateHelper(clientId, moduleName, shard, UpdateState)
+	stateHelper := NewStateHelper(moduleId, moduleName, shard, UpdateState)
 	state, windowMessage := GetLastValidState(stateHelper)
 	// Check new helper
 	if state != nil || !windowMessage.IsEmpty() {
@@ -248,6 +261,7 @@ func TestTimeStampFileLowerThanAux(t *testing.T) {
 		args := UpdateArgs{
 			ConcatToName: int64(id + 10),
 			MessageId:    int64(id),
+			ClientId:     clientId,
 		}
 		UpdateState(state, windowData, &args)
 		SaveState(stateHelper, *state, *windowData, args)
@@ -260,11 +274,11 @@ func TestTimeStampFileLowerThanAux(t *testing.T) {
 	// Close files
 	stateHelper.Dispose()
 	// Filepath is the one that contains the newest state
-	MakeTimeStampBigger(t, GenerateAuxFilePath(clientId, moduleName, shard))
+	MakeTimeStampBigger(t, GenerateAuxFilePath(moduleId, moduleName, shard))
 	// Set env
 	CleanOnStart = false
 	// Reload
-	stateHelper = NewStateHelper(clientId, moduleName, shard, UpdateState)
+	stateHelper = NewStateHelper(moduleId, moduleName, shard, UpdateState)
 	// Check window and state
 	stateReaded, windowReaded = GetLastValidState(stateHelper)
 	if stateReaded == nil {
@@ -279,7 +293,7 @@ func TestTimeStampFileLowerThanAux(t *testing.T) {
 		t.Errorf("Error on reload window")
 	} else {
 		for id := range MAX_STATES - 1 {
-			if windowData.IsDuplicate(int64(id)) != windowReaded.IsDuplicate(int64(id)) {
+			if windowData.IsDuplicate(clientId, int64(id)) != windowReaded.IsDuplicate(clientId, int64(id)) {
 				t.Errorf("Error in reloaded window")
 			}
 		}
@@ -314,6 +328,7 @@ func TestStateOriginalFileBroken(t *testing.T) {
 		args := UpdateArgs{
 			ConcatToName: int64(id + 10),
 			MessageId:    int64(id),
+			ClientId:     clientId,
 		}
 		UpdateState(state, windowData, &args)
 		SaveState(stateHelper, *state, *windowData, args)
@@ -337,7 +352,7 @@ func TestStateOriginalFileBroken(t *testing.T) {
 		t.Errorf("Error on reload state")
 	} else {
 		if stateReaded.Id != state.Id || stateReaded.Name == state.Name {
-			t.Errorf("Error in reloaded state")
+			t.Errorf("Error in reloaded state -  Readed %v %v - Expected %v %v", stateReaded.Id, stateReaded.Name, state.Id, state.Name)
 		}
 	}
 	// Check window
@@ -345,7 +360,7 @@ func TestStateOriginalFileBroken(t *testing.T) {
 		t.Errorf("Error on reload window")
 	} else {
 		for id := range MAX_STATES - 1 {
-			if windowData.IsDuplicate(int64(id)) != windowReaded.IsDuplicate(int64(id)) {
+			if windowData.IsDuplicate(clientId, int64(id)) != windowReaded.IsDuplicate(clientId, int64(id)) {
 				t.Errorf("Error in reloaded window")
 			}
 		}
@@ -356,6 +371,7 @@ func TestStateOriginalFileBroken(t *testing.T) {
 
 func TestStateAuxFileBroken(t *testing.T) {
 	// Configuration
+	moduleId := "1"
 	clientId := "cli-1"
 	moduleName := "testing"
 	shard := "0"
@@ -363,7 +379,7 @@ func TestStateAuxFileBroken(t *testing.T) {
 	// Set env to clean previus files
 	CleanOnStart = true
 	// New State Helper
-	stateHelper := NewStateHelper(clientId, moduleName, shard, UpdateState)
+	stateHelper := NewStateHelper(moduleId, moduleName, shard, UpdateState)
 	state, windowMessage := GetLastValidState(stateHelper)
 	// Check new helper
 	if state != nil || !windowMessage.IsEmpty() {
@@ -380,6 +396,7 @@ func TestStateAuxFileBroken(t *testing.T) {
 		args := UpdateArgs{
 			ConcatToName: int64(id + 10),
 			MessageId:    int64(id),
+			ClientId:     clientId,
 		}
 		UpdateState(state, windowData, &args)
 		SaveState(stateHelper, *state, *windowData, args)
@@ -392,11 +409,11 @@ func TestStateAuxFileBroken(t *testing.T) {
 	// Close files
 	stateHelper.Dispose()
 	// AuxFilepath is broken
-	BreakFile(t, GenerateAuxFilePath(clientId, moduleName, shard))
+	BreakFile(t, GenerateAuxFilePath(moduleId, moduleName, shard))
 	// Set env
 	CleanOnStart = false
 	// Reload
-	stateHelper = NewStateHelper(clientId, moduleName, shard, UpdateState)
+	stateHelper = NewStateHelper(moduleId, moduleName, shard, UpdateState)
 	// Check window and state
 	stateReaded, windowReaded = GetLastValidState(stateHelper)
 	if stateReaded == nil {
@@ -411,7 +428,7 @@ func TestStateAuxFileBroken(t *testing.T) {
 		t.Errorf("Error on reload window")
 	} else {
 		for id := range MAX_STATES - 1 {
-			if windowData.IsDuplicate(int64(id)) != windowReaded.IsDuplicate(int64(id)) {
+			if windowData.IsDuplicate(clientId, int64(id)) != windowReaded.IsDuplicate(clientId, int64(id)) {
 				t.Errorf("Error in reloaded window")
 			}
 		}
@@ -422,6 +439,7 @@ func TestStateAuxFileBroken(t *testing.T) {
 
 func TestStateBohtFilesBroken(t *testing.T) {
 	// Configuration
+	moduleId := "1"
 	clientId := "cli-1"
 	moduleName := "testing"
 	shard := "0"
@@ -429,7 +447,7 @@ func TestStateBohtFilesBroken(t *testing.T) {
 	// Set env to clean previus files
 	CleanOnStart = true
 	// New State Helper
-	stateHelper := NewStateHelper(clientId, moduleName, shard, UpdateState)
+	stateHelper := NewStateHelper(moduleId, moduleName, shard, UpdateState)
 	state, windowMessage := GetLastValidState(stateHelper)
 	// Check new helper
 	if state != nil || !windowMessage.IsEmpty() {
@@ -446,6 +464,7 @@ func TestStateBohtFilesBroken(t *testing.T) {
 		args := UpdateArgs{
 			ConcatToName: int64(id + 10),
 			MessageId:    int64(id),
+			ClientId:     clientId,
 		}
 		UpdateState(state, windowData, &args)
 		SaveState(stateHelper, *state, *windowData, args)
@@ -458,12 +477,12 @@ func TestStateBohtFilesBroken(t *testing.T) {
 	// Close files
 	stateHelper.Dispose()
 	// Both files are broken
-	BreakFile(t, GenerateFilePath(clientId, moduleName, shard))
-	BreakFile(t, GenerateAuxFilePath(clientId, moduleName, shard))
+	BreakFile(t, GenerateFilePath(moduleId, moduleName, shard))
+	BreakFile(t, GenerateAuxFilePath(moduleId, moduleName, shard))
 	// Set env
 	CleanOnStart = false
 	// Reload
-	stateHelper = NewStateHelper(clientId, moduleName, shard, UpdateState)
+	stateHelper = NewStateHelper(moduleId, moduleName, shard, UpdateState)
 	// Check window and state
 	stateReaded, windowReaded = GetLastValidState(stateHelper)
 	if stateReaded != nil {
@@ -481,7 +500,7 @@ func BreakFile(t *testing.T, filePath string) {
 		return
 	}
 	reader := NewReader(fileRd)
-	line, err := reader.ReadLine()
+	line, _, err := reader.ReadLine()
 	if err != nil {
 		t.Errorf("Error on read file %v: ", err)
 		return
@@ -507,7 +526,7 @@ func MakeTimeStampBigger(t *testing.T, filePath string) {
 		return
 	}
 	reader := NewReader(fileRd)
-	line, err := reader.ReadLine()
+	line, _, err := reader.ReadLine()
 	if err != nil {
 		t.Errorf("Error on read file %v: ", err)
 		return
@@ -557,13 +576,13 @@ func TestReader(t *testing.T) {
 	defer fileRd.Close()
 	reader := NewReader(fileRd)
 	for index := range lines {
-		readed, _ := reader.ReadLine()
-		if lines[index] != readed {
+		readed, lenReaded, _ := reader.ReadLine()
+		if lines[index] != readed || len(lines[index]) != lenReaded {
 			t.Errorf("Error on line readed. Expected(%v): %v Readed(%v): %v", len(lines[index]), lines[index], len(readed), readed)
 		}
 	}
 	for range 10000 {
-		if _, error := reader.ReadLine(); error != io.EOF {
+		if _, _, error := reader.ReadLine(); error != io.EOF {
 			t.Errorf("Error on read EOF: %v", error)
 		}
 	}

@@ -45,11 +45,13 @@ const MSG_NO_VALID_STATE_FOUND = "No valid state found in state file"
 const MSG_NO_FIRST_VALID_STATE_FOUND = "No first valid state found in state file"
 const MSG_ERROR_ENCODING_STATE = "Error encoding state: %s"
 const MSG_ERROR_ENCODING_UPDATE_ARGS = "Error encoding update arguments: %s"
+const MSG_UPDATE_ARGS_SAVED = "Saved update arguments"
+const MSG_COMPLETE_STATE_SAVED_ON_START = "Complete state saved on start"
 const MSG_CLEAN_A_FILE = "Clean file: %v"
 const MSG_CLEAN_FILES_ON_SAVE = "Clean files on save state"
 const MSG_CLEAN_FILES_ON_START = "Clean files on start"
 
-// StateHelper is a struct that helps manage state files for different clients and modules.
+// StateHelper is a struct that helps manage state files for different modules with Id's.
 type StateHelper[TState any, TUpdateArgs any] struct {
 	filePath               string   // Path to the state file
 	auxFilePath            string   // Path to the auxiliary state file
@@ -123,21 +125,21 @@ func cleanFile(fileDesc *os.File, filePath string) {
 	logger.Debugf(MSG_CLEAN_A_FILE, filePath)
 }
 
-// GenerateFilePath constructs the file path for the state file based on client ID, module name, and shard.
-func GenerateFilePath(clientId string, moduleName string, shard string) string {
-	return StatesDir + "/" + clientId + "_" + moduleName + "_" + shard + ".ndjson"
+// GenerateFilePath constructs the file path for the state file based on id, module name, and shard.
+func GenerateFilePath(id string, moduleName string, shard string) string {
+	return StatesDir + "/" + id + "_" + moduleName + "_" + shard + ".ndjson"
 }
 
-// GenerateAuxFilePath constructs the file path for the auxiliary state file based on client ID, module name, and shard.
-func GenerateAuxFilePath(clientId string, moduleName string, shard string) string {
-	return StatesDir + "/" + clientId + "_" + moduleName + "_" + shard + "_aux.ndjson"
+// GenerateAuxFilePath constructs the file path for the auxiliary state file based on id, module name, and shard.
+func GenerateAuxFilePath(id string, moduleName string, shard string) string {
+	return StatesDir + "/" + id + "_" + moduleName + "_" + shard + "_aux.ndjson"
 }
 
-// NewStateHelper creates a new StateHelper instance with the specified client ID, module name, and shard.
-func NewStateHelper[TState any, TUpdateArgs any](clientId string, moduleName string, shard string, updateState func(state *TState, messageWindow *window.MessageWindow, updateArgs *TUpdateArgs)) *StateHelper[TState, TUpdateArgs] {
+// NewStateHelper creates a new StateHelper instance with the specified id, module name, and shard.
+func NewStateHelper[TState any, TUpdateArgs any](id string, moduleName string, shard string, updateState func(state *TState, messageWindow *window.MessageWindow, updateArgs *TUpdateArgs)) *StateHelper[TState, TUpdateArgs] {
 	logger := logging.MustGetLogger(MODULE_NAME)
-	filePath := GenerateFilePath(clientId, moduleName, shard)
-	auxFilePath := GenerateAuxFilePath(clientId, moduleName, shard)
+	filePath := GenerateFilePath(id, moduleName, shard)
+	auxFilePath := GenerateAuxFilePath(id, moduleName, shard)
 	// Ensure the states directory exists
 	err := os.MkdirAll(StatesDir, 0755)
 	if err != nil {
@@ -261,8 +263,9 @@ func processLines[TState any, TUpdateArgs any](lines []DataToSave[TState, TUpdat
 		if lines[index].IsCompleteState {
 			validState = lines[index]
 			continue
+		} else {
+			updateState(&validState.State, &validState.Window, &lines[index].UpdateArgs)
 		}
-		updateState(&validState.State, &validState.Window, &lines[index].UpdateArgs)
 		validState.TimeStamp = lines[index].TimeStamp
 	}
 	return &validState, nil
@@ -286,7 +289,7 @@ func readLines[TState any, TUpdateArgs any](filePath string) ([]DataToSave[TStat
 	foundEof := false
 	for !foundEof {
 		var decoded DataToSave[TState, TUpdateArgs]
-		readed, errRead := reader.ReadLine()
+		readed, _, errRead := reader.ReadLine()
 		if errRead != nil {
 			if errRead != io.EOF {
 				break
@@ -309,19 +312,21 @@ func readLines[TState any, TUpdateArgs any](filePath string) ([]DataToSave[TStat
 // SaveState encodes the provided state and message window into JSON format and writes it to the state file.
 func SaveState[TState any, TUpdateArgs any](stateHelper *StateHelper[TState, TUpdateArgs], state TState, messageWindow window.MessageWindow, updateArgs TUpdateArgs) error {
 	// Save Complete state
-	tryToSaveCompleteStateOnStateNull(stateHelper, state, messageWindow)
-	// Save operation
-	err := tryToSaveUpdateArgs(stateHelper, state, messageWindow, updateArgs)
-	if err != nil {
-		return err
+	saved, _ := tryToSaveCompleteStateOnStateNull(stateHelper, state, messageWindow)
+	if !saved {
+		// Save operation
+		err := tryToSaveUpdateArgs(stateHelper, state, messageWindow, updateArgs)
+		if err != nil {
+			return err
+		}
 	}
 	// Try to clean
 	stateHelper.tryCleanFile()
 	return nil
 }
 
-// when the last valid state is null
-func tryToSaveCompleteStateOnStateNull[TState any, TUpdateArgs any](stateHelper *StateHelper[TState, TUpdateArgs], state TState, messageWindow window.MessageWindow) error {
+// when the last valid state is null. If it actually saves the state, it returns true.
+func tryToSaveCompleteStateOnStateNull[TState any, TUpdateArgs any](stateHelper *StateHelper[TState, TUpdateArgs], state TState, messageWindow window.MessageWindow) (bool, error) {
 	if stateHelper.lastValidState == nil {
 		logger := logging.MustGetLogger(MODULE_NAME)
 		// Update state helper
@@ -337,14 +342,16 @@ func tryToSaveCompleteStateOnStateNull[TState any, TUpdateArgs any](stateHelper 
 		encodedState, err := json.Marshal(completeState)
 		if err != nil {
 			logger.Errorf(MSG_ERROR_ENCODING_STATE, err)
-			return err
+			return false, err
 		}
 		if _, err := stateHelper.fileDescStateWriter.WriteString(string(encodedState) + "\n"); err != nil {
 			logger.Errorf(MSG_FAILED_TO_WRITE_STATE, stateHelper.filePath, err)
-			return err
+			return false, err
 		}
+		logger.Debugf(MSG_COMPLETE_STATE_SAVED_ON_START)
+		return true, nil
 	}
-	return nil
+	return false, nil
 }
 
 // encodes the provided updateArgs into JSON format and writes it to the state file.
@@ -377,6 +384,7 @@ func tryToSaveUpdateArgs[TState any, TUpdateArgs any](stateHelper *StateHelper[T
 	}
 	stateHelper.countStates++
 	stateHelper.lastValidState = &completeState
+	logger.Debugf(MSG_UPDATE_ARGS_SAVED)
 	return nil
 }
 

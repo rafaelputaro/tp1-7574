@@ -74,14 +74,14 @@ func NewReportRegistry(moduleName string) *ReportRegistry {
 // applyUpdate applies incremental updates to the state
 func (rr *ReportRegistry) applyUpdate(reportState *ReportState, msgWindow *window.MessageWindow, updateArgs *ReportUpdateArgs) {
 	// Skip if we've already seen this message
-	if msgWindow != nil && msgWindow.IsDuplicate(updateArgs.MessageID) {
+	if msgWindow != nil && msgWindow.IsDuplicate(updateArgs.ClientID, updateArgs.MessageID) {
 		logger.Debugf("Skipping duplicate message ID: %d", updateArgs.MessageID)
 		return
 	}
 
 	// Add message ID to window to prevent duplicate processing
 	if msgWindow != nil {
-		msgWindow.AddMessage(updateArgs.MessageID)
+		msgWindow.AddMessage(updateArgs.ClientID, updateArgs.MessageID)
 	}
 
 	clientID := updateArgs.ClientID

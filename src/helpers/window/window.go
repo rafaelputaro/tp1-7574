@@ -1,6 +1,7 @@
 package window
 
 import (
+	"strconv"
 	"time"
 )
 
@@ -10,20 +11,24 @@ const MAX_AGE = 2 * time.Second
 
 // MessageWindow is holds message IDs and their corresponding valid timestamps and implements a fifo queue.
 type MessageWindow struct {
-	Messages map[int64]string // map that holds message IDs and their corresponding valid timestamps.
-	Queue    []int64          // fifo queue
+	Messages map[string]string // map that holds <clientId>_<message IDs> and their corresponding valid timestamps.
+	Queue    []string          // fifo queue
 }
 
 // NewMessageWindow creates a new MessageWindow with a maximum length of MAX_LENGTH.
 func NewMessageWindow() *MessageWindow {
 	return &MessageWindow{
-		Messages: make(map[int64]string),
+		Messages: make(map[string]string),
 	}
 }
 
-// Return true if the messageId is already present in the messageWindow slice, indicating a duplicate message.
-func (messageWindow *MessageWindow) IsDuplicate(messageId int64) bool {
-	_, exists := messageWindow.Messages[messageId]
+func generateKey(clientId string, messageId int64) string {
+	return clientId + "_" + strconv.FormatInt(messageId, 10)
+}
+
+// Return true if the clientId + messageId is already present in the messageWindow slice, indicating a duplicate message.
+func (messageWindow *MessageWindow) IsDuplicate(clientId string, messageId int64) bool {
+	_, exists := messageWindow.Messages[generateKey(clientId, messageId)]
 	return exists
 }
 
@@ -33,15 +38,21 @@ func (messageWindow *MessageWindow) IsEmpty() bool {
 }
 
 // Adds new message to the window
-func (messageWindow *MessageWindow) AddMessage(messageId int64) {
+func (messageWindow *MessageWindow) AddMessage(clientId string, messageId int64) {
 	messageWindow.tryCleanOld()
-	messageWindow.Messages[messageId] = time.Now().Add(MAX_AGE).UTC().Format(LAYOUT_TIMESTAMP)
-	messageWindow.Queue = append(messageWindow.Queue, messageId)
+	key := generateKey(clientId, messageId)
+	messageWindow.Messages[key] = time.Now().Add(MAX_AGE).UTC().Format(LAYOUT_TIMESTAMP)
+	messageWindow.Queue = append(messageWindow.Queue, key)
 }
 
 // RemoveMessage removes a message from the messageWindow by its ID.
-func (messageWindow *MessageWindow) removeMessage(messageId int64) {
-	delete(messageWindow.Messages, messageId)
+func (messageWindow *MessageWindow) removeMessage(clientId string, messageId int64) {
+	messageWindow.removeMessageByKey(generateKey(clientId, messageId))
+}
+
+// RemoveMessage removes a message from the messageWindow by its ID.
+func (messageWindow *MessageWindow) removeMessageByKey(key string) {
+	delete(messageWindow.Messages, key)
 }
 
 // tryCleanOld removes messages from the messageWindow that are older than MAX_AGE.
@@ -55,15 +66,15 @@ func (messageWindow MessageWindow) tryCleanOld() {
 // cleanOld removes messages from the messageWindow that are older than MAX_AGE.
 func (messageWindow *MessageWindow) CleanOldByTime() {
 	for len(messageWindow.Queue) > 0 {
-		id := messageWindow.Queue[0]
-		timestamp := messageWindow.Messages[id]
+		key := messageWindow.Queue[0]
+		timestamp := messageWindow.Messages[key]
 		t, err := time.Parse(LAYOUT_TIMESTAMP, timestamp)
 		if err != nil {
 			break
 		}
 		now := time.Now().UTC()
 		if t.Before(now) {
-			messageWindow.removeMessage(id)
+			messageWindow.removeMessageByKey(key)
 			messageWindow.Queue = messageWindow.Queue[1:]
 			continue
 		}
