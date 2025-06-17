@@ -24,7 +24,6 @@ const CLEAN_ON_START_ENV_VAR = "CLEAN_ON_START"
 const MAX_STATES = 2000         // Maximum number of states per state file
 const MAX_AGE = 5 * time.Minute // Discard files from previous runs
 const LAYOUT_TIMESTAMP = "2006-01-02 15:04:05.000000000"
-
 const MSG_FAILED_TO_OPEN_STATE_FILE = "Failed to open state file: %v"
 const MSG_FAILED_TO_OPEN_AUX_FILE = "Failed to open auxiliary file: %v"
 const MSG_FAILED_TO_OPEN_STATE_FILE_FOR_READING = "Failed to open state file for reading: %v"

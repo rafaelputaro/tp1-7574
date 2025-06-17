@@ -522,46 +522,6 @@ services:
       - /app/datasets/ratings.csv
       - /app/datasets/credits.csv
 
-  client-3:
-    container_name: client-3
-    image: client:latest
-    build:
-      context: .
-      dockerfile: src/client/Dockerfile
-    networks:
-      - tp1_net
-    depends_on:
-      controller:
-        condition: service_healthy
-    volumes:
-      - ./src/client/datasets:/app/datasets
-      - ./reports:/app
-    entrypoint: /client
-    command:
-      - /app/datasets/movies.csv
-      - /app/datasets/ratings.csv
-      - /app/datasets/credits.csv
-
-  client-4:
-    container_name: client-4
-    image: client:latest
-    build:
-      context: .
-      dockerfile: src/client/Dockerfile
-    networks:
-      - tp1_net
-    depends_on:
-      controller:
-        condition: service_healthy
-    volumes:
-      - ./src/client/datasets:/app/datasets
-      - ./reports:/app
-    entrypoint: /client
-    command:
-      - /app/datasets/movies.csv
-      - /app/datasets/ratings.csv
-      - /app/datasets/credits.csv
-
 
   report:
     build:

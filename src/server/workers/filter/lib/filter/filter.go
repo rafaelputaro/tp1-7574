@@ -3,7 +3,6 @@ package filter
 import (
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"tp1/coordinator"
@@ -23,17 +22,18 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
+/*
 type FilterState string
 
-type UpdateArgs struct {
-	MessageId int64
-	ClientId  string
-}
+	type UpdateArgs struct {
+		MessageId int64
+		ClientId  string
+	}
 
-func UpdateState(state *FilterState, messageWindow *window.MessageWindow, updateArgs *UpdateArgs) {
-	messageWindow.AddMessage(updateArgs.ClientId, updateArgs.MessageId)
-}
-
+	func UpdateState(state *FilterState, messageWindow *window.MessageWindow, updateArgs *UpdateArgs) {
+		messageWindow.AddMessage(updateArgs.ClientId, updateArgs.MessageId)
+	}
+*/
 type FilterConfig struct {
 	Type   string
 	Shards int
@@ -41,12 +41,13 @@ type FilterConfig struct {
 }
 
 type Filter struct {
-	config        FilterConfig
-	log           *logging.Logger
-	conn          *amqp.Connection
-	channel       *amqp.Channel
-	stateHelper   *state.StateHelper[FilterState, UpdateArgs]
-	messageWindow window.MessageWindow
+	config             FilterConfig
+	log                *logging.Logger
+	conn               *amqp.Connection
+	channel            *amqp.Channel
+	stateHelperDefault *state.StateHelper[FilterDefaultState, FilterDefaultUpdateArgs]
+	stateHelperTop5Inv *state.StateHelper[FilterTop5InvestorsState, FilterTop5InvestorsUpdateArgs]
+	messageWindow      window.MessageWindow
 }
 
 // Creates a new filter with an established connection to rabbitmq (if succesful).
@@ -65,21 +66,16 @@ func NewFilter(config *FilterConfig, log *logging.Logger) *Filter {
 	}
 
 	log.Info("Successful connection with RabbitMQ")
-
-	stateHelper := state.NewStateHelper[FilterState](strconv.Itoa(config.ID), config.Type, strconv.Itoa(config.Shards), UpdateState)
-	if stateHelper == nil {
-		log.Fatalf("Failed to create state helper")
-	}
-
-	_, messageWindow := state.GetLastValidState(stateHelper)
-
+	// Creates state helpers
+	stateHelperDefault, stateHelperTop5Inv, messageWindow := CreateStateHelpers(config, log)
 	return &Filter{
-		config:        *config,
-		log:           log,
-		conn:          conn,
-		channel:       ch,
-		stateHelper:   stateHelper,
-		messageWindow: messageWindow,
+		config:             *config,
+		log:                log,
+		conn:               conn,
+		channel:            ch,
+		stateHelperDefault: stateHelperDefault,
+		stateHelperTop5Inv: stateHelperTop5Inv,
+		messageWindow:      messageWindow,
 	}
 }
 
@@ -115,8 +111,8 @@ func (f *Filter) Close() {
 	if f.conn != nil {
 		_ = f.conn.Close()
 	}
-	if f.stateHelper != nil {
-		f.stateHelper.Dispose()
+	if f.stateHelperDefault != nil {
+		f.stateHelperDefault.Dispose()
 	}
 }
 
@@ -453,7 +449,7 @@ func (f *Filter) processYearFilters() {
 
 				f.log.Infof("[client_id:%s] propagated EOF to %s", movie.GetClientId(), queueName)
 			}
-			f.saveStateAndSendAck(msg, *movie.ClientId, *movie.MessageId)
+			f.SaveDefaultStateAndSendAck(msg, *movie.ClientId, *movie.MessageId)
 			continue
 		}
 
@@ -477,7 +473,7 @@ func (f *Filter) processYearFilters() {
 				}
 			}
 		}
-		f.saveStateAndSendAck(msg, *movie.ClientId, *movie.MessageId)
+		f.SaveDefaultStateAndSendAck(msg, *movie.ClientId, *movie.MessageId)
 	}
 
 	f.log.Infof("job finished")
@@ -698,20 +694,6 @@ func (f *Filter) runShardedFilter(inputQueue string, declareInput bool, outputEx
 			// f.log.Debugf("[client_id:%s] message published to queue: %s (routing key: %s)", clientID, queueName, routingKey)
 		}
 	}
-}
-
-// Refresh the window, save the state and send the ack
-func (f *Filter) saveStateAndSendAck(msg amqp.Delivery, clientId string, messageId int64) error {
-	// update window
-	f.messageWindow.AddMessage(clientId, messageId)
-	// save state
-	err := state.SaveState(f.stateHelper, "", f.messageWindow, UpdateArgs{MessageId: messageId})
-	if err != nil {
-		f.log.Fatalf("Unable to save state")
-		return err
-	}
-	// send ack
-	return f.sendAck(msg)
 }
 
 // Send the ack
