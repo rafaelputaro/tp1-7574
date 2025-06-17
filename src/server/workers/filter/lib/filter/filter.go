@@ -270,17 +270,29 @@ func (f *Filter) processTop5InvestorsFilter() {
 
 	f.log.Infof("[%s] Waiting for messages...", filterName)
 
-	countryBudget := make(map[string]int64)
+	//filterState := make(map[string]int64)
+	filterState, _ := state.GetLastValidState(f.stateHelperTop5Inv)
+	if filterState == nil {
+		filterState = NewFilterTop5InvestorsState()
+	}
 
 	for msg := range msgs {
-		err := rabbitmq.SingleAck(msg)
-		if err != nil {
-			f.log.Fatalf("failed to ack message: %v", err)
-		}
+		/*
+			err := rabbitmq.SingleAck(msg)
+			if err != nil {
+				f.log.Fatalf("failed to ack message: %v", err)
+			}*/
 
 		var movie protopb.MovieSanit
 		if err := proto.Unmarshal(msg.Body, &movie); err != nil {
 			f.log.Errorf("[%s] Failed to unmarshal message: %v", filterName, err)
+			continue
+		}
+
+		// check duplicate
+		if f.messageWindow.IsDuplicate(*movie.ClientId, *movie.MessageId) {
+			f.log.Debugf("duplicate message: %v", *movie.MessageId)
+			f.sendAck(msg)
 			continue
 		}
 
@@ -293,7 +305,7 @@ func (f *Filter) processTop5InvestorsFilter() {
 			}
 
 			var sorted []entry
-			for country, total := range countryBudget {
+			for country, total := range filterState.CountryBudget {
 				sorted = append(sorted, entry{country, total})
 			}
 
@@ -365,17 +377,26 @@ func (f *Filter) processTop5InvestorsFilter() {
 			if err != nil {
 				f.log.Errorf("[%s] Failed to publish Top5Country: %v", filterName, err)
 			}
-
+			f.sendAck(msg)
 			continue
 		}
 
 		budget := movie.GetBudget()
-		for _, country := range movie.GetProductionCountries() {
-			countryBudget[country] += budget
-		}
-
+		/*
+			for _, country := range movie.GetProductionCountries() {
+				filterState.CountryBudget[country] += budget
+			}
+		*/
+		updateCountryBudget(&filterState.CountryBudget, movie.GetProductionCountries(), budget)
+		f.SaveTop5StateAndSendAck(*filterState, msg, *movie.ClientId, *movie.MessageId, movie.GetProductionCountries(), budget)
 		f.log.Infof("[%s] Received: %v - %v", filterName, movie.GetProductionCountries(), budget)
-		f.log.Infof("[%s] Budget per country: %+v", filterName, countryBudget)
+		f.log.Infof("[%s] Budget per country: %+v", filterName, filterState)
+	}
+}
+
+func updateCountryBudget(countryBudget *map[string]int64, productionCountries []string, budget int64) {
+	for _, country := range productionCountries {
+		(*countryBudget)[country] += budget
 	}
 }
 
