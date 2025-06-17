@@ -144,6 +144,9 @@ func SendCredits(ctx context.Context, client pb.CreditServiceClient, parser Pars
 		logger.Fatalf("Failed to open credits stream after retries: %v", err)
 	}
 
+	// Track which movie IDs we've already processed to avoid duplicates
+	processedMovieIDs := make(map[int64]struct{}, parser.GetSize())
+
 	filteredBatch := make([]*pb.Credit, 0, parser.GetSize())
 
 	for {
@@ -170,9 +173,18 @@ func SendCredits(ctx context.Context, client pb.CreditServiceClient, parser Pars
 		for _, item := range batch {
 			movieID := item.GetId()
 
+			// Skip credits for non-existent movie IDs
 			if _, exists := ValidMovieIDs[movieID]; !exists {
 				continue
 			}
+
+			// Skip duplicate credits for the same movie ID
+			if _, exists := processedMovieIDs[movieID]; exists {
+				continue
+			}
+
+			// Mark this movie ID as processed
+			processedMovieIDs[movieID] = struct{}{}
 
 			protoUtils.SetMessageIdCredit(item, int64(count))
 			filteredBatch = append(filteredBatch, item)
