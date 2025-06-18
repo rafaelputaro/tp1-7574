@@ -2,6 +2,7 @@ package common
 
 import (
 	"strconv"
+	"sync"
 	"tp1/protobuf/protopb"
 	"tp1/rabbitmq"
 
@@ -124,10 +125,17 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 		creditEOF bool
 	}
 	clientStates := make(map[string]*clientState)
+	var clientStatesMutex sync.RWMutex
 
 	// Function to send the report when both EOFs are received
 	sendReportIfReady := func(clientID string, state *clientState) {
-		if state.movieEOF && state.creditEOF {
+		// Use read lock to check state
+		clientStatesMutex.RLock()
+		movieEOFReceived := state.movieEOF
+		creditEOFReceived := state.creditEOF
+		clientStatesMutex.RUnlock()
+
+		if movieEOFReceived && creditEOFReceived {
 			numMsg, _ := strconv.ParseInt(clientID, 10, 64) // todo fix this
 			numMsg *= int64(100000000)
 			// Send actor counts for the client
@@ -152,7 +160,10 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 			joiner.Log.Debugf("[client_id:%s] sent eof marker", clientID)
 
 			// TODO: Remove processed client to free resources
+			// Acquire write lock to delete from map
+			// clientStatesMutex.Lock()
 			// delete(clientStates, clientID)
+			// clientStatesMutex.Unlock()
 		}
 	}
 
@@ -168,13 +179,15 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 
 			clientID = credit.GetClientId()
 
-			// Initialize client state if not exists
+			// Initialize client state if not exists - need write lock
+			clientStatesMutex.Lock()
+			var state *clientState
 			if _, exists := clientStates[clientID]; !exists {
 				clientStates[clientID] = &clientState{counter: utils.NewActorCounter()}
 			}
-			state := clientStates[clientID]
+			state = clientStates[clientID]
 
-			// Process EOF or count actors
+			// Process EOF or count actors - still under write lock
 			if credit.GetEof() {
 				state.creditEOF = true
 				joiner.Log.Infof("[client_id:%s][queue:%s] recevied EOF", clientID, joiner.Config.InputQueueSecName)
@@ -182,6 +195,7 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 				state.counter.Count(&credit)
 				joiner.Log.Infof("[client_id:%s][queue:%s] processed credit: %v", clientID, joiner.Config.InputQueueSecName, &credit)
 			}
+			clientStatesMutex.Unlock()
 			sendReportIfReady(clientID, state)
 		} else {
 			var movie protopb.MovieSanit
@@ -191,13 +205,15 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 			}
 			clientID = movie.GetClientId()
 
-			// Initialize client state if not exists
+			// Initialize client state if not exists - need write lock
+			clientStatesMutex.Lock()
+			var state *clientState
 			if _, exists := clientStates[clientID]; !exists {
 				clientStates[clientID] = &clientState{counter: utils.NewActorCounter()}
 			}
-			state := clientStates[clientID]
+			state = clientStates[clientID]
 
-			// Process EOF or append movie
+			// Process EOF or append movie - still under write lock
 			if movie.GetEof() {
 				state.movieEOF = true
 				joiner.Log.Infof("[client_id:%s][queue:%s] recevied EOF", clientID, joiner.Config.InputQueueName)
@@ -205,6 +221,7 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 				state.counter.AppendMovie(&movie)
 				joiner.Log.Infof("[client_id:%s][queue:%s] processed movie: %v", clientID, joiner.Config.InputQueueName, &movie)
 			}
+			clientStatesMutex.Unlock()
 			sendReportIfReady(clientID, state)
 		}
 	}
@@ -270,10 +287,17 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 		ratingEOF bool
 	}
 	clientStates := make(map[string]*clientState)
+	var clientStatesMutex sync.RWMutex
 
 	// Send report when both EOFs are received for a client
 	sendReportIfReady := func(clientID string, state *clientState) {
-		if state.movieEOF && state.ratingEOF {
+		// Use read lock to check state
+		clientStatesMutex.RLock()
+		movieEOFReceived := state.movieEOF
+		ratingEOFReceived := state.ratingEOF
+		clientStatesMutex.RUnlock()
+
+		if movieEOFReceived && ratingEOFReceived {
 			// Get top and bottom ratings
 			topAndBottom := state.totalizer.GetTopAndBottom(clientID, DEFAULT_MESSAGE_ID_UNIQUE_OUTPUT, joiner.Config.InputQueueName)
 
@@ -297,7 +321,9 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 			joiner.publishData(data)
 
 			// TODO: Remove client state to free resources
+			// clientStatesMutex.Lock()
 			// delete(clientStates, clientID)
+			// clientStatesMutex.Unlock()
 		}
 	}
 
@@ -312,11 +338,13 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 			}
 			clientID = rating.GetClientId()
 
-			// Initialize client state if not exists
+			// Initialize client state if not exists - need write lock
+			clientStatesMutex.Lock()
+			var state *clientState
 			if _, exists := clientStates[clientID]; !exists {
 				clientStates[clientID] = &clientState{totalizer: utils.NewRatingTotalizer()}
 			}
-			state := clientStates[clientID]
+			state = clientStates[clientID]
 
 			if rating.GetEof() {
 				state.ratingEOF = true
@@ -324,6 +352,7 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 			} else {
 				state.totalizer.Sum(&rating)
 			}
+			clientStatesMutex.Unlock()
 			sendReportIfReady(clientID, state)
 
 		} else {
@@ -334,11 +363,13 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 			}
 			clientID = movie.GetClientId()
 
-			// Initialize client state if not exists
+			// Initialize client state if not exists - need write lock
+			clientStatesMutex.Lock()
+			var state *clientState
 			if _, exists := clientStates[clientID]; !exists {
 				clientStates[clientID] = &clientState{totalizer: utils.NewRatingTotalizer()}
 			}
-			state := clientStates[clientID]
+			state = clientStates[clientID]
 
 			if movie.GetEof() {
 				state.movieEOF = true
@@ -346,6 +377,7 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 			} else {
 				state.totalizer.AppendMovie(&movie)
 			}
+			clientStatesMutex.Unlock()
 			sendReportIfReady(clientID, state)
 		}
 	}
