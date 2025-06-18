@@ -6,69 +6,68 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-type ActorData struct {
-	Name        string
-	CountMovies int64
+type ActorInfo struct {
+	Name   string
+	Movies map[int64]struct{}
 }
 
 type ActorsCounter struct {
-	Actors map[string]ActorData // key: profile path
-	Movies map[int64]bool       // key: movie id (Works as set)
+	Movies map[int64]struct{}
+	Actors map[string]*ActorInfo
 }
 
-func newActorData(name string, count int64) *ActorData {
-	return &ActorData{
-		Name:        name,
-		CountMovies: count,
+func newActorInfo(name string) *ActorInfo {
+	return &ActorInfo{
+		Name:   name,
+		Movies: make(map[int64]struct{}),
 	}
 }
 
 func NewActorCounter() *ActorsCounter {
 	return &ActorsCounter{
-		Actors: make(map[string]ActorData),
-		Movies: make(map[int64]bool),
+		Movies: make(map[int64]struct{}),
+		Actors: make(map[string]*ActorInfo),
 	}
 }
 
-// append a movie
 func (counter *ActorsCounter) AppendMovie(movie *protopb.MovieSanit) {
-	counter.Movies[int64(*movie.Id)] = true
+	counter.Movies[int64(movie.GetId())] = struct{}{}
 }
 
-// update count for the entire cast if credit math with a movie
 func (counter *ActorsCounter) Count(credit *protopb.CreditSanit) {
-	_, exists := counter.Movies[*credit.Id]
-	if exists {
-		for index := range len(credit.CastNames) {
-			counter.countActor(credit.CastNames[index], credit.ProfilePaths[index])
+	movieID := credit.GetId()
+
+	for index := 0; index < len(credit.GetCastNames()); index++ {
+		profilePath := credit.ProfilePaths[index]
+		name := credit.CastNames[index]
+
+		actor, exists := counter.Actors[profilePath]
+		if !exists {
+			actor = newActorInfo(name)
+			counter.Actors[profilePath] = actor
 		}
-	} else {
-		// Movie not found, but it might appear later
-	}
-	// TODO: Si no llego todavia la movie? Habria que agregar (sumar) algo igual
-	//   Pero entonces tengo que saber si la movie llegó en el futuro o no para calcular el total del actor -> esto lo hago con el otro mapa
-}
 
-// update count for an actor
-func (counter *ActorsCounter) countActor(name string, profilePath string) {
-	founded, exists := counter.Actors[profilePath]
-	if exists {
-		// update
-		newData := *newActorData(name, founded.CountMovies+1)
-		counter.Actors[profilePath] = newData
-	} else {
-		// insert
-		newData := *newActorData(name, 1)
-		counter.Actors[profilePath] = newData
+		actor.Movies[movieID] = struct{}{}
 	}
 }
 
-// profilePath is valid
 func (counter *ActorsCounter) GetActor(profilePath string, clientID string, messageId int64, sourceId string) *protopb.Actor {
-	founded := counter.Actors[profilePath]
+	actor, exists := counter.Actors[profilePath]
+	if !exists {
+		return nil
+	}
+
+	validMovieCount := int64(0)
+	for movieID := range actor.Movies {
+		_, movieExists := counter.Movies[movieID]
+		if movieExists {
+			validMovieCount++
+		}
+	}
+
 	return &protopb.Actor{
-		Name:        proto.String(founded.Name),
-		CountMovies: proto.Int64(founded.CountMovies),
+		Name:        proto.String(actor.Name),
+		CountMovies: proto.Int64(validMovieCount),
 		ProfilePath: proto.String(profilePath),
 		ClientId:    proto.String(clientID),
 		MessageId:   proto.Int64(messageId),
