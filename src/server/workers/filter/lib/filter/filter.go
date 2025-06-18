@@ -270,19 +270,12 @@ func (f *Filter) processTop5InvestorsFilter() {
 
 	f.log.Infof("[%s] Waiting for messages...", filterName)
 
-	//filterState := make(map[string]int64)
 	filterState, _ := state.GetLastValidState(f.stateHelperTop5Inv)
 	if filterState == nil {
 		filterState = NewFilterTop5InvestorsState()
 	}
 
 	for msg := range msgs {
-		/*
-			err := rabbitmq.SingleAck(msg)
-			if err != nil {
-				f.log.Fatalf("failed to ack message: %v", err)
-			}*/
-
 		var movie protopb.MovieSanit
 		if err := proto.Unmarshal(msg.Body, &movie); err != nil {
 			f.log.Errorf("[%s] Failed to unmarshal message: %v", filterName, err)
@@ -320,9 +313,6 @@ func (f *Filter) processTop5InvestorsFilter() {
 				ClientId:            movie.ClientId,
 				MessageId:           movie.MessageId,
 			}
-			// eof := true
-			// top5.Eof = &eof
-
 			for i := 0; i < len(sorted) && i < 5; i++ {
 				top5.ProductionCountries = append(top5.ProductionCountries, sorted[i].Country)
 				top5.Budget = append(top5.Budget, sorted[i].Budget)
@@ -377,16 +367,10 @@ func (f *Filter) processTop5InvestorsFilter() {
 			if err != nil {
 				f.log.Errorf("[%s] Failed to publish Top5Country: %v", filterName, err)
 			}
-			f.sendAck(msg)
+			f.SaveTop5DummyStateAndSendAck(*filterState, msg, *movie.ClientId, *movie.MessageId)
 			continue
 		}
-
 		budget := movie.GetBudget()
-		/*
-			for _, country := range movie.GetProductionCountries() {
-				filterState.CountryBudget[country] += budget
-			}
-		*/
 		updateCountryBudget(&filterState.CountryBudget, movie.GetProductionCountries(), budget)
 		f.SaveTop5StateAndSendAck(*filterState, msg, *movie.ClientId, *movie.MessageId, movie.GetProductionCountries(), budget)
 		f.log.Infof("[%s] Received: %v - %v", filterName, movie.GetProductionCountries(), budget)
@@ -394,6 +378,7 @@ func (f *Filter) processTop5InvestorsFilter() {
 	}
 }
 
+// Updates the filter status
 func updateCountryBudget(countryBudget *map[string]int64, productionCountries []string, budget int64) {
 	for _, country := range productionCountries {
 		(*countryBudget)[country] += budget

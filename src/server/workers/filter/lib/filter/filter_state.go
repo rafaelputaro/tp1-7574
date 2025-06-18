@@ -10,6 +10,24 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
+type FilterDefaultState string
+
+type FilterDefaultUpdateArgs struct {
+	MessageId int64
+	ClientId  string
+}
+
+type FilterTop5InvestorsState struct {
+	CountryBudget map[string]int64
+}
+
+type FilterTop5InvestorsUpdateArgs struct {
+	MessageId           int64
+	ClientId            string
+	ProductionCountries []string
+	Budget              int64
+}
+
 // Return the state helpers and the window
 func CreateStateHelpers(config *FilterConfig, log *logging.Logger) (*state.StateHelper[FilterDefaultState, FilterDefaultUpdateArgs], *state.StateHelper[FilterTop5InvestorsState, FilterTop5InvestorsUpdateArgs], window.MessageWindow) {
 	switch config.Type {
@@ -30,13 +48,7 @@ func CreateStateHelpers(config *FilterConfig, log *logging.Logger) (*state.State
 	}
 }
 
-type FilterDefaultState string
-
-type FilterDefaultUpdateArgs struct {
-	MessageId int64
-	ClientId  string
-}
-
+// Refresh the window
 func UpdateFilterDefault(filterState *FilterDefaultState, messageWindow *window.MessageWindow, updateArgs *FilterDefaultUpdateArgs) {
 	messageWindow.AddMessage(updateArgs.ClientId, updateArgs.MessageId)
 }
@@ -76,31 +88,21 @@ func (f *Filter) SaveDefaultStateAndSendAckCoordinator(coordinator *coordinator.
 	return nil
 }
 
-type FilterTop5InvestorsState struct {
-	CountryBudget map[string]int64
-}
-
+// Return new filter state
 func NewFilterTop5InvestorsState() *FilterTop5InvestorsState {
 	return &FilterTop5InvestorsState{
 		CountryBudget: make(map[string]int64),
 	}
 }
 
-type FilterTop5InvestorsUpdateArgs struct {
-	MessageId           int64
-	ClientId            string
-	ProductionCountries []string
-	Budget              int64
-}
-
+// Updates the filter status and refresh the window
 func UpdateFilterTop5Investors(filterState *FilterTop5InvestorsState, messageWindow *window.MessageWindow, updateArgs *FilterTop5InvestorsUpdateArgs) {
 	messageWindow.AddMessage(updateArgs.ClientId, updateArgs.MessageId)
 	updateCountryBudget(&filterState.CountryBudget, updateArgs.ProductionCountries, updateArgs.Budget)
 }
 
 // Refresh the window, save the state and send the ack
-func (f *Filter) SaveTop5StateAndSendAck(stateTop5 FilterTop5InvestorsState, msg amqp.Delivery, clientId string, messageId int64,
-	productionCountries []string, budget int64) error {
+func (f *Filter) SaveTop5StateAndSendAck(stateTop5 FilterTop5InvestorsState, msg amqp.Delivery, clientId string, messageId int64, productionCountries []string, budget int64) error {
 	// update window
 	f.messageWindow.AddMessage(clientId, messageId)
 	// save state
@@ -116,4 +118,10 @@ func (f *Filter) SaveTop5StateAndSendAck(stateTop5 FilterTop5InvestorsState, msg
 	}
 	// send ack
 	return f.sendAck(msg)
+}
+
+// Refresh the window, save the state and send the ack
+func (f *Filter) SaveTop5DummyStateAndSendAck(stateTop5 FilterTop5InvestorsState, msg amqp.Delivery, clientId string, messageId int64) error {
+	dummyCountrys := make([]string, 0)
+	return f.SaveTop5StateAndSendAck(stateTop5, msg, clientId, messageId, dummyCountrys, 0)
 }
