@@ -13,7 +13,6 @@ type MovieInfo struct {
 	RatingSum float32
 	Count     int64
 	RatingAvg float64
-	Ratings   map[int64]float32
 }
 
 type RatingTotalizer struct {
@@ -27,7 +26,6 @@ func newMovieInfo(title string) *MovieInfo {
 		RatingSum: 0,
 		Count:     0,
 		RatingAvg: 0,
-		Ratings:   make(map[int64]float32),
 	}
 }
 
@@ -57,9 +55,6 @@ func (totalizer *RatingTotalizer) Sum(rating *protopb.RatingSanit) {
 	if _, exists := totalizer.Movies[movieID]; !exists {
 		totalizer.Movies[movieID] = newMovieInfo("")
 	}
-
-	ratingID := int64(len(totalizer.Movies[movieID].Ratings) + 1)
-	totalizer.Movies[movieID].Ratings[ratingID] = ratingValue
 
 	totalizer.Movies[movieID].RatingSum += ratingValue
 	totalizer.Movies[movieID].Count++
