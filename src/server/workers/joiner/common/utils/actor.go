@@ -42,8 +42,11 @@ func (counter *ActorsCounter) Count(credit *protopb.CreditSanit) {
 		for index := range len(credit.CastNames) {
 			counter.countActor(credit.CastNames[index], credit.ProfilePaths[index])
 		}
+	} else {
+		// Movie not found, but it might appear later
 	}
-	// TODO: Si no llego todavia la movie? Habria que agregar algo igual
+	// TODO: Si no llego todavia la movie? Habria que agregar (sumar) algo igual
+	//   Pero entonces tengo que saber si la movie llegó en el futuro o no para calcular el total del actor -> esto lo hago con el otro mapa
 }
 
 // update count for an actor

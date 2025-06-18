@@ -129,13 +129,7 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 
 	// Function to send the report when both EOFs are received
 	sendReportIfReady := func(clientID string, state *clientState) {
-		// Use read lock to check state
-		clientStatesMutex.RLock()
-		movieEOFReceived := state.movieEOF
-		creditEOFReceived := state.creditEOF
-		clientStatesMutex.RUnlock()
-
-		if movieEOFReceived && creditEOFReceived {
+		if state.movieEOF && state.creditEOF {
 			numMsg, _ := strconv.ParseInt(clientID, 10, 64) // todo fix this
 			numMsg *= int64(100000000)
 			// Send actor counts for the client
@@ -160,16 +154,14 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 			joiner.Log.Debugf("[client_id:%s] sent eof marker", clientID)
 
 			// TODO: Remove processed client to free resources
-			// Acquire write lock to delete from map
-			// clientStatesMutex.Lock()
 			// delete(clientStates, clientID)
-			// clientStatesMutex.Unlock()
 		}
 	}
 
-	// Generic message processing function
 	processMessage := func(msg amqp.Delivery, isCredit bool) {
 		var clientID string
+		var state *clientState
+
 		if isCredit {
 			var credit protopb.CreditSanit
 			if err := proto.Unmarshal(msg.Body, &credit); err != nil {
@@ -179,15 +171,11 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 
 			clientID = credit.GetClientId()
 
-			// Initialize client state if not exists - need write lock
-			clientStatesMutex.Lock()
-			var state *clientState
 			if _, exists := clientStates[clientID]; !exists {
 				clientStates[clientID] = &clientState{counter: utils.NewActorCounter()}
 			}
 			state = clientStates[clientID]
 
-			// Process EOF or count actors - still under write lock
 			if credit.GetEof() {
 				state.creditEOF = true
 				joiner.Log.Infof("[client_id:%s][queue:%s] recevied EOF", clientID, joiner.Config.InputQueueSecName)
@@ -195,25 +183,21 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 				state.counter.Count(&credit)
 				joiner.Log.Infof("[client_id:%s][queue:%s] processed credit: %v", clientID, joiner.Config.InputQueueSecName, &credit)
 			}
-			clientStatesMutex.Unlock()
-			sendReportIfReady(clientID, state)
+
 		} else {
 			var movie protopb.MovieSanit
 			if err := proto.Unmarshal(msg.Body, &movie); err != nil {
 				joiner.Log.Errorf("failed to unmarshal movie: %v", err)
 				return
 			}
+
 			clientID = movie.GetClientId()
 
-			// Initialize client state if not exists - need write lock
-			clientStatesMutex.Lock()
-			var state *clientState
 			if _, exists := clientStates[clientID]; !exists {
 				clientStates[clientID] = &clientState{counter: utils.NewActorCounter()}
 			}
 			state = clientStates[clientID]
 
-			// Process EOF or append movie - still under write lock
 			if movie.GetEof() {
 				state.movieEOF = true
 				joiner.Log.Infof("[client_id:%s][queue:%s] recevied EOF", clientID, joiner.Config.InputQueueName)
@@ -221,12 +205,11 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 				state.counter.AppendMovie(&movie)
 				joiner.Log.Infof("[client_id:%s][queue:%s] processed movie: %v", clientID, joiner.Config.InputQueueName, &movie)
 			}
-			clientStatesMutex.Unlock()
-			sendReportIfReady(clientID, state)
 		}
+
+		sendReportIfReady(clientID, state)
 	}
 
-	// Start message consumers in separate goroutines
 	go func() {
 		msgs, err := rabbitmq.ConsumeFromQueue(joiner.Channel, joiner.Config.InputQueueName)
 		if err == nil {
@@ -235,7 +218,9 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 				if err != nil {
 					joiner.Log.Fatalf("failed to ack message: %v", err)
 				}
+				clientStatesMutex.Lock()
 				processMessage(msg, false)
+				clientStatesMutex.Unlock()
 			}
 		} else {
 			joiner.Log.Fatalf("[queue:%s] failed to consume: %v", joiner.Config.InputQueueName, err)
@@ -253,12 +238,13 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 			if err != nil {
 				joiner.Log.Fatalf("failed to ack message: %v", err)
 			}
+			clientStatesMutex.Lock()
 			processMessage(msg, true)
+			clientStatesMutex.Unlock()
 		}
 
 	}()
 
-	// Keep the joiner running indefinitely
 	select {}
 }
 
@@ -291,13 +277,7 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 
 	// Send report when both EOFs are received for a client
 	sendReportIfReady := func(clientID string, state *clientState) {
-		// Use read lock to check state
-		clientStatesMutex.RLock()
-		movieEOFReceived := state.movieEOF
-		ratingEOFReceived := state.ratingEOF
-		clientStatesMutex.RUnlock()
-
-		if movieEOFReceived && ratingEOFReceived {
+		if state.movieEOF && state.ratingEOF {
 			// Get top and bottom ratings
 			topAndBottom := state.totalizer.GetTopAndBottom(clientID, DEFAULT_MESSAGE_ID_UNIQUE_OUTPUT, joiner.Config.InputQueueName)
 
@@ -321,15 +301,14 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 			joiner.publishData(data)
 
 			// TODO: Remove client state to free resources
-			// clientStatesMutex.Lock()
 			// delete(clientStates, clientID)
-			// clientStatesMutex.Unlock()
 		}
 	}
 
-	// Message processing function
 	processMessage := func(msg amqp.Delivery, isRating bool) {
 		var clientID string
+		var state *clientState
+
 		if isRating {
 			var rating protopb.RatingSanit
 			if err := proto.Unmarshal(msg.Body, &rating); err != nil {
@@ -338,9 +317,6 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 			}
 			clientID = rating.GetClientId()
 
-			// Initialize client state if not exists - need write lock
-			clientStatesMutex.Lock()
-			var state *clientState
 			if _, exists := clientStates[clientID]; !exists {
 				clientStates[clientID] = &clientState{totalizer: utils.NewRatingTotalizer()}
 			}
@@ -352,8 +328,6 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 			} else {
 				state.totalizer.Sum(&rating)
 			}
-			clientStatesMutex.Unlock()
-			sendReportIfReady(clientID, state)
 
 		} else {
 			var movie protopb.MovieSanit
@@ -363,9 +337,6 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 			}
 			clientID = movie.GetClientId()
 
-			// Initialize client state if not exists - need write lock
-			clientStatesMutex.Lock()
-			var state *clientState
 			if _, exists := clientStates[clientID]; !exists {
 				clientStates[clientID] = &clientState{totalizer: utils.NewRatingTotalizer()}
 			}
@@ -377,9 +348,9 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 			} else {
 				state.totalizer.AppendMovie(&movie)
 			}
-			clientStatesMutex.Unlock()
-			sendReportIfReady(clientID, state)
 		}
+
+		sendReportIfReady(clientID, state)
 	}
 
 	// Start message consumers
@@ -394,7 +365,10 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 			if err != nil {
 				joiner.Log.Fatalf("failed to ack message: %v", err)
 			}
-			processMessage(msg, false) // Movie messages
+
+			clientStatesMutex.Lock()
+			processMessage(msg, false)
+			clientStatesMutex.Unlock()
 		}
 	}()
 
@@ -409,7 +383,10 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 			if err != nil {
 				joiner.Log.Fatalf("failed to ack message: %v", err)
 			}
+
+			clientStatesMutex.Lock()
 			processMessage(msg, true)
+			clientStatesMutex.Unlock()
 		}
 	}()
 
