@@ -3,9 +3,14 @@ package common
 import (
 	"sort"
 	"sync"
+
+	"tp1/helpers/state"
+	"tp1/rabbitmq"
+
+	"tp1/helpers/window"
 	"tp1/protobuf/protopb"
 	protoUtils "tp1/protobuf/utils"
-	"tp1/rabbitmq"
+
 	rabbitUtils "tp1/rabbitmq"
 	"tp1/server/workers/aggregator/common/utils"
 
@@ -46,10 +51,16 @@ const MSG_NO_BUDGET_MOVIE = "No budget movie"
 // InputQueue: negative_movies
 // InputQueueSec: positive_movies
 type Aggregator struct {
-	Channel    *amqp.Channel
-	Connection *amqp.Connection
-	Config     AggregatorConfig
-	Log        *logging.Logger
+	Channel                 *amqp.Channel
+	Connection              *amqp.Connection
+	Config                  AggregatorConfig
+	Log                     *logging.Logger
+	StateHelperMovies       *state.StateHelper[AggregatorMovieState, AggregatorMovieUpdateArgs]
+	StateHelperTop5         *state.StateHelper[AggregatorTop5State, AggregatorTop5UpdateArgs]
+	StateHelperTop10        *state.StateHelper[AggregatorTop10State, AggregatorTop10UpdateArgs]
+	StateHelperTopAndBottom *state.StateHelper[AggregatorTopAndBottomState, AggregatorTopAndBottomUpdateArgs]
+	StateHelperMetrics      *state.StateHelper[AggregatorMetricsState, AggregatorMetricsUpdateArgs]
+	Window                  *window.MessageWindow
 }
 
 // Returns new aggregator ready to work with rabbit
@@ -125,14 +136,19 @@ func (aggregator *Aggregator) Start() {
 	aggregator.Log.Infof("starting job for ID: %s", aggregator.Config.ID)
 	switch aggregator.Config.AggregatorType {
 	case MOVIES:
+		aggregator.InitStateHelperMovie()
 		aggregator.aggregateMovies()
 	case TOP5:
+		aggregator.InitStateHelperTop5()
 		aggregator.aggregateTop5()
 	case TOP10:
+		aggregator.InitiStateHelperTop10()
 		aggregator.aggregateTop10()
 	case TOP_AND_BOTTOM:
+		aggregator.InitiStateHelperTopAndBottom()
 		aggregator.aggregateTopAndBottom()
 	case METRICS:
+		aggregator.InitiStateHelperMetrics()
 		aggregator.aggregateMetrics()
 	}
 	aggregator.Log.Infof("job finished")
@@ -531,4 +547,5 @@ func (aggregator *Aggregator) Dispose() {
 	if aggregator.Connection != nil {
 		aggregator.Connection.Close()
 	}
+	aggregator.DisposeStateHelpers()
 }

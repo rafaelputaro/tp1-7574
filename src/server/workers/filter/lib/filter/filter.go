@@ -22,18 +22,6 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-/*
-type FilterState string
-
-	type UpdateArgs struct {
-		MessageId int64
-		ClientId  string
-	}
-
-	func UpdateState(state *FilterState, messageWindow *window.MessageWindow, updateArgs *UpdateArgs) {
-		messageWindow.AddMessage(updateArgs.ClientId, updateArgs.MessageId)
-	}
-*/
 type FilterConfig struct {
 	Type   string
 	Shards int
@@ -47,7 +35,7 @@ type Filter struct {
 	channel            *amqp.Channel
 	stateHelperDefault *state.StateHelper[FilterDefaultState, FilterDefaultUpdateArgs]
 	stateHelperTop5Inv *state.StateHelper[FilterTop5InvestorsState, FilterTop5InvestorsUpdateArgs]
-	messageWindow      window.MessageWindow
+	messageWindow      *window.MessageWindow
 }
 
 // Creates a new filter with an established connection to rabbitmq (if succesful).
@@ -66,16 +54,12 @@ func NewFilter(config *FilterConfig, log *logging.Logger) *Filter {
 	}
 
 	log.Info("Successful connection with RabbitMQ")
-	// Creates state helpers
-	stateHelperDefault, stateHelperTop5Inv, messageWindow := CreateStateHelpers(config, log)
+
 	return &Filter{
-		config:             *config,
-		log:                log,
-		conn:               conn,
-		channel:            ch,
-		stateHelperDefault: stateHelperDefault,
-		stateHelperTop5Inv: stateHelperTop5Inv,
-		messageWindow:      messageWindow,
+		config:  *config,
+		log:     log,
+		conn:    conn,
+		channel: ch,
 	}
 }
 
@@ -84,18 +68,28 @@ func (f *Filter) StartFilterLoop() {
 
 	switch f.config.Type {
 	case "2000s_filter":
+		// Creates state helpers
+		f.InitStateHelperDefault()
 		f.log.Infof("Selected filter: 2000s_filter")
 		f.processYearFilters()
 	case "ar_es_filter":
+		// Creates state helpers
+		f.InitStateHelperDefault()
 		f.log.Infof("Selected filter: ar_es_filter")
 		f.processArEsFilter()
 	case "ar_filter":
+		// Creates state helpers
+		f.InitStateHelperDefault()
 		f.log.Infof("Selected filter: ar_filter")
 		f.processArFilter()
 	case "single_country_origin_filter":
+		// Creates state helpers
+		f.InitStateHelperDefault()
 		f.log.Infof("Selected filter: single_country_origin_filter")
 		f.processSingleCountryOriginFilter()
 	case "top_5_investors_filter":
+		// Creates state helpers
+		f.InitStateHelpersTop5Investors()
 		f.log.Infof("Selected filter: top_5_investors_filter")
 		f.processTop5InvestorsFilter()
 	default:
@@ -111,9 +105,9 @@ func (f *Filter) Close() {
 	if f.conn != nil {
 		_ = f.conn.Close()
 	}
-	if f.stateHelperDefault != nil {
-		f.stateHelperDefault.Dispose()
-	}
+
+	f.DisposeStateHelpers()
+
 }
 
 // Jobs --------------------------------------------------------------------------------------------

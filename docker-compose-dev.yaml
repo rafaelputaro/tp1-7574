@@ -93,6 +93,8 @@ services:
       interval: 10s
       timeout: 10s
       retries: 10
+    volumes:
+      - /tmp/states:/tmp/states
 
   ar-es-filter-2:
     container_name: ar-es-filter-2
@@ -111,6 +113,8 @@ services:
       interval: 10s
       timeout: 10s
       retries: 10
+    volumes:
+      - /tmp/states:/tmp/states
 
 
 
@@ -128,6 +132,8 @@ services:
       interval: 10s
       timeout: 10s
       retries: 10
+    volumes:
+      - /tmp/states:/tmp/states
     depends_on:
 
       joiner_group_by_movie_id_credits-1:
@@ -153,6 +159,8 @@ services:
       interval: 10s
       timeout: 10s
       retries: 10
+    volumes:
+      - /tmp/states:/tmp/states
     depends_on:
 
       joiner_group_by_movie_id_credits-1:
@@ -185,6 +193,8 @@ services:
       interval: 10s
       timeout: 10s
       retries: 10
+    volumes:
+      - /tmp/states:/tmp/states
 
   single-country-origin-filter-2:
     container_name: single-country-origin-filter-2
@@ -205,6 +215,8 @@ services:
       interval: 10s
       timeout: 10s
       retries: 10
+    volumes:
+      - /tmp/states:/tmp/states
 
 
 
@@ -229,6 +241,8 @@ services:
       interval: 10s
       timeout: 10s
       retries: 10
+    volumes:
+      - /tmp/states:/tmp/states
 
   joiner_group_by_movie_id_ratings-2:
     container_name: joiner_group_by_movie_id_ratings-2
@@ -251,6 +265,8 @@ services:
       interval: 10s
       timeout: 10s
       retries: 10
+    volumes:
+      - /tmp/states:/tmp/states
 
 
 
@@ -275,6 +291,8 @@ services:
       interval: 10s
       timeout: 10s
       retries: 10
+    volumes:
+      - /tmp/states:/tmp/states
 
   joiner_group_by_movie_id_credits-2:
     container_name: joiner_group_by_movie_id_credits-2
@@ -297,6 +315,8 @@ services:
       interval: 10s
       timeout: 10s
       retries: 10
+    volumes:
+      - /tmp/states:/tmp/states
 
 
   aggregator_movies:
@@ -320,6 +340,8 @@ services:
       interval: 10s
       timeout: 10s
       retries: 10
+    volumes:
+      - /tmp/states:/tmp/states
 
   aggregator_top_5:
     container_name: aggregator_top_5
@@ -342,6 +364,8 @@ services:
       interval: 10s
       timeout: 10s
       retries: 10
+    volumes:
+      - /tmp/states:/tmp/states
 
   aggregator_top_10:
     container_name: aggregator_top_10
@@ -364,6 +388,8 @@ services:
       interval: 10s
       timeout: 10s
       retries: 10
+    volumes:
+      - /tmp/states:/tmp/states
 
   aggregator_top_and_bottom:
     container_name: aggregator_top_and_bottom
@@ -386,6 +412,8 @@ services:
       interval: 10s
       timeout: 10s
       retries: 10
+    volumes:
+      - /tmp/states:/tmp/states
 
   aggregator_metrics:
     container_name: aggregator_metrics
@@ -409,6 +437,8 @@ services:
       interval: 10s
       timeout: 10s
       retries: 10
+    volumes:
+      - /tmp/states:/tmp/states
 
 
   nlp-1:
@@ -426,6 +456,7 @@ services:
         condition: service_healthy
     volumes:
       - ./nlp-cache:/app/cache
+      - /tmp/states:/tmp/states
 
   nlp-2:
     container_name: nlp-2
@@ -442,6 +473,7 @@ services:
         condition: service_healthy
     volumes:
       - ./nlp-cache:/app/cache
+      - /tmp/states:/tmp/states
 
 
   controller:
@@ -496,6 +528,7 @@ services:
     volumes:
       - ./src/client/datasets:/app/datasets
       - ./reports:/app
+      - /tmp/states:/tmp/states
     entrypoint: /client
     command:
       - /app/datasets/movies.csv
@@ -516,6 +549,7 @@ services:
     volumes:
       - ./src/client/datasets:/app/datasets
       - ./reports:/app
+      - /tmp/states:/tmp/states
     entrypoint: /client
     command:
       - /app/datasets/movies.csv
@@ -536,6 +570,7 @@ services:
     volumes:
       - ./src/client/datasets:/app/datasets
       - ./reports:/app
+      - /tmp/states:/tmp/states
     entrypoint: /client
     command:
       - /app/datasets/movies.csv
@@ -556,6 +591,7 @@ services:
     volumes:
       - ./src/client/datasets:/app/datasets
       - ./reports:/app
+      - /tmp/states:/tmp/states
     entrypoint: /client
     command:
       - /app/datasets/movies.csv
@@ -578,6 +614,8 @@ services:
       interval: 10s
       timeout: 10s
       retries: 10
+    volumes:
+      - /tmp/states:/tmp/states
 
   resilience_manager:
     container_name: resilience_manager
@@ -587,6 +625,7 @@ services:
       dockerfile: src/server/resilience_manager/Dockerfile
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/states:/tmp/states
     networks:
       - tp1_net
     depends_on:

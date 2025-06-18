@@ -6,9 +6,10 @@ import (
 	"tp1/helpers/state"
 	"tp1/helpers/window"
 
-	"github.com/op/go-logging"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
+
+const MESSAGE_FAILED_TO_CREATE_STATE_HELPER string = "Failed to create state helper"
 
 type FilterDefaultState string
 
@@ -29,23 +30,25 @@ type FilterTop5InvestorsUpdateArgs struct {
 }
 
 // Return the state helpers and the window
-func CreateStateHelpers(config *FilterConfig, log *logging.Logger) (*state.StateHelper[FilterDefaultState, FilterDefaultUpdateArgs], *state.StateHelper[FilterTop5InvestorsState, FilterTop5InvestorsUpdateArgs], window.MessageWindow) {
-	switch config.Type {
-	case "top_5_investors_filter":
-		stateHelper := state.NewStateHelper(strconv.Itoa(config.ID), config.Type, strconv.Itoa(config.Shards), UpdateFilterTop5Investors)
-		if stateHelper == nil {
-			log.Fatalf("Failed to create state helper")
-		}
-		_, window := state.GetLastValidState(stateHelper)
-		return nil, stateHelper, window
-	default:
-		stateHelper := state.NewStateHelper(strconv.Itoa(config.ID), config.Type, strconv.Itoa(config.Shards), UpdateFilterDefault)
-		if stateHelper == nil {
-			log.Fatalf("Failed to create state helper")
-		}
-		_, window := state.GetLastValidState(stateHelper)
-		return stateHelper, nil, window
+func (f *Filter) InitStateHelperDefault() {
+	stateHelper := state.NewStateHelper(strconv.Itoa(f.config.ID), f.config.Type, strconv.Itoa(f.config.Shards), UpdateFilterDefault)
+	if stateHelper == nil {
+		f.log.Fatalf(MESSAGE_FAILED_TO_CREATE_STATE_HELPER)
 	}
+	_, messageWindow := state.GetLastValidState(stateHelper)
+	f.stateHelperDefault = stateHelper
+	f.messageWindow = &messageWindow
+}
+
+// Return the state helpers and the window
+func (f *Filter) InitStateHelpersTop5Investors() {
+	stateHelper := state.NewStateHelper(strconv.Itoa(f.config.ID), f.config.Type, strconv.Itoa(f.config.Shards), UpdateFilterTop5Investors)
+	if stateHelper == nil {
+		f.log.Fatalf(MESSAGE_FAILED_TO_CREATE_STATE_HELPER)
+	}
+	_, messageWindow := state.GetLastValidState(stateHelper)
+	f.stateHelperTop5Inv = stateHelper
+	f.messageWindow = &messageWindow
 }
 
 // Refresh the window
@@ -58,7 +61,7 @@ func (f *Filter) SaveDefaultStateAndSendAck(msg amqp.Delivery, clientId string, 
 	// update window
 	f.messageWindow.AddMessage(clientId, messageId)
 	// save state
-	err := state.SaveState(f.stateHelperDefault, "", f.messageWindow, FilterDefaultUpdateArgs{
+	err := state.SaveState(f.stateHelperDefault, "", *f.messageWindow, FilterDefaultUpdateArgs{
 		ClientId:  clientId,
 		MessageId: messageId,
 	})
@@ -75,7 +78,7 @@ func (f *Filter) SaveDefaultStateAndSendAckCoordinator(coordinator *coordinator.
 	// update window
 	f.messageWindow.AddMessage(clientId, messageId)
 	// save state
-	err := state.SaveState(f.stateHelperDefault, "", f.messageWindow, FilterDefaultUpdateArgs{
+	err := state.SaveState(f.stateHelperDefault, "", *f.messageWindow, FilterDefaultUpdateArgs{
 		ClientId:  clientId,
 		MessageId: messageId,
 	})
@@ -106,7 +109,7 @@ func (f *Filter) SaveTop5StateAndSendAck(stateTop5 FilterTop5InvestorsState, msg
 	// update window
 	f.messageWindow.AddMessage(clientId, messageId)
 	// save state
-	err := state.SaveState(f.stateHelperTop5Inv, stateTop5, f.messageWindow, FilterTop5InvestorsUpdateArgs{
+	err := state.SaveState(f.stateHelperTop5Inv, stateTop5, *f.messageWindow, FilterTop5InvestorsUpdateArgs{
 		ClientId:            clientId,
 		MessageId:           messageId,
 		ProductionCountries: productionCountries,
@@ -124,4 +127,13 @@ func (f *Filter) SaveTop5StateAndSendAck(stateTop5 FilterTop5InvestorsState, msg
 func (f *Filter) SaveTop5DummyStateAndSendAck(stateTop5 FilterTop5InvestorsState, msg amqp.Delivery, clientId string, messageId int64) error {
 	dummyCountrys := make([]string, 0)
 	return f.SaveTop5StateAndSendAck(stateTop5, msg, clientId, messageId, dummyCountrys, 0)
+}
+
+func (f *Filter) DisposeStateHelpers() {
+	if f.stateHelperDefault != nil {
+		f.stateHelperDefault.Dispose()
+	}
+	if f.stateHelperTop5Inv != nil {
+		f.stateHelperTop5Inv.Dispose()
+	}
 }

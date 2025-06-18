@@ -43,4 +43,4 @@ FROM busybox:latest
 # Copy the compiled binary from the previous stage 
 COPY --from=builder /build/bin/filter /filter
 # COPY ./client/config.yaml /config.yaml
-ENTRYPOINT ["/filter"]
+ENTRYPOINT ["/filter"] 
