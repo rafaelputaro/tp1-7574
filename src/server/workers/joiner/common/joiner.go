@@ -1,6 +1,7 @@
 package common
 
 import (
+	"strconv"
 	"tp1/protobuf/protopb"
 	"tp1/rabbitmq"
 
@@ -127,7 +128,8 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 	// Function to send the report when both EOFs are received
 	sendReportIfReady := func(clientID string, state *clientState) {
 		if state.movieEOF && state.creditEOF {
-			numMsg := int64(64)
+			numMsg, _ := strconv.ParseInt(clientID, 10, 64) // todo fix this
+			numMsg *= int64(100000000)
 			// Send actor counts for the client
 			for actorPath := range state.counter.Actors {
 				actor := state.counter.GetActor(actorPath, clientID, numMsg, joiner.Config.InputQueueName)
@@ -137,7 +139,7 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 				}
 				joiner.publishData(data)
 				numMsg++
-				joiner.Log.Debugf("[client_id:%s] sent actor count: %v", clientID, actor)
+				joiner.Log.Debugf("[client_id:%s][message_id:%d] sent actor count: %v", clientID, numMsg, actor)
 			}
 
 			// Send EOF for the client
@@ -178,6 +180,7 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 				joiner.Log.Infof("[client_id:%s][queue:%s] recevied EOF", clientID, joiner.Config.InputQueueSecName)
 			} else {
 				state.counter.Count(&credit)
+				joiner.Log.Infof("[client_id:%s][queue:%s] processed credit: %v", clientID, joiner.Config.InputQueueSecName, &credit)
 			}
 			sendReportIfReady(clientID, state)
 		} else {
@@ -200,6 +203,7 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 				joiner.Log.Infof("[client_id:%s][queue:%s] recevied EOF", clientID, joiner.Config.InputQueueName)
 			} else {
 				state.counter.AppendMovie(&movie)
+				joiner.Log.Infof("[client_id:%s][queue:%s] processed movie: %v", clientID, joiner.Config.InputQueueName, &movie)
 			}
 			sendReportIfReady(clientID, state)
 		}
