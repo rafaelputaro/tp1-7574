@@ -83,6 +83,8 @@ services:
       - FILTER_TYPE=ar_es_filter
       - FILTER_NUM=1
       - SHARDS=2
+      - FILTER_NODES=2
+      - NODE_NAME=ar-es-filter-1
     networks:
       - tp1_net
     depends_on:
@@ -103,6 +105,8 @@ services:
       - FILTER_TYPE=ar_es_filter
       - FILTER_NUM=2
       - SHARDS=2
+      - FILTER_NODES=2
+      - NODE_NAME=ar-es-filter-2
     networks:
       - tp1_net
     depends_on:

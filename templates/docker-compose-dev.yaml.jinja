@@ -55,6 +55,8 @@ services:
       - FILTER_TYPE=ar_es_filter
       - FILTER_NUM={{ i }}
       - SHARDS={{ shards }}
+      - FILTER_NODES={{ ar_es_filter_nodes }}
+      - NODE_NAME=ar-es-filter-{{ i }}
     networks:
       - tp1_net
     depends_on:

@@ -130,34 +130,28 @@ func (f *Filter) processArEsFilter() {
 		f.log.Fatalf("failed to consume messages from '%s': %v", inputQueue, err)
 	}
 
+	coord := coordinator.NewEOFLeader(f.log, f.channel, "ar_es_filter")
+
 	f.log.Infof("waiting for messages...")
 
 	for msg := range msgs {
-		err := rabbitmq.SingleAck(msg)
-		if err != nil {
-			f.log.Fatalf("failed to ack message: %v", err)
-		}
-
 		var movie protopb.MovieSanit
 		if err := proto.Unmarshal(msg.Body, &movie); err != nil {
 			f.log.Errorf("failed to unmarshal message: %v", err)
 			continue
 		}
 
-		// EOF
-		if movie.Eof != nil && *movie.Eof {
-			f.log.Infof("[client_id:%s] received EOF marker", movie.GetClientId())
+		clientID := movie.GetClientId()
 
-			eofBytes, err := proto.Marshal(&movie)
-			if err != nil {
-				f.log.Errorf("[client_id:%s] failed to marshal EOF marker: %v", movie.GetClientId(), err)
-				break
-			}
+		if movie.GetEof() {
+			f.log.Infof("[client_id:%s] received EOF marker", clientID)
 
-			// Propagate EOF to output queue
+			coord.TakeLeadership(clientID)
+			coord.WaitForACKs(clientID)
+
 			err = f.channel.Publish("", outputQueue, false, false, amqp.Publishing{
 				ContentType: "application/protobuf",
-				Body:        eofBytes,
+				Body:        msg.Body,
 			})
 			if err != nil {
 				f.log.Fatalf("[client_id:%s] failed to publish EOF marker: %v", movie.GetClientId(), err)
@@ -165,25 +159,23 @@ func (f *Filter) processArEsFilter() {
 
 			f.log.Infof("[client_id:%s] propagated EOF marker to %s", movie.GetClientId(), outputQueue)
 
+			f.sendAck(msg)
 			continue
 		}
 
 		if filterFunc(&movie) {
 			f.log.Debugf("[client_id:%s] accepted: %s (%d)", movie.GetClientId(), movie.GetProductionCountries(), movie.GetReleaseYear())
 
-			data, err := proto.Marshal(&movie)
-			if err != nil {
-				f.log.Errorf("[client_id:%s] failed to marshal message: %v", movie.GetClientId(), err)
-				continue
-			}
-
 			err = f.channel.Publish("", outputQueue, false, false, amqp.Publishing{
 				ContentType: "application/protobuf",
-				Body:        data,
+				Body:        msg.Body,
 			})
 			if err != nil {
 				f.log.Errorf("[client_id:%s]failed to publish filtered message: %v", movie.GetClientId(), err)
 			}
+
+			f.sendAck(msg)
+			coord.SendACKs()
 		}
 	}
 
