@@ -25,6 +25,8 @@ services:
       - FILTER_TYPE=2000s_filter
       - FILTER_NUM={{ i }}
       - SHARDS={{ shards }}
+      - FILTER_NODES={{ filter_nodes_2000s }}
+      - NODE_NAME=2000s-filter-{{ i }}
     networks:
       - tp1_net
     healthcheck:

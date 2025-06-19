@@ -182,14 +182,6 @@ func (f *Filter) processArEsFilter() {
 	f.log.Infof("job finished")
 }
 
-// Filter that reads from `movies` queue and writes to 3 different queues with the following conditions:
-// * Year between 2000 and 2009
-// * Year greater than 2000
-// * Year greater or equal to 2000
-// Used in the following queries:
-// * 1: "Peliculas y sus géneros de los años 00' con producción Argentina y Española"
-// * 3: "Películas de Producción Argentina estrenadas a partir del 2000, con mayor y menor promedio de rating"
-// * 4: "Top 10 de actores con mayor participación en películas de producción Argentina posterior al 2000"
 func (f *Filter) processYearFilters() {
 	outputQueues := map[string]func(uint32) bool{
 		"movies_2000_to_2009":   func(year uint32) bool { return year >= 2000 && year <= 2009 },
@@ -216,35 +208,35 @@ func (f *Filter) processYearFilters() {
 		f.log.Fatalf("failed to consume messages from '%s': %v", globalconfig.Movies1Queue, err)
 	}
 
+	coord := coordinator.NewEOFLeader(f.log, f.channel, "2000s_filter")
+
 	f.log.Infof("waiting for messages...")
 
 	for msg := range msgs {
-
 		var movie protopb.MovieSanit
 		if err := proto.Unmarshal(msg.Body, &movie); err != nil {
 			f.log.Errorf("failed to unmarshal message: %v", err)
 			continue
 		}
-		// check duplicate
+
 		if f.messageWindow.IsDuplicate(*movie.ClientId, *movie.MessageId) {
 			f.log.Debugf("duplicate message: %v", *movie.MessageId)
 			f.sendAck(msg)
 			continue
 		}
 
-		if movie.Eof != nil && *movie.Eof {
-			f.log.Infof("[client_id:%s] received EOF marker", movie.GetClientId())
+		clientID := movie.GetClientId()
 
-			eofBytes, err := proto.Marshal(&movie)
-			if err != nil {
-				f.log.Errorf("failed to marshal EOF marker: %v", err)
-				break
-			}
+		if movie.GetEof() {
+			f.log.Infof("[client_id:%s] received EOF marker", clientID)
+
+			coord.TakeLeadership(clientID)
+			coord.WaitForACKs(clientID)
 
 			for queueName := range outputQueues {
 				err = f.channel.Publish("", queueName, false, false, amqp.Publishing{
 					ContentType: "application/protobuf",
-					Body:        eofBytes,
+					Body:        msg.Body,
 				})
 				if err != nil {
 					f.log.Fatalf("failed to publish EOF to '%s': %v", queueName, err)
@@ -257,26 +249,19 @@ func (f *Filter) processYearFilters() {
 		}
 
 		releaseYear := movie.GetReleaseYear()
-
-		data, err := proto.Marshal(&movie)
-		if err != nil {
-			f.log.Errorf("failed to marshal message: %v", err)
-			continue
-		}
-
 		for queueName, condition := range outputQueues {
 			if condition(releaseYear) {
 				f.log.Debugf("[%s] %s (%d)", queueName, movie.GetTitle(), releaseYear)
 				err = f.channel.Publish("", queueName, false, false, amqp.Publishing{
 					ContentType: "application/protobuf",
-					Body:        data,
+					Body:        msg.Body,
 				})
 				if err != nil {
 					f.log.Errorf("failed to publish to '%s': %v", queueName, err)
 				}
 			}
 		}
-		f.SaveDefaultStateAndSendAck(msg, *movie.ClientId, *movie.MessageId)
+		f.SaveDefaultStateAndSendAckCoordinator(coord, msg, *movie.ClientId, *movie.MessageId)
 	}
 
 	f.log.Infof("job finished")
@@ -383,7 +368,6 @@ func (f *Filter) processSingleCountryOriginFilter() {
 	}
 }
 
-// Creates a direct exchange using sharding with routing keys
 func (f *Filter) runShardedFilter(inputQueue string, declareInput bool, outputExchange string, filterFunc func(movie *protopb.MovieSanit) bool, shardingFunc func(movie *protopb.MovieSanit) int) {
 	// TODO: sacar esta lógica de acá
 	if declareInput {
@@ -487,9 +471,7 @@ func (f *Filter) runShardedFilter(inputQueue string, declareInput bool, outputEx
 	}
 }
 
-// Send the ack
 func (f *Filter) sendAck(msg amqp.Delivery) error {
-	// send ack
 	err := rabbitmq.SingleAck(msg)
 	if err != nil {
 		f.log.Fatalf("failed to ack message: %v", err)
