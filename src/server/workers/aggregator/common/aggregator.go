@@ -55,7 +55,7 @@ type Aggregator struct {
 	Connection              *amqp.Connection
 	Config                  AggregatorConfig
 	Log                     *logging.Logger
-	StateHelperMovies       *state.StateHelper[AggregatorMovieState, AggregatorMovieUpdateArgs]
+	StateHelperMovies       *state.StateHelper[AggregatorMoviesState, AggregatorMoviesUpdateArgs]
 	StateHelperTop5         *state.StateHelper[AggregatorTop5State, AggregatorTop5UpdateArgs]
 	StateHelperTop10        *state.StateHelper[AggregatorTop10State, AggregatorTop10UpdateArgs]
 	StateHelperTopAndBottom *state.StateHelper[AggregatorTopAndBottomState, AggregatorTopAndBottomUpdateArgs]
@@ -183,17 +183,19 @@ func (aggregator *Aggregator) checkErrorAndPublish(clientID string, data []byte,
 func (aggregator *Aggregator) aggregateMovies() {
 	msgs, err := aggregator.consumeQueue(aggregator.Config.InputQueue)
 	if err == nil {
-		amountEOF := make(map[string]int)
+		aggregatorState := aggregator.CreateAggregatorMoviesState()
 
 		for msg := range msgs {
-			err := rabbitmq.SingleAck(msg)
-			if err != nil {
-				aggregator.Log.Fatalf("failed to ack message: %v", err)
-			}
 
 			var movie protopb.MovieSanit
 			if err := proto.Unmarshal(msg.Body, &movie); err != nil {
 				aggregator.Log.Errorf("failed to unmarshal message %v", err)
+				continue
+			}
+
+			if aggregator.Window.IsDuplicate(*movie.ClientId, *movie.MessageId) {
+				aggregator.Log.Debugf("duplicate message: %v", *movie.MessageId)
+				aggregator.sendAck(msg)
 				continue
 			}
 
@@ -203,17 +205,19 @@ func (aggregator *Aggregator) aggregateMovies() {
 
 				aggregator.Log.Infof("[client_id:%s] received eof marker", clientID)
 
-				amountEOF[clientID] = utils.GetOrInitKeyMap(&amountEOF, clientID, utils.InitEOFCount) + 1
+				aggregatorState.AmountEOF[clientID] = utils.GetOrInitKeyMap(&aggregatorState.AmountEOF, clientID, utils.InitEOFCount) + 1
 
 				// If all sources sent EOF, submit the EOF to report
-				if aggregator.checkEofSingleQueue(amountEOF[movie.GetClientId()]) {
+				if aggregator.checkEofSingleQueue(aggregatorState.AmountEOF[movie.GetClientId()]) {
 					dataEof, errEof := protoUtils.CreateEofMessageMovieSanit(movie.GetClientId(), movie.GetMessageId())
 					aggregator.checkErrorAndPublish(clientID, dataEof, errEof)
 					aggregator.Log.Infof("[client_id:%s] sent eof marker", clientID)
 				}
+				aggregator.SaveMoviesStateAndSendAck(*aggregatorState, msg, clientID, true, *movie.MessageId)
 			} else {
 				aggregator.Log.Debugf("[client_id:%s] accepted: %s (%d)", movie.GetClientId(), movie.GetTitle(), movie.GetReleaseYear())
 				aggregator.publishData(msg.Body)
+				aggregator.SaveMoviesStateAndSendAck(*aggregatorState, msg, *movie.ClientId, false, *movie.MessageId)
 			}
 		}
 	}
@@ -548,4 +552,13 @@ func (aggregator *Aggregator) Dispose() {
 		aggregator.Connection.Close()
 	}
 	aggregator.DisposeStateHelpers()
+}
+
+func (aggregator *Aggregator) sendAck(msg amqp.Delivery) error {
+	err := rabbitmq.SingleAck(msg)
+	if err != nil {
+		aggregator.Log.Fatalf("failed to ack message: %v", err)
+		return err
+	}
+	return nil
 }

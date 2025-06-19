@@ -3,16 +3,22 @@ package common
 import (
 	"tp1/helpers/state"
 	"tp1/helpers/window"
+
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 const DEFAULT_UNIQUE_SHARD string = ""
 const MESSAGE_FAILED_TO_CREATE_STATE_HELPER string = "Failed to create state helper"
+const MESSAGE_UNABLE_TO_SAVE_STATE string = "Unable to save state"
 
-type AggregatorMovieState string
+type AggregatorMoviesState struct {
+	AmountEOF map[string]int
+}
 
-type AggregatorMovieUpdateArgs struct {
+type AggregatorMoviesUpdateArgs struct {
 	MessageId int64
 	ClientId  string
+	EOF       bool
 }
 
 type AggregatorTop5State string
@@ -43,6 +49,17 @@ type AggregatorMetricsUpdateArgs struct {
 	ClientId  string
 }
 
+// Create a state from file or from scratch. Also return the window
+func (aggregator *Aggregator) CreateAggregatorMoviesState() *AggregatorMoviesState {
+	aggregatorState, _ := state.GetLastValidState(aggregator.StateHelperMovies)
+	if aggregatorState == nil {
+		aggregatorState = &AggregatorMoviesState{
+			AmountEOF: make(map[string]int),
+		}
+	}
+	return aggregatorState
+}
+
 // Return the state helpers and the window
 func (aggregator *Aggregator) InitStateHelperMovie() {
 	stateHelper := state.NewStateHelper(
@@ -57,6 +74,29 @@ func (aggregator *Aggregator) InitStateHelperMovie() {
 	_, messageWindow := state.GetLastValidState(stateHelper)
 	aggregator.StateHelperMovies = stateHelper
 	aggregator.Window = &messageWindow
+}
+
+// Refresh the window, save the state and send the ack
+func (aggregator *Aggregator) SaveMoviesStateAndSendAck(aggregatorState AggregatorMoviesState, msg amqp.Delivery, clientId string, eof bool, messageId int64) error {
+	// update window
+	aggregator.Window.AddMessage(clientId, messageId)
+	// save state
+	err := state.SaveState(
+		aggregator.StateHelperMovies,
+		aggregatorState,
+		*aggregator.Window,
+		AggregatorMoviesUpdateArgs{
+			ClientId:  clientId,
+			MessageId: messageId,
+			EOF:       eof,
+		},
+	)
+	if err != nil {
+		aggregator.Log.Fatalf(MESSAGE_UNABLE_TO_SAVE_STATE)
+		return err
+	}
+	// send ack
+	return aggregator.sendAck(msg)
 }
 
 // Return the state helpers and the window
@@ -124,8 +164,11 @@ func (aggregator *Aggregator) InitiStateHelperMetrics() {
 }
 
 // Updates the aggregator status and refresh the window
-func UpdateMovie(aggregatorState *AggregatorMovieState, messageWindow *window.MessageWindow, updateArgs *AggregatorMovieUpdateArgs) {
+func UpdateMovie(aggregatorState *AggregatorMoviesState, messageWindow *window.MessageWindow, updateArgs *AggregatorMoviesUpdateArgs) {
 	messageWindow.AddMessage(updateArgs.ClientId, updateArgs.MessageId)
+	if updateArgs.EOF {
+		aggregatorState.AmountEOF[updateArgs.ClientId]++
+	}
 }
 
 // Updates the aggregator status and refresh the window

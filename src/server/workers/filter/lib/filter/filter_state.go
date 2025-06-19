@@ -1,11 +1,12 @@
 package filter
 
 import (
-	amqp "github.com/rabbitmq/amqp091-go"
 	"strconv"
 	"tp1/coordinator"
 	"tp1/helpers/state"
 	"tp1/helpers/window"
+
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 const MESSAGE_FAILED_TO_CREATE_STATE_HELPER string = "Failed to create state helper"
