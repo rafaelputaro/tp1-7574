@@ -77,6 +77,8 @@ services:
       - FILTER_TYPE=ar_filter
       - FILTER_NUM={{ i }}
       - SHARDS={{ shards }}
+      - FILTER_NODES={{ ar_filter_nodes }}
+      - NODE_NAME=ar-filter-{{ i }}
     networks:
       - tp1_net
     healthcheck:

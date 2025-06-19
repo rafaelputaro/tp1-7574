@@ -125,6 +125,8 @@ services:
       - FILTER_TYPE=ar_filter
       - FILTER_NUM=1
       - SHARDS=2
+      - FILTER_NODES=2
+      - NODE_NAME=ar-filter-1
     networks:
       - tp1_net
     healthcheck:
@@ -152,6 +154,8 @@ services:
       - FILTER_TYPE=ar_filter
       - FILTER_NUM=2
       - SHARDS=2
+      - FILTER_NODES=2
+      - NODE_NAME=ar-filter-2
     networks:
       - tp1_net
     healthcheck:

@@ -401,7 +401,7 @@ func (f *Filter) runShardedFilter(inputQueue string, declareInput bool, outputEx
 		}
 	}
 
-	// Declare and bind sharded queues to the exchange
+	// todo esto todavia usa exchanges?
 	for i := 1; i <= f.config.Shards; i++ {
 		queueName := strings.Replace(outputExchange, "exchange", fmt.Sprintf("shard_%d", i), 1)
 
@@ -424,6 +424,8 @@ func (f *Filter) runShardedFilter(inputQueue string, declareInput bool, outputEx
 		}
 	}
 
+	coord := coordinator.NewEOFLeader(f.log, f.channel, "ar_filter-"+inputQueue)
+
 	msgs, err := rabbitmq.ConsumeFromQueue(f.channel, inputQueue)
 	if err != nil {
 		f.log.Fatalf("failed to consume messages from '%s': %v", inputQueue, err)
@@ -432,26 +434,19 @@ func (f *Filter) runShardedFilter(inputQueue string, declareInput bool, outputEx
 	f.log.Infof("Waiting for messages...")
 
 	for msg := range msgs {
-		err := rabbitmq.SingleAck(msg)
-		if err != nil {
-			f.log.Fatalf("failed to ack message: %v", err)
-		}
-
 		var movie protopb.MovieSanit
 		if err := proto.Unmarshal(msg.Body, &movie); err != nil {
 			f.log.Errorf("failed to unmarshal message: %v", err)
 			continue
 		}
 
-		if movie.GetEof() {
-			clientID := movie.GetClientId()
+		clientID := movie.GetClientId()
 
+		if movie.GetEof() {
 			f.log.Infof("[client_id:%s] received EOF marker", clientID)
-			eofBytes, err := proto.Marshal(&movie)
-			if err != nil {
-				f.log.Errorf("failed to marshal EOF marker: %v", err)
-				break
-			}
+
+			coord.TakeLeadership(clientID)
+			coord.WaitForACKs(clientID)
 
 			// Propagate EOF
 			for i := 1; i <= f.config.Shards; i++ {
@@ -463,7 +458,7 @@ func (f *Filter) runShardedFilter(inputQueue string, declareInput bool, outputEx
 					false,          // immediate
 					amqp.Publishing{
 						ContentType: "application/protobuf",
-						Body:        eofBytes,
+						Body:        msg.Body,
 					},
 				)
 				if err != nil {
@@ -473,20 +468,11 @@ func (f *Filter) runShardedFilter(inputQueue string, declareInput bool, outputEx
 				f.log.Infof("[client_id:%s] propagated EOF to %s shard %d", clientID, outputExchange, i)
 			}
 
+			f.sendAck(msg)
 			continue
 		}
 
 		if filterFunc(&movie) {
-			clientID := movie.GetClientId()
-
-			// f.log.Debugf("[client_id:%s] accepted: %s - %s", clientID, movie.GetTitle(), movie.GetProductionCountries())
-
-			data, err := proto.Marshal(&movie)
-			if err != nil {
-				f.log.Errorf("[client_id:%s] failed to marshal message: %v", clientID, err)
-				continue
-			}
-
 			shard := shardingFunc(&movie)
 			routingKey := fmt.Sprintf("%d", shard)
 
@@ -497,14 +483,14 @@ func (f *Filter) runShardedFilter(inputQueue string, declareInput bool, outputEx
 				false,          // inmediate
 				amqp.Publishing{
 					ContentType: "application/protobuf",
-					Body:        data,
+					Body:        msg.Body,
 				})
 			if err != nil {
 				f.log.Errorf("[client_id:%s] failed to publish filtered message: %v", clientID, err)
 			}
 
-			// queueName := fmt.Sprintf("%s_shard_%d", outputExchange, shard)
-			// f.log.Debugf("[client_id:%s] message published to queue: %s (routing key: %s)", clientID, queueName, routingKey)
+			f.sendAck(msg)
+			coord.SendACKs()
 		}
 	}
 }
