@@ -7,7 +7,7 @@ import (
 
 const LAYOUT_TIMESTAMP = "2006-01-02 15:04:05.000000000"
 const MAX_LENGTH_TO_CLEAN = 1000
-const MAX_AGE = 2 * time.Second
+const MAX_AGE = 2 * time.Minute
 
 // MessageWindow is holds message IDs and their corresponding valid timestamps and implements a fifo queue.
 type MessageWindow struct {
