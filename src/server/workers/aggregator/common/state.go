@@ -21,11 +21,16 @@ type AggregatorMoviesUpdateArgs struct {
 	EOF       bool
 }
 
-type AggregatorTop5State string
+type AggregatorTop5State struct {
+	CountriesByClient map[string]map[string]int64
+}
 
 type AggregatorTop5UpdateArgs struct {
-	MessageId int64
-	ClientId  string
+	MessageId         int64
+	ClientId          string
+	ProductionCountry string
+	Budget            int64
+	EOF               bool
 }
 
 type AggregatorTop10State string
@@ -60,6 +65,17 @@ func (aggregator *Aggregator) CreateAggregatorMoviesState() *AggregatorMoviesSta
 	return aggregatorState
 }
 
+// Create a state from file or from scratch. Also return the window
+func (aggregator *Aggregator) CreateAggregatorTop5State() *AggregatorTop5State {
+	aggregatorState, _ := state.GetLastValidState(aggregator.StateHelperTop5)
+	if aggregatorState == nil {
+		aggregatorState = &AggregatorTop5State{
+			CountriesByClient: make(map[string]map[string]int64),
+		}
+	}
+	return aggregatorState
+}
+
 // Return the state helpers and the window
 func (aggregator *Aggregator) InitStateHelperMovie() {
 	stateHelper := state.NewStateHelper(
@@ -74,29 +90,6 @@ func (aggregator *Aggregator) InitStateHelperMovie() {
 	_, messageWindow := state.GetLastValidState(stateHelper)
 	aggregator.StateHelperMovies = stateHelper
 	aggregator.Window = &messageWindow
-}
-
-// Refresh the window, save the state and send the ack
-func (aggregator *Aggregator) SaveMoviesStateAndSendAck(aggregatorState AggregatorMoviesState, msg amqp.Delivery, clientId string, eof bool, messageId int64) error {
-	// update window
-	aggregator.Window.AddMessage(clientId, messageId)
-	// save state
-	err := state.SaveState(
-		aggregator.StateHelperMovies,
-		aggregatorState,
-		*aggregator.Window,
-		AggregatorMoviesUpdateArgs{
-			ClientId:  clientId,
-			MessageId: messageId,
-			EOF:       eof,
-		},
-	)
-	if err != nil {
-		aggregator.Log.Fatalf(MESSAGE_UNABLE_TO_SAVE_STATE)
-		return err
-	}
-	// send ack
-	return aggregator.sendAck(msg)
 }
 
 // Return the state helpers and the window
@@ -174,6 +167,19 @@ func UpdateMovie(aggregatorState *AggregatorMoviesState, messageWindow *window.M
 // Updates the aggregator status and refresh the window
 func UpdateTop5(aggregatorState *AggregatorTop5State, messageWindow *window.MessageWindow, updateArgs *AggregatorTop5UpdateArgs) {
 	messageWindow.AddMessage(updateArgs.ClientId, updateArgs.MessageId)
+	if !updateArgs.EOF && updateArgs.Budget > 0 {
+		clientID := updateArgs.ClientId
+		_, found := aggregatorState.CountriesByClient[clientID]
+		if !found {
+			aggregatorState.CountriesByClient[clientID] = make(map[string]int64)
+		}
+		countryForClient := aggregatorState.CountriesByClient[clientID]
+		_, found = countryForClient[updateArgs.ProductionCountry]
+		if !found {
+			countryForClient[updateArgs.ProductionCountry] = 0
+		}
+		countryForClient[updateArgs.ProductionCountry] += updateArgs.Budget
+	}
 }
 
 // Updates the aggregator status and refresh the window
@@ -189,6 +195,54 @@ func UpdateTopAndBottom(aggregatorState *AggregatorTopAndBottomState, messageWin
 // Updates the aggregator status and refresh the window
 func UpdateMetrics(aggregatorState *AggregatorMetricsState, messageWindow *window.MessageWindow, updateArgs *AggregatorMetricsUpdateArgs) {
 	messageWindow.AddMessage(updateArgs.ClientId, updateArgs.MessageId)
+}
+
+// Refresh the window, save the state and send the ack
+func (aggregator *Aggregator) SaveMoviesStateAndSendAck(aggregatorState AggregatorMoviesState, msg amqp.Delivery, clientId string, eof bool, messageId int64) error {
+	// update window
+	aggregator.Window.AddMessage(clientId, messageId)
+	// save state
+	err := state.SaveState(
+		aggregator.StateHelperMovies,
+		aggregatorState,
+		*aggregator.Window,
+		AggregatorMoviesUpdateArgs{
+			ClientId:  clientId,
+			MessageId: messageId,
+			EOF:       eof,
+		},
+	)
+	if err != nil {
+		aggregator.Log.Fatalf(MESSAGE_UNABLE_TO_SAVE_STATE)
+		return err
+	}
+	// send ack
+	return aggregator.sendAck(msg)
+}
+
+// Refresh the window, save the state and send the ack
+func (aggregator *Aggregator) SaveTop5StateAndSendAck(aggregatorState AggregatorTop5State, msg amqp.Delivery, clientId string, budget int64, productionCountry string, eof bool, messageId int64) error {
+	// update window
+	aggregator.Window.AddMessage(clientId, messageId)
+	// save state
+	err := state.SaveState(
+		aggregator.StateHelperTop5,
+		aggregatorState,
+		*aggregator.Window,
+		AggregatorTop5UpdateArgs{
+			ClientId:          clientId,
+			MessageId:         messageId,
+			ProductionCountry: productionCountry,
+			Budget:            budget,
+			EOF:               eof,
+		},
+	)
+	if err != nil {
+		aggregator.Log.Fatalf(MESSAGE_UNABLE_TO_SAVE_STATE)
+		return err
+	}
+	// send ack
+	return aggregator.sendAck(msg)
 }
 
 func (aggregator *Aggregator) DisposeStateHelpers() {

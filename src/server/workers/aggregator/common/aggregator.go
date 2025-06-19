@@ -229,15 +229,16 @@ func (a *Aggregator) aggregateTop5() {
 	if err != nil {
 		a.Log.Fatalf("failed to consume messages: %v", err)
 	}
-
-	countriesByClient := make(map[string]map[string]int64)
+	aggregatorState := a.CreateAggregatorTop5State()
+	//countriesByClient := make(map[string]map[string]int64)
 
 	for msg := range msgs {
-		err := rabbitmq.SingleAck(msg)
-		if err != nil {
-			a.Log.Fatalf("failed to ack message: %v", err)
-		}
-
+		/*
+			err := rabbitmq.SingleAck(msg)
+			if err != nil {
+				a.Log.Fatalf("failed to ack message: %v", err)
+			}
+		*/
 		var movie protopb.MovieSanit
 		err = proto.Unmarshal(msg.Body, &movie)
 		if err != nil {
@@ -245,15 +246,21 @@ func (a *Aggregator) aggregateTop5() {
 			continue
 		}
 
+		if a.Window.IsDuplicate(*movie.ClientId, *movie.MessageId) {
+			a.Log.Debugf("duplicate message: %v", *movie.MessageId)
+			a.sendAck(msg)
+			continue
+		}
+
 		clientID := movie.GetClientId()
 
 		// a.Log.Debugf("[client_id:%s] received: %v", clientID, &movie)
 
-		_, found := countriesByClient[clientID]
+		_, found := aggregatorState.CountriesByClient[clientID]
 		if !found {
-			countriesByClient[clientID] = make(map[string]int64)
+			aggregatorState.CountriesByClient[clientID] = make(map[string]int64)
 		}
-		countryForClient := countriesByClient[clientID]
+		countryForClient := aggregatorState.CountriesByClient[clientID]
 
 		if movie.GetEof() {
 			var top5 protopb.Top5Country
@@ -308,7 +315,8 @@ func (a *Aggregator) aggregateTop5() {
 
 			a.Log.Infof("[client_id:%s] published top5: %v", clientID, &top5)
 			// TODO: clean map from client
-
+			//rabbitmq.SingleAck(msg)
+			a.SaveTop5StateAndSendAck(*aggregatorState, msg, clientID, 0, "", true, *movie.MessageId)
 			continue
 		} else if movie.GetBudget() > 0 {
 			a.Log.Debugf("[client_id:%s] received: %v", clientID, &movie)
@@ -318,6 +326,9 @@ func (a *Aggregator) aggregateTop5() {
 				countryForClient[movie.GetProductionCountries()[0]] = 0
 			}
 			countryForClient[movie.GetProductionCountries()[0]] += movie.GetBudget()
+			a.SaveTop5StateAndSendAck(*aggregatorState, msg, *movie.ClientId, movie.GetBudget(), movie.GetProductionCountries()[0], false, *movie.MessageId)
+		} else {
+			a.SaveTop5StateAndSendAck(*aggregatorState, msg, clientID, 0, "", false, *movie.MessageId)
 		}
 	}
 }
