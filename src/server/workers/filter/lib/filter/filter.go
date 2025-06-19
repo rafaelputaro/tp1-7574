@@ -2,7 +2,6 @@ package filter
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 	"sync"
 	"tp1/coordinator"
@@ -34,7 +33,6 @@ type Filter struct {
 	conn               *amqp.Connection
 	channel            *amqp.Channel
 	stateHelperDefault *state.StateHelper[FilterDefaultState, FilterDefaultUpdateArgs]
-	stateHelperTop5Inv *state.StateHelper[FilterTop5InvestorsState, FilterTop5InvestorsUpdateArgs]
 	messageWindow      *window.MessageWindow
 }
 
@@ -87,13 +85,8 @@ func (f *Filter) StartFilterLoop() {
 		f.InitStateHelperDefault()
 		f.log.Infof("Selected filter: single_country_origin_filter")
 		f.processSingleCountryOriginFilter()
-	case "top_5_investors_filter":
-		// Creates state helpers
-		f.InitStateHelpersTop5Investors()
-		f.log.Infof("Selected filter: top_5_investors_filter")
-		f.processTop5InvestorsFilter()
 	default:
-		f.log.Errorf("Unknown filter type: %s", f.config.Type)
+		f.log.Fatalf("Unknown filter type: %s", f.config.Type)
 	}
 }
 
@@ -195,188 +188,6 @@ func (f *Filter) processArEsFilter() {
 	}
 
 	f.log.Infof("job finished")
-}
-
-func (f *Filter) processTop5InvestorsFilter() {
-	// TODO: kill this filter and related
-	inputExchange := "single_country_origin_exchange"
-	shardID := f.config.ID
-
-	filterName := fmt.Sprintf("top_5_investors_filter_shard_%d", shardID)
-
-	inputQueue := strings.Replace(inputExchange, "exchange", fmt.Sprintf("shard_%d", shardID), 1)
-
-	err := f.channel.ExchangeDeclare(
-		inputExchange,
-		"direct",
-		true,  // durable
-		false, // auto-deleted
-		false, // internal
-		false, // no-wait
-		nil,   // args
-	)
-	if err != nil {
-		f.log.Fatalf("[%s] Failed to declare exchange: %v", filterName, err)
-	}
-
-	// Declare temporal queue used to read from the exchange
-	_, err = f.channel.QueueDeclare(
-		inputQueue, // empty = temporal queue with generated name
-		true,       // durable
-		false,      // auto-delete when unused
-		false,      // exclusive
-		false,      // no-wait
-		nil,
-	)
-	if err != nil {
-		f.log.Fatalf("[%s] Failed to declare temporary queue: %v", filterName, err)
-	}
-
-	// Bind the queue to the exchange
-	err = f.channel.QueueBind(
-		inputQueue,                     // queue name
-		fmt.Sprintf("%d", f.config.ID), // routing key (empty on a fanout)
-		inputExchange,                  // exchange
-		false,
-		nil,
-	)
-	if err != nil {
-		f.log.Fatalf("[%s] Failed to bind queue to exchange: %v", filterName, err)
-	}
-
-	outputQueue := "movies_top_5_investors"
-	_, err = f.channel.QueueDeclare(
-		outputQueue,
-		true,  // durable
-		false, // auto-delete
-		false, // exclusive
-		false, // no-wait
-		nil,   // args
-	)
-	if err != nil {
-		f.log.Fatalf("[%s] Failed to declare queue 'movies_top_5_investors': %v", filterName, err)
-	}
-
-	msgs, err := rabbitmq.ConsumeFromQueue(f.channel, inputQueue)
-	if err != nil {
-		f.log.Fatalf("[%s] Failed to consume messages from '%s': %v", filterName, inputQueue, err)
-	}
-
-	f.log.Infof("[%s] Waiting for messages...", filterName)
-
-	filterState, _ := state.GetLastValidState(f.stateHelperTop5Inv)
-	if filterState == nil {
-		filterState = NewFilterTop5InvestorsState()
-	}
-
-	for msg := range msgs {
-		var movie protopb.MovieSanit
-		if err := proto.Unmarshal(msg.Body, &movie); err != nil {
-			f.log.Errorf("[%s] Failed to unmarshal message: %v", filterName, err)
-			continue
-		}
-
-		// check duplicate
-		if f.messageWindow.IsDuplicate(*movie.ClientId, *movie.MessageId) {
-			f.log.Debugf("duplicate message: %v", *movie.MessageId)
-			f.sendAck(msg)
-			continue
-		}
-
-		if movie.Eof != nil && *movie.Eof {
-			f.log.Infof("[%s] Received EOF marker", filterName)
-
-			type entry struct {
-				Country string
-				Budget  int64
-			}
-
-			var sorted []entry
-			for country, total := range filterState.CountryBudget {
-				sorted = append(sorted, entry{country, total})
-			}
-
-			sort.Slice(sorted, func(i, j int) bool {
-				return sorted[i].Budget > sorted[j].Budget
-			})
-
-			// Crear mensaje de respuesta
-			top5 := &protopb.Top5Country{
-				Budget:              []int64{},
-				ProductionCountries: []string{},
-				ClientId:            movie.ClientId,
-				MessageId:           movie.MessageId,
-			}
-			for i := 0; i < len(sorted) && i < 5; i++ {
-				top5.ProductionCountries = append(top5.ProductionCountries, sorted[i].Country)
-				top5.Budget = append(top5.Budget, sorted[i].Budget)
-			}
-
-			data, err := proto.Marshal(top5)
-			if err != nil {
-				f.log.Errorf("[%s] Failed to marshal Top5Country: %v", filterName, err)
-				continue
-			}
-
-			f.log.Debugf("[%s] Sending Top5Country: %+v", filterName, top5)
-
-			err = f.channel.Publish(
-				"",
-				outputQueue,
-				false,
-				false,
-				amqp.Publishing{
-					ContentType: "application/protobuf",
-					Body:        data,
-				},
-			)
-			if err != nil {
-				f.log.Errorf("[%s] Failed to publish Top5Country: %v", filterName, err)
-			}
-
-			eofData := &protopb.Top5Country{
-				Budget:              []int64{},
-				ProductionCountries: []string{},
-				Eof:                 proto.Bool(true),
-				ClientId:            movie.ClientId,
-				MessageId:           movie.MessageId,
-			}
-
-			eofDataBytes, err := proto.Marshal(eofData)
-			if err != nil {
-				f.log.Errorf("[%s] Failed to marshal Top5Country EOF: %v", filterName, err)
-				continue
-			}
-
-			err = f.channel.Publish(
-				"",
-				outputQueue,
-				false,
-				false,
-				amqp.Publishing{
-					ContentType: "application/protobuf",
-					Body:        eofDataBytes,
-				},
-			)
-			if err != nil {
-				f.log.Errorf("[%s] Failed to publish Top5Country: %v", filterName, err)
-			}
-			f.SaveTop5DummyStateAndSendAck(*filterState, msg, *movie.ClientId, *movie.MessageId)
-			continue
-		}
-		budget := movie.GetBudget()
-		updateCountryBudget(&filterState.CountryBudget, movie.GetProductionCountries(), budget)
-		f.SaveTop5StateAndSendAck(*filterState, msg, *movie.ClientId, *movie.MessageId, movie.GetProductionCountries(), budget)
-		f.log.Infof("[%s] Received: %v - %v", filterName, movie.GetProductionCountries(), budget)
-		f.log.Infof("[%s] Budget per country: %+v", filterName, filterState)
-	}
-}
-
-// Updates the filter status
-func updateCountryBudget(countryBudget *map[string]int64, productionCountries []string, budget int64) {
-	for _, country := range productionCountries {
-		(*countryBudget)[country] += budget
-	}
 }
 
 // Filter that reads from `movies` queue and writes to 3 different queues with the following conditions:
