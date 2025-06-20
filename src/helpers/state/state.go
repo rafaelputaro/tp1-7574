@@ -1,7 +1,6 @@
 package state
 
 import (
-	//"bufio"
 	"encoding/json"
 	"errors"
 	"io"
