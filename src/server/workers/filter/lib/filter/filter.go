@@ -245,6 +245,7 @@ func (f *Filter) processYearFilters() {
 				f.log.Infof("[client_id:%s] propagated EOF to %s", movie.GetClientId(), queueName)
 			}
 			f.SaveDefaultStateAndSendAck(msg, *movie.ClientId, *movie.MessageId)
+			state.Synch(f.stateHelperDefault)
 			continue
 		}
 
@@ -354,6 +355,7 @@ func (f *Filter) processSingleCountryOriginFilter() {
 
 			f.log.Infof("[client_id:%s] published eof", clientID)
 			f.SaveDefaultStateAndSendAck(msg, *movie.ClientId, *movie.MessageId)
+			state.Synch(f.stateHelperDefault)
 			continue
 		}
 

@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"tp1/helpers/window"
+
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 // go test -timeout 30m
@@ -29,6 +31,8 @@ func UpdateState(state *Data, messageWindow *window.MessageWindow, updateArgs *U
 	messageWindow.AddMessage(updateArgs.ClientId, updateArgs.MessageId)
 }
 
+func DummySendAck(msg amqp.Delivery) error { return nil }
+
 func TestStateCorrectFilesWithoutExceedingMaximumCapacity(t *testing.T) {
 	// Configuration
 	moduleId := "1"
@@ -36,6 +40,8 @@ func TestStateCorrectFilesWithoutExceedingMaximumCapacity(t *testing.T) {
 	moduleName := "testing"
 	shard := "0"
 	StatesDir = "/tmp/states_test"
+	SendAck = DummySendAck
+	var dummyMsg = amqp.Delivery{}
 	// Set env to clean previus files
 	CleanOnStart = true
 	// New State Helper
@@ -59,7 +65,7 @@ func TestStateCorrectFilesWithoutExceedingMaximumCapacity(t *testing.T) {
 			ClientId:     clientId,
 		}
 		UpdateState(state, windowData, &args)
-		SaveState(stateHelper, *state, *windowData, args)
+		SaveState(stateHelper, *state, dummyMsg, *windowData, args)
 		stateReaded, _ := GetLastValidState(stateHelper)
 		if stateReaded.Id != state.Id || stateReaded.Name != state.Name {
 			t.Errorf("Error in reloaded state")
@@ -107,6 +113,8 @@ func TestStateCorrectFilesExceedingMaximumCapacity(t *testing.T) {
 	moduleName := "testing"
 	shard := "0"
 	StatesDir = "/tmp/states_test"
+	SendAck = DummySendAck
+	var dummyMsg = amqp.Delivery{}
 	// Set env to clean previus files
 	CleanOnStart = true
 	// New State Helper
@@ -130,7 +138,7 @@ func TestStateCorrectFilesExceedingMaximumCapacity(t *testing.T) {
 			ClientId:     clientId,
 		}
 		UpdateState(state, windowData, &args)
-		SaveState(stateHelper, *state, *windowData, args)
+		SaveState(stateHelper, *state, dummyMsg, *windowData, args)
 	}
 	// Check window and state
 	stateReaded, windowReaded := GetLastValidState(stateHelper)
@@ -173,6 +181,8 @@ func TestTimeStampFileGreaterThanAux(t *testing.T) {
 	moduleName := "testing"
 	shard := "0"
 	StatesDir = "/tmp/states_test"
+	SendAck = DummySendAck
+	var dummyMsg = amqp.Delivery{}
 	// Set env to clean previus files
 	CleanOnStart = true
 	// New State Helper
@@ -196,7 +206,7 @@ func TestTimeStampFileGreaterThanAux(t *testing.T) {
 			ClientId:     clientId,
 		}
 		UpdateState(state, windowData, &args)
-		SaveState(stateHelper, *state, *windowData, args)
+		SaveState(stateHelper, *state, dummyMsg, *windowData, args)
 	}
 	// Check window and state
 	stateReaded, windowReaded := GetLastValidState(stateHelper)
@@ -241,6 +251,8 @@ func TestTimeStampFileLowerThanAux(t *testing.T) {
 	moduleName := "testing"
 	shard := "0"
 	StatesDir = "/tmp/states_test"
+	SendAck = DummySendAck
+	var dummyMsg = amqp.Delivery{}
 	// Set env to clean previus files
 	CleanOnStart = true
 	// New State Helper
@@ -264,7 +276,7 @@ func TestTimeStampFileLowerThanAux(t *testing.T) {
 			ClientId:     clientId,
 		}
 		UpdateState(state, windowData, &args)
-		SaveState(stateHelper, *state, *windowData, args)
+		SaveState(stateHelper, *state, dummyMsg, *windowData, args)
 	}
 	// Check window and state
 	stateReaded, windowReaded := GetLastValidState(stateHelper)
@@ -308,6 +320,8 @@ func TestStateOriginalFileBroken(t *testing.T) {
 	moduleName := "testing"
 	shard := "0"
 	StatesDir = "/tmp/states_test"
+	SendAck = DummySendAck
+	var dummyMsg = amqp.Delivery{}
 	// Set env to clean previus files
 	CleanOnStart = true
 	// New State Helper
@@ -331,7 +345,7 @@ func TestStateOriginalFileBroken(t *testing.T) {
 			ClientId:     clientId,
 		}
 		UpdateState(state, windowData, &args)
-		SaveState(stateHelper, *state, *windowData, args)
+		SaveState(stateHelper, *state, dummyMsg, *windowData, args)
 	}
 	// Check window and state
 	stateReaded, windowReaded := GetLastValidState(stateHelper)
@@ -376,6 +390,8 @@ func TestStateAuxFileBroken(t *testing.T) {
 	moduleName := "testing"
 	shard := "0"
 	StatesDir = "/tmp/states_test"
+	SendAck = DummySendAck
+	var dummyMsg = amqp.Delivery{}
 	// Set env to clean previus files
 	CleanOnStart = true
 	// New State Helper
@@ -399,7 +415,7 @@ func TestStateAuxFileBroken(t *testing.T) {
 			ClientId:     clientId,
 		}
 		UpdateState(state, windowData, &args)
-		SaveState(stateHelper, *state, *windowData, args)
+		SaveState(stateHelper, *state, dummyMsg, *windowData, args)
 	}
 	// Check window and state
 	stateReaded, windowReaded := GetLastValidState(stateHelper)
@@ -444,6 +460,8 @@ func TestStateBohtFilesBroken(t *testing.T) {
 	moduleName := "testing"
 	shard := "0"
 	StatesDir = "/tmp/states_test"
+	SendAck = DummySendAck
+	var dummyMsg = amqp.Delivery{}
 	// Set env to clean previus files
 	CleanOnStart = true
 	// New State Helper
@@ -467,7 +485,7 @@ func TestStateBohtFilesBroken(t *testing.T) {
 			ClientId:     clientId,
 		}
 		UpdateState(state, windowData, &args)
-		SaveState(stateHelper, *state, *windowData, args)
+		SaveState(stateHelper, *state, dummyMsg, *windowData, args)
 	}
 	// Check window and state
 	stateReaded, windowReaded := GetLastValidState(stateHelper)
@@ -515,6 +533,7 @@ func BreakFile(t *testing.T, filePath string) {
 	}
 	fileWr.Truncate(0)
 	fileWr.WriteString(newContent)
+	fileWr.Sync()
 	fileWr.Close()
 }
 
@@ -541,6 +560,7 @@ func MakeTimeStampBigger(t *testing.T, filePath string) {
 	}
 	fileWr.Truncate(0)
 	fileWr.WriteString(newContent)
+	fileWr.Sync()
 	fileWr.Close()
 }
 

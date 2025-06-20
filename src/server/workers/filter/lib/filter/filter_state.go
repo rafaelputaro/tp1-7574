@@ -39,7 +39,7 @@ func (f *Filter) SaveDefaultStateAndSendAck(msg amqp.Delivery, clientId string, 
 	// update window
 	f.messageWindow.AddMessage(clientId, messageId)
 	// save state
-	err := state.SaveState(f.stateHelperDefault, "", *f.messageWindow, FilterDefaultUpdateArgs{
+	err := state.SaveState(f.stateHelperDefault, "", msg, *f.messageWindow, FilterDefaultUpdateArgs{
 		ClientId:  clientId,
 		MessageId: messageId,
 	})
@@ -48,7 +48,8 @@ func (f *Filter) SaveDefaultStateAndSendAck(msg amqp.Delivery, clientId string, 
 		return err
 	}
 	// send ack
-	return f.sendAck(msg)
+	return nil
+	//return f.sendAck(msg)
 }
 
 // Refresh the window, save the state and send the ack
@@ -56,7 +57,7 @@ func (f *Filter) SaveDefaultStateAndSendAckCoordinator(coordinator *coordinator.
 	// update window
 	f.messageWindow.AddMessage(clientId, messageId)
 	// save state
-	err := state.SaveState(f.stateHelperDefault, "", *f.messageWindow, FilterDefaultUpdateArgs{
+	err := state.SaveStateNoMsg(f.stateHelperDefault, "", *f.messageWindow, FilterDefaultUpdateArgs{
 		ClientId:  clientId,
 		MessageId: messageId,
 	})

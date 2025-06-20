@@ -222,7 +222,7 @@ func (rr *ReportRegistry) DoneAnswer(clientID string) {
 	}
 
 	// Save the incremental update
-	_ = state.SaveState(rr.stateHelper, reportState, rr.messageWindow, updateArgs)
+	_ = state.SaveStateNoMsg(rr.stateHelper, reportState, rr.messageWindow, updateArgs)
 }
 
 // AddToAnswer1 adds a movie entry to answer 1
@@ -257,7 +257,7 @@ func (rr *ReportRegistry) AddToAnswer1(clientID string, entry *pb.MovieEntry) {
 	}
 
 	// Save the incremental update
-	_ = state.SaveState(rr.stateHelper, reportState, rr.messageWindow, updateArgs)
+	_ = state.SaveStateNoMsg(rr.stateHelper, reportState, rr.messageWindow, updateArgs)
 }
 
 // AddAnswer2 adds country data to answer 2
@@ -285,7 +285,7 @@ func (rr *ReportRegistry) AddAnswer2(clientID string, answer2 *pb.Answer2) {
 	}
 
 	// Save the incremental update
-	_ = state.SaveState(rr.stateHelper, reportState, rr.messageWindow, updateArgs)
+	_ = state.SaveStateNoMsg(rr.stateHelper, reportState, rr.messageWindow, updateArgs)
 }
 
 // AddAnswer3 adds rating data to answer 3
@@ -313,7 +313,7 @@ func (rr *ReportRegistry) AddAnswer3(clientID string, answer3 *pb.Answer3) {
 	}
 
 	// Save the incremental update
-	_ = state.SaveState(rr.stateHelper, reportState, rr.messageWindow, updateArgs)
+	_ = state.SaveStateNoMsg(rr.stateHelper, reportState, rr.messageWindow, updateArgs)
 }
 
 // AddAnswer4 adds actor data to answer 4
@@ -341,7 +341,7 @@ func (rr *ReportRegistry) AddAnswer4(clientID string, answer4 *pb.Answer4) {
 	}
 
 	// Save the incremental update
-	_ = state.SaveState(rr.stateHelper, reportState, rr.messageWindow, updateArgs)
+	_ = state.SaveStateNoMsg(rr.stateHelper, reportState, rr.messageWindow, updateArgs)
 }
 
 // AddAnswer5 adds sentiment data to answer 5
@@ -369,7 +369,7 @@ func (rr *ReportRegistry) AddAnswer5(clientID string, answer5 *pb.Answer5) {
 	}
 
 	// Save the incremental update
-	_ = state.SaveState(rr.stateHelper, reportState, rr.messageWindow, updateArgs)
+	_ = state.SaveStateNoMsg(rr.stateHelper, reportState, rr.messageWindow, updateArgs)
 }
 
 // Used to generate unique IDs for messages

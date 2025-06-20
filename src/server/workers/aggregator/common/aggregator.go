@@ -214,6 +214,7 @@ func (aggregator *Aggregator) aggregateMovies() {
 					aggregator.Log.Infof("[client_id:%s] sent eof marker", clientID)
 				}
 				aggregator.SaveMoviesStateAndSendAck(*aggregatorState, msg, clientID, true, *movie.MessageId)
+				state.Synch(aggregator.StateHelperMovies)
 			} else {
 				aggregator.Log.Debugf("[client_id:%s] accepted: %s (%d)", movie.GetClientId(), movie.GetTitle(), movie.GetReleaseYear())
 				aggregator.publishData(msg.Body)
@@ -317,6 +318,7 @@ func (a *Aggregator) aggregateTop5() {
 			// TODO: clean map from client
 			//rabbitmq.SingleAck(msg)
 			a.SaveTop5StateAndSendAck(*aggregatorState, msg, clientID, 0, "", true, *movie.MessageId)
+			state.Synch(a.StateHelperTop5)
 			continue
 		} else if movie.GetBudget() > 0 {
 			a.Log.Debugf("[client_id:%s] received: %v", clientID, &movie)

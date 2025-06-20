@@ -205,6 +205,7 @@ func (aggregator *Aggregator) SaveMoviesStateAndSendAck(aggregatorState Aggregat
 	err := state.SaveState(
 		aggregator.StateHelperMovies,
 		aggregatorState,
+		msg,
 		*aggregator.Window,
 		AggregatorMoviesUpdateArgs{
 			ClientId:  clientId,
@@ -217,7 +218,8 @@ func (aggregator *Aggregator) SaveMoviesStateAndSendAck(aggregatorState Aggregat
 		return err
 	}
 	// send ack
-	return aggregator.sendAck(msg)
+	//return aggregator.sendAck(msg)
+	return nil
 }
 
 // Refresh the window, save the state and send the ack
@@ -228,6 +230,7 @@ func (aggregator *Aggregator) SaveTop5StateAndSendAck(aggregatorState Aggregator
 	err := state.SaveState(
 		aggregator.StateHelperTop5,
 		aggregatorState,
+		msg,
 		*aggregator.Window,
 		AggregatorTop5UpdateArgs{
 			ClientId:          clientId,
@@ -242,7 +245,8 @@ func (aggregator *Aggregator) SaveTop5StateAndSendAck(aggregatorState Aggregator
 		return err
 	}
 	// send ack
-	return aggregator.sendAck(msg)
+	//return aggregator.sendAck(msg)
+	return nil
 }
 
 func (aggregator *Aggregator) DisposeStateHelpers() {
