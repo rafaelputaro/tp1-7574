@@ -20,7 +20,14 @@ type SynchWriter[TAckArgs any] struct {
 	filePath    string
 }
 
-func NewSynchWriter[TAckArgs any](fileDesc *os.File, filePath string) *SynchWriter[TAckArgs] {
+func NewSynchWriter[TAckArgs any]( /*fileDesc *os.File,*/ filePath string) *SynchWriter[TAckArgs] {
+	logger := logging.MustGetLogger(MODULE_NAME)
+	// Open the state file for appending and writing
+	fileDesc, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+	if err != nil {
+		logger.Errorf(MSG_FAILED_TO_OPEN_STATE_FILE, err)
+		return nil
+	}
 	return &SynchWriter[TAckArgs]{
 		fileDesc:    fileDesc,
 		timeToSynch: generateExpirationDate(),
@@ -31,7 +38,14 @@ func NewSynchWriter[TAckArgs any](fileDesc *os.File, filePath string) *SynchWrit
 }
 
 func (writer *SynchWriter[TAckArgs]) Dispose(sendAck func(TAckArgs) error) {
+	logger := logging.MustGetLogger(MODULE_NAME)
 	writer.Synch(sendAck)
+	if err := writer.fileDesc.Close(); err != nil {
+		logger.Errorf(MSG_FAILED_ON_CLOSE_FILE, writer.filePath, err)
+	} else {
+		logger.Debugf(MSG_FILE_CLOSED, writer.filePath)
+		writer.fileDesc = nil
+	}
 }
 
 // Write on buffer and try to synchronization with disk and try to send ack

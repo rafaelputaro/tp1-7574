@@ -51,10 +51,6 @@ const MSG_CLEAN_FILES_ON_START = "Clean files on start"
 
 // StateHelper is a struct that helps manage state files for different modules with Id's.
 type StateHelper[TState any, TUpdateArgs any, TAckArgs any] struct {
-	filePath    string // Path to the state file
-	auxFilePath string // Path to the auxiliary state file
-	//fileDescStateWriter    *os.File // File descriptor for writing to the state file
-	//auxFileDescStateWriter *os.File // File descriptor for writing to the auxiliary file
 	stateOriginalWr *SynchWriter[TAckArgs]
 	stateAuxWr      *SynchWriter[TAckArgs]
 	countStates     int // Counter to keep track of the number of states written to the state file
@@ -102,7 +98,6 @@ func tryCleanFilesOnStart(filePath string, auxFilePath string) {
 		defer fileState.Close()
 		// Truncate the file
 		cleanFile(fileState, filePath)
-
 		// open file aux
 		fileAux, err := os.OpenFile(auxFilePath, os.O_RDWR, 0666)
 		if err != nil {
@@ -150,23 +145,9 @@ func NewStateHelper[TState any, TUpdateArgs any, TAckArgs any](id string, module
 	tryCleanFilesOnStart(filePath, auxFilePath)
 	// Reload from files
 	state, countStates, _ := loadLastValidState(filePath, auxFilePath, updateState)
-	// Open the state file for appending and writing
-	fileStateWr, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
-	if err != nil {
-		logger.Errorf(MSG_FAILED_TO_OPEN_STATE_FILE, err)
-		return nil
-	}
-	// Open the auxiliary state file for appending and writing
-	auxFileWr, err := os.OpenFile(auxFilePath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
-	if err != nil {
-		logger.Errorf(MSG_FAILED_TO_OPEN_STATE_FILE, err)
-		return nil
-	}
 	return &StateHelper[TState, TUpdateArgs, TAckArgs]{
-		filePath:        filePath,
-		auxFilePath:     auxFilePath,
-		stateOriginalWr: NewSynchWriter[TAckArgs](fileStateWr, filePath),
-		stateAuxWr:      NewSynchWriter[TAckArgs](auxFileWr, auxFilePath),
+		stateOriginalWr: NewSynchWriter[TAckArgs]( /*fileStateWr,*/ filePath),
+		stateAuxWr:      NewSynchWriter[TAckArgs]( /*auxFileWr,*/ auxFilePath),
 		lastValidState:  state,
 		countStates:     countStates,
 	}
@@ -176,23 +157,9 @@ func NewStateHelper[TState any, TUpdateArgs any, TAckArgs any](id string, module
 func (stateHelper *StateHelper[TState, TUpdateArgs, TAckArgs]) Dispose(sendAck func(TAckArgs) error) {
 	logger := logging.MustGetLogger(MODULE_NAME)
 	stateHelper.stateOriginalWr.Dispose(sendAck)
-	if err := stateHelper.stateOriginalWr.fileDesc.Close(); err != nil {
-		logger.Errorf(MSG_FAILED_ON_CLOSE_FILE, stateHelper.filePath, err)
-	} else {
-		logger.Debugf(MSG_FILE_CLOSED, stateHelper.filePath)
-		stateHelper.stateOriginalWr.fileDesc = nil
-	}
 	stateHelper.stateAuxWr.Dispose(sendAck)
-	if err := stateHelper.stateAuxWr.fileDesc.Close(); err != nil {
-		logger.Errorf(MSG_FAILED_ON_CLOSE_FILE, stateHelper.auxFilePath, err)
-	} else {
-		logger.Debugf(MSG_FILE_CLOSED, stateHelper.auxFilePath)
-		stateHelper.stateAuxWr.fileDesc = nil
-	}
-	logger.Debugf(MSG_DISPOSE, stateHelper.filePath, stateHelper.auxFilePath)
+	logger.Debugf(MSG_DISPOSE, stateHelper.stateOriginalWr.filePath, stateHelper.stateAuxWr.filePath)
 	stateHelper.countStates = 0
-	stateHelper.filePath = ""
-	stateHelper.auxFilePath = ""
 	stateHelper.lastValidState = nil
 }
 
@@ -367,20 +334,13 @@ func tryToSaveCompleteStateOnStateNull[TState any, TUpdateArgs any, TAckArgs any
 		stateHelper.countStates++
 		stateHelper.lastValidState = &completeState
 		// Save on file
-
 		encodedState, err := json.Marshal(completeState)
 		if err != nil {
 			logger.Errorf(MSG_ERROR_ENCODING_STATE, err)
 			return false, err
 		}
-		/*
-			if _, err := stateHelper.fileDescStateWriter.WriteString(string(encodedState) + "\n"); err != nil {
-				logger.Errorf(MSG_FAILED_TO_WRITE_STATE, stateHelper.filePath, err)
-				return false, err
-			}
-		*/
 		if err := stateHelper.stateOriginalWr.WriteNoMsg(sendAck, encodedState); err != nil {
-			logger.Errorf(MSG_FAILED_TO_WRITE_STATE, stateHelper.filePath, err)
+			logger.Errorf(MSG_FAILED_TO_WRITE_STATE, stateHelper.stateOriginalWr.filePath, err)
 			return false, err
 		}
 		logger.Debugf(MSG_COMPLETE_STATE_SAVED_ON_START)
@@ -392,11 +352,6 @@ func tryToSaveCompleteStateOnStateNull[TState any, TUpdateArgs any, TAckArgs any
 // encodes the provided updateArgs into JSON format and writes it to the state file.
 func tryToSaveUpdateArgs[TState any, TUpdateArgs any, TAckArgs any](stateHelper *StateHelper[TState, TUpdateArgs, TAckArgs], state TState, msg TAckArgs, sendAck func(TAckArgs) error, messageWindow window.MessageWindow, updateArgs TUpdateArgs) error {
 	logger := logging.MustGetLogger(MODULE_NAME)
-	/*
-		if stateHelper.fileDescStateWriter == nil {
-			logger.Warningf("%s: %v", MSG_NO_FILEDESC_AVAILABLE, stateHelper.filePath)
-			return errors.New(strings.ToLower(MSG_NO_FILEDESC_AVAILABLE))
-		}*/
 	operationState := DataToSave[TState, TUpdateArgs]{
 		UpdateArgs:      updateArgs,
 		TimeStamp:       time.Now().UTC().Format(LAYOUT_TIMESTAMP),
@@ -409,15 +364,9 @@ func tryToSaveUpdateArgs[TState any, TUpdateArgs any, TAckArgs any](stateHelper 
 	}
 
 	if err := stateHelper.stateOriginalWr.Write(msg, sendAck, encodedState); err != nil {
-		logger.Errorf(MSG_FAILED_TO_WRITE_UPDATE_ARGS, stateHelper.filePath, err)
+		logger.Errorf(MSG_FAILED_TO_WRITE_UPDATE_ARGS, stateHelper.stateOriginalWr.filePath, err)
 		return err
 	}
-
-	/*
-		if _, err := stateHelper.fileDescStateWriter.WriteString(string(encodedState) + "\n"); err != nil {
-			logger.Errorf(MSG_FAILED_TO_WRITE_UPDATE_ARGS, stateHelper.filePath, err)
-			return err
-		}*/
 	// Update state helper
 	completeState := DataToSave[TState, TUpdateArgs]{
 		State:           state,
@@ -434,11 +383,6 @@ func tryToSaveUpdateArgs[TState any, TUpdateArgs any, TAckArgs any](stateHelper 
 // encodes the provided updateArgs into JSON format and writes it to the state file.
 func tryToSaveUpdateArgsNoMsg[TState any, TUpdateArgs any, TAckArgs any](stateHelper *StateHelper[TState, TUpdateArgs, TAckArgs], state TState, sendAck func(TAckArgs) error, messageWindow window.MessageWindow, updateArgs TUpdateArgs) error {
 	logger := logging.MustGetLogger(MODULE_NAME)
-	/*
-		if stateHelper.fileDescStateWriter == nil {
-			logger.Warningf("%s: %v", MSG_NO_FILEDESC_AVAILABLE, stateHelper.filePath)
-			return errors.New(strings.ToLower(MSG_NO_FILEDESC_AVAILABLE))
-		}*/
 	operationState := DataToSave[TState, TUpdateArgs]{
 		UpdateArgs:      updateArgs,
 		TimeStamp:       time.Now().UTC().Format(LAYOUT_TIMESTAMP),
@@ -449,17 +393,10 @@ func tryToSaveUpdateArgsNoMsg[TState any, TUpdateArgs any, TAckArgs any](stateHe
 		logger.Errorf(MSG_ERROR_ENCODING_UPDATE_ARGS, err)
 		return err
 	}
-
 	if err := stateHelper.stateOriginalWr.WriteNoMsg(sendAck, encodedState); err != nil {
-		logger.Errorf(MSG_FAILED_TO_WRITE_UPDATE_ARGS, stateHelper.filePath, err)
+		logger.Errorf(MSG_FAILED_TO_WRITE_UPDATE_ARGS, stateHelper.stateOriginalWr.filePath, err)
 		return err
 	}
-
-	/*
-		if _, err := stateHelper.fileDescStateWriter.WriteString(string(encodedState) + "\n"); err != nil {
-			logger.Errorf(MSG_FAILED_TO_WRITE_UPDATE_ARGS, stateHelper.filePath, err)
-			return err
-		}*/
 	// Update state helper
 	completeState := DataToSave[TState, TUpdateArgs]{
 		State:           state,
@@ -492,7 +429,6 @@ func (stateHelper *StateHelper[TState, TOperation, TAckArgs]) tryCleanFile(sendA
 		return
 	}
 	// clean auxiliary file
-	//cleanFile(stateHelper.auxFileDescStateWriter, stateHelper.auxFilePath)
 	stateHelper.stateAuxWr.CleanFileSynch(sendAck)
 	// save last state on auxiliary
 	encodedState, err := json.Marshal(stateHelper.lastValidState)
@@ -501,27 +437,14 @@ func (stateHelper *StateHelper[TState, TOperation, TAckArgs]) tryCleanFile(sendA
 		return
 	}
 	if err := stateHelper.stateAuxWr.WriteSyncNoMsg(sendAck, encodedState); err != nil {
-		logger.Errorf(MSG_FAILED_TO_WRITE_STATE, stateHelper.auxFilePath, err)
+		logger.Errorf(MSG_FAILED_TO_WRITE_STATE, stateHelper.stateAuxWr.filePath, err)
 		return
 	}
-	/*
-		if _, err := stateHelper.auxFileDescStateWriter.WriteString(string(encodedState) + "\n"); err != nil {
-			logger.Errorf(MSG_FAILED_TO_WRITE_STATE, stateHelper.auxFilePath, err)
-			return
-		}
-	*/
 	// clean state file
-	//cleanFile(stateHelper.fileDescStateWriter, stateHelper.filePath)
 	stateHelper.stateOriginalWr.CleanFileSynch(sendAck)
 	// write the last valid state on state file
-	/*
-		if _, err := stateHelper.fileDescStateWriter.WriteString(string(encodedState) + "\n"); err != nil {
-			logger.Errorf(MSG_FAILED_TO_WRITE_STATE, stateHelper.filePath, err)
-			return
-		}
-	*/
 	if err := stateHelper.stateOriginalWr.WriteSyncNoMsg(sendAck, encodedState); err != nil {
-		logger.Errorf(MSG_FAILED_TO_WRITE_STATE, stateHelper.filePath, err)
+		logger.Errorf(MSG_FAILED_TO_WRITE_STATE, stateHelper.stateOriginalWr.filePath, err)
 		return
 	}
 	stateHelper.countStates = 1
