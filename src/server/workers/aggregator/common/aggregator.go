@@ -55,11 +55,11 @@ type Aggregator struct {
 	Connection              *amqp.Connection
 	Config                  AggregatorConfig
 	Log                     *logging.Logger
-	StateHelperMovies       *state.StateHelper[AggregatorMoviesState, AggregatorMoviesUpdateArgs]
-	StateHelperTop5         *state.StateHelper[AggregatorTop5State, AggregatorTop5UpdateArgs]
-	StateHelperTop10        *state.StateHelper[AggregatorTop10State, AggregatorTop10UpdateArgs]
-	StateHelperTopAndBottom *state.StateHelper[AggregatorTopAndBottomState, AggregatorTopAndBottomUpdateArgs]
-	StateHelperMetrics      *state.StateHelper[AggregatorMetricsState, AggregatorMetricsUpdateArgs]
+	StateHelperMovies       *state.StateHelper[AggregatorMoviesState, AggregatorMoviesUpdateArgs, AckArgs]
+	StateHelperTop5         *state.StateHelper[AggregatorTop5State, AggregatorTop5UpdateArgs, AckArgs]
+	StateHelperTop10        *state.StateHelper[AggregatorTop10State, AggregatorTop10UpdateArgs, AckArgs]
+	StateHelperTopAndBottom *state.StateHelper[AggregatorTopAndBottomState, AggregatorTopAndBottomUpdateArgs, AckArgs]
+	StateHelperMetrics      *state.StateHelper[AggregatorMetricsState, AggregatorMetricsUpdateArgs, AckArgs]
 	Window                  *window.MessageWindow
 }
 
@@ -214,7 +214,7 @@ func (aggregator *Aggregator) aggregateMovies() {
 					aggregator.Log.Infof("[client_id:%s] sent eof marker", clientID)
 				}
 				aggregator.SaveMoviesStateAndSendAck(*aggregatorState, msg, clientID, true, *movie.MessageId)
-				state.Synch(aggregator.StateHelperMovies)
+				state.Synch(aggregator.StateHelperMovies, SendAck)
 			} else {
 				aggregator.Log.Debugf("[client_id:%s] accepted: %s (%d)", movie.GetClientId(), movie.GetTitle(), movie.GetReleaseYear())
 				aggregator.publishData(msg.Body)
@@ -318,7 +318,7 @@ func (a *Aggregator) aggregateTop5() {
 			// TODO: clean map from client
 			//rabbitmq.SingleAck(msg)
 			a.SaveTop5StateAndSendAck(*aggregatorState, msg, clientID, 0, "", true, *movie.MessageId)
-			state.Synch(a.StateHelperTop5)
+			state.Synch(a.StateHelperTop5, SendAck)
 			continue
 		} else if movie.GetBudget() > 0 {
 			a.Log.Debugf("[client_id:%s] received: %v", clientID, &movie)

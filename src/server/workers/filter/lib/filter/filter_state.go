@@ -5,11 +5,16 @@ import (
 	"tp1/coordinator"
 	"tp1/helpers/state"
 	"tp1/helpers/window"
+	"tp1/rabbitmq"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 const MESSAGE_FAILED_TO_CREATE_STATE_HELPER string = "Failed to create state helper"
+
+type AckArgs struct {
+	msg amqp.Delivery
+}
 
 type FilterDefaultState string
 
@@ -18,9 +23,18 @@ type FilterDefaultUpdateArgs struct {
 	ClientId  string
 }
 
+func SendAck(args AckArgs) error {
+	err := rabbitmq.SingleAck(args.msg)
+	if err != nil {
+		//Log.Fatalf("failed to ack message: %v", err)
+		return err
+	}
+	return nil
+}
+
 // Return the state helpers and the window
 func (f *Filter) InitStateHelperDefault() {
-	stateHelper := state.NewStateHelper(strconv.Itoa(f.config.ID), f.config.Type, strconv.Itoa(f.config.Shards), UpdateFilterDefault)
+	stateHelper := state.NewStateHelper[FilterDefaultState, FilterDefaultUpdateArgs, AckArgs](strconv.Itoa(f.config.ID), f.config.Type, strconv.Itoa(f.config.Shards), UpdateFilterDefault)
 	if stateHelper == nil {
 		f.log.Fatalf(MESSAGE_FAILED_TO_CREATE_STATE_HELPER)
 	}
@@ -39,10 +53,15 @@ func (f *Filter) SaveDefaultStateAndSendAck(msg amqp.Delivery, clientId string, 
 	// update window
 	f.messageWindow.AddMessage(clientId, messageId)
 	// save state
-	err := state.SaveState(f.stateHelperDefault, "", msg, *f.messageWindow, FilterDefaultUpdateArgs{
-		ClientId:  clientId,
-		MessageId: messageId,
-	})
+	err := state.SaveState(
+		f.stateHelperDefault,
+		"",
+		AckArgs{msg: msg},
+		SendAck,
+		*f.messageWindow, FilterDefaultUpdateArgs{
+			ClientId:  clientId,
+			MessageId: messageId,
+		})
 	if err != nil {
 		f.log.Fatalf("Unable to save state")
 		return err
@@ -57,7 +76,7 @@ func (f *Filter) SaveDefaultStateAndSendAckCoordinator(coordinator *coordinator.
 	// update window
 	f.messageWindow.AddMessage(clientId, messageId)
 	// save state
-	err := state.SaveStateNoMsg(f.stateHelperDefault, "", *f.messageWindow, FilterDefaultUpdateArgs{
+	err := state.SaveStateNoMsg(f.stateHelperDefault, "", SendAck, *f.messageWindow, FilterDefaultUpdateArgs{
 		ClientId:  clientId,
 		MessageId: messageId,
 	})
@@ -73,6 +92,6 @@ func (f *Filter) SaveDefaultStateAndSendAckCoordinator(coordinator *coordinator.
 
 func (f *Filter) DisposeStateHelpers() {
 	if f.stateHelperDefault != nil {
-		f.stateHelperDefault.Dispose()
+		f.stateHelperDefault.Dispose(SendAck)
 	}
 }

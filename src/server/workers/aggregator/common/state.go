@@ -3,6 +3,7 @@ package common
 import (
 	"tp1/helpers/state"
 	"tp1/helpers/window"
+	"tp1/rabbitmq"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -10,6 +11,10 @@ import (
 const DEFAULT_UNIQUE_SHARD string = ""
 const MESSAGE_FAILED_TO_CREATE_STATE_HELPER string = "Failed to create state helper"
 const MESSAGE_UNABLE_TO_SAVE_STATE string = "Unable to save state"
+
+type AckArgs struct {
+	msg amqp.Delivery
+}
 
 type AggregatorMoviesState struct {
 	AmountEOF map[string]int
@@ -54,6 +59,15 @@ type AggregatorMetricsUpdateArgs struct {
 	ClientId  string
 }
 
+func SendAck(args AckArgs) error {
+	err := rabbitmq.SingleAck(args.msg)
+	if err != nil {
+		Log.Fatalf("failed to ack message: %v", err)
+		return err
+	}
+	return nil
+}
+
 // Create a state from file or from scratch. Also return the window
 func (aggregator *Aggregator) CreateAggregatorMoviesState() *AggregatorMoviesState {
 	aggregatorState, _ := state.GetLastValidState(aggregator.StateHelperMovies)
@@ -78,7 +92,7 @@ func (aggregator *Aggregator) CreateAggregatorTop5State() *AggregatorTop5State {
 
 // Return the state helpers and the window
 func (aggregator *Aggregator) InitStateHelperMovie() {
-	stateHelper := state.NewStateHelper(
+	stateHelper := state.NewStateHelper[AggregatorMoviesState, AggregatorMoviesUpdateArgs, AckArgs](
 		aggregator.Config.ID,
 		aggregator.Config.AggregatorType,
 		DEFAULT_UNIQUE_SHARD,
@@ -94,7 +108,7 @@ func (aggregator *Aggregator) InitStateHelperMovie() {
 
 // Return the state helpers and the window
 func (aggregator *Aggregator) InitStateHelperTop5() {
-	stateHelper := state.NewStateHelper(
+	stateHelper := state.NewStateHelper[AggregatorTop5State, AggregatorTop5UpdateArgs, AckArgs](
 		aggregator.Config.ID,
 		aggregator.Config.AggregatorType,
 		DEFAULT_UNIQUE_SHARD,
@@ -110,7 +124,7 @@ func (aggregator *Aggregator) InitStateHelperTop5() {
 
 // Return the state helpers and the window
 func (aggregator *Aggregator) InitiStateHelperTop10() {
-	stateHelper := state.NewStateHelper(
+	stateHelper := state.NewStateHelper[AggregatorTop10State, AggregatorTop10UpdateArgs, AckArgs](
 		aggregator.Config.ID,
 		aggregator.Config.AggregatorType,
 		DEFAULT_UNIQUE_SHARD,
@@ -126,7 +140,7 @@ func (aggregator *Aggregator) InitiStateHelperTop10() {
 
 // Return the state helpers and the window
 func (aggregator *Aggregator) InitiStateHelperTopAndBottom() {
-	stateHelper := state.NewStateHelper(
+	stateHelper := state.NewStateHelper[AggregatorTopAndBottomState, AggregatorTopAndBottomUpdateArgs, AckArgs](
 		aggregator.Config.ID,
 		aggregator.Config.AggregatorType,
 		DEFAULT_UNIQUE_SHARD,
@@ -142,7 +156,7 @@ func (aggregator *Aggregator) InitiStateHelperTopAndBottom() {
 
 // Return the state helpers and the window
 func (aggregator *Aggregator) InitiStateHelperMetrics() {
-	stateHelper := state.NewStateHelper(
+	stateHelper := state.NewStateHelper[AggregatorMetricsState, AggregatorMetricsUpdateArgs, AckArgs](
 		aggregator.Config.ID,
 		aggregator.Config.AggregatorType,
 		DEFAULT_UNIQUE_SHARD,
@@ -205,7 +219,10 @@ func (aggregator *Aggregator) SaveMoviesStateAndSendAck(aggregatorState Aggregat
 	err := state.SaveState(
 		aggregator.StateHelperMovies,
 		aggregatorState,
-		msg,
+		AckArgs{
+			msg: msg,
+		},
+		SendAck,
 		*aggregator.Window,
 		AggregatorMoviesUpdateArgs{
 			ClientId:  clientId,
@@ -230,7 +247,10 @@ func (aggregator *Aggregator) SaveTop5StateAndSendAck(aggregatorState Aggregator
 	err := state.SaveState(
 		aggregator.StateHelperTop5,
 		aggregatorState,
-		msg,
+		AckArgs{
+			msg: msg,
+		},
+		SendAck,
 		*aggregator.Window,
 		AggregatorTop5UpdateArgs{
 			ClientId:          clientId,
@@ -251,18 +271,18 @@ func (aggregator *Aggregator) SaveTop5StateAndSendAck(aggregatorState Aggregator
 
 func (aggregator *Aggregator) DisposeStateHelpers() {
 	if aggregator.StateHelperMovies != nil {
-		aggregator.StateHelperMovies.Dispose()
+		aggregator.StateHelperMovies.Dispose(SendAck)
 	}
 	if aggregator.StateHelperTop5 != nil {
-		aggregator.StateHelperTop5.Dispose()
+		aggregator.StateHelperTop5.Dispose(SendAck)
 	}
 	if aggregator.StateHelperTop10 != nil {
-		aggregator.StateHelperTop10.Dispose()
+		aggregator.StateHelperTop10.Dispose(SendAck)
 	}
 	if aggregator.StateHelperTopAndBottom != nil {
-		aggregator.StateHelperTopAndBottom.Dispose()
+		aggregator.StateHelperTopAndBottom.Dispose(SendAck)
 	}
 	if aggregator.StateHelperMetrics != nil {
-		aggregator.StateHelperMetrics.Dispose()
+		aggregator.StateHelperMetrics.Dispose(SendAck)
 	}
 }

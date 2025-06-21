@@ -3,10 +3,8 @@ package state
 import (
 	"os"
 	"time"
-	"tp1/rabbitmq"
 
 	"github.com/op/go-logging"
-	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 const TIMEOUT = 1 * time.Second
@@ -14,67 +12,65 @@ const MESSAGE_FAILED_TO_SEND_ACK string = "failed to ack message: %v"
 const MESSAGE_FAILED_TO_SYNCH string = "Failed to sync with disk: %v"
 const MESSAGE_SUCCESS_SYNCH string = "Successful synchronization"
 
-var SendAck func(msg amqp.Delivery) error = rabbitmq.SingleAck
-
-type SynchWriter struct {
-	fileDesc    *os.File        // File descriptor for writing to the state file
-	timeToSynch string          // Expiration date
-	messages    []amqp.Delivery // Messages waiting for ack
+type SynchWriter[TAckArgs any] struct {
+	fileDesc    *os.File   // File descriptor for writing to the state file
+	timeToSynch string     // Expiration date
+	messages    []TAckArgs // Messages waiting for ack
 	buffer      string
 	filePath    string
 }
 
-func NewSynchWriter(fileDesc *os.File, filePath string) *SynchWriter {
-	return &SynchWriter{
+func NewSynchWriter[TAckArgs any](fileDesc *os.File, filePath string) *SynchWriter[TAckArgs] {
+	return &SynchWriter[TAckArgs]{
 		fileDesc:    fileDesc,
 		timeToSynch: generateExpirationDate(),
-		messages:    make([]amqp.Delivery, 0),
+		messages:    make([]TAckArgs, 0),
 		buffer:      "",
 		filePath:    filePath,
 	}
 }
 
-func (writer *SynchWriter) Dispose() {
-	writer.Synch()
+func (writer *SynchWriter[TAckArgs]) Dispose(sendAck func(TAckArgs) error) {
+	writer.Synch(sendAck)
 }
 
 // Write on buffer and try to synchronization with disk and try to send ack
-func (writer *SynchWriter) Write(msg amqp.Delivery, encodedData []byte) error {
+func (writer *SynchWriter[TAckArgs]) Write(msg TAckArgs, sendAck func(TAckArgs) error, encodedData []byte) error {
 	writer.appendToBuffer(msg, encodedData)
-	return writer.trySync()
+	return writer.trySync(sendAck)
 }
 
 // Write on buffer and try to synchronization with disk and try to send ack
-func (writer *SynchWriter) WriteNoMsg(encodedData []byte) error {
+func (writer *SynchWriter[TAckArgs]) WriteNoMsg(sendAck func(TAckArgs) error, encodedData []byte) error {
 	writer.appendToBufferNoMsg(encodedData)
-	return writer.trySync()
+	return writer.trySync(sendAck)
 }
 
 // Write on buffer and force synchronization with disk and the ack sending
-func (writer *SynchWriter) WriteSync(msg amqp.Delivery, encodedData []byte) error {
+func (writer *SynchWriter[TAckArgs]) WriteSync(msg TAckArgs, sendAck func(TAckArgs) error, encodedData []byte) error {
 	writer.appendToBuffer(msg, encodedData)
-	return writer.Synch()
+	return writer.Synch(sendAck)
 }
 
 // Write on buffer and force synchronization with disk and the ack sending
-func (writer *SynchWriter) WriteSyncNoMsg(encodedData []byte) error {
+func (writer *SynchWriter[TAckArgs]) WriteSyncNoMsg(sendAck func(TAckArgs) error, encodedData []byte) error {
 	writer.appendToBufferNoMsg(encodedData)
-	return writer.Synch()
+	return writer.Synch(sendAck)
 }
 
 // Force synchronization with disk
-func (writer *SynchWriter) Synch() error {
-	return writer.writeAndSendAcks()
+func (writer *SynchWriter[TAckArgs]) Synch(sendAck func(TAckArgs) error) error {
+	return writer.writeAndSendAcks(sendAck)
 }
 
 // Append the encoded data (<json>) to the buffer and the message to the list
-func (writer *SynchWriter) appendToBuffer(msg amqp.Delivery, encodedData []byte) {
+func (writer *SynchWriter[TAckArgs]) appendToBuffer(msg TAckArgs, encodedData []byte) {
 	writer.messages = append(writer.messages, msg)
 	writer.buffer = writer.buffer + string(encodedData) + "\n"
 }
 
 // Append the encoded data (<json>) to the buffer
-func (writer *SynchWriter) appendToBufferNoMsg(encodedData []byte) {
+func (writer *SynchWriter[TAckArgs]) appendToBufferNoMsg(encodedData []byte) {
 	writer.buffer = writer.buffer + string(encodedData) + "\n"
 }
 
@@ -83,7 +79,7 @@ func generateExpirationDate() string {
 }
 
 // If it's time to sync do it
-func (writer *SynchWriter) trySync() error {
+func (writer *SynchWriter[TAckArgs]) trySync(sendAck func(TAckArgs) error) error {
 	if len(writer.messages) == 0 {
 		return nil
 	}
@@ -93,13 +89,13 @@ func (writer *SynchWriter) trySync() error {
 	}
 	now := time.Now().UTC()
 	if t.Before(now) {
-		return writer.writeAndSendAcks()
+		return writer.writeAndSendAcks(sendAck)
 	}
 	return nil
 }
 
 // Write buffer on file, synch and send acks
-func (writer *SynchWriter) writeAndSendAcks() error {
+func (writer *SynchWriter[TAckArgs]) writeAndSendAcks(sendAck func(TAckArgs) error) error {
 	logger := logging.MustGetLogger(MODULE_NAME)
 	if _, err := writer.fileDesc.WriteString(string(writer.buffer)); err != nil {
 		logger.Errorf(MSG_FAILED_TO_WRITE_STATE, writer.filePath, err)
@@ -110,7 +106,7 @@ func (writer *SynchWriter) writeAndSendAcks() error {
 		return err
 	}
 	writer.buffer = ""
-	if err := writer.sendAcks(); err != nil {
+	if err := writer.sendAcks(sendAck); err != nil {
 		return err
 	}
 	writer.timeToSynch = generateExpirationDate()
@@ -118,26 +114,26 @@ func (writer *SynchWriter) writeAndSendAcks() error {
 	return nil
 }
 
-func (writer *SynchWriter) sendAcks() error {
+func (writer *SynchWriter[TAckArgs]) sendAcks(sendAck func(TAckArgs) error) error {
 	logger := logging.MustGetLogger(MODULE_NAME)
 	for _, msg := range writer.messages {
-		err := SendAck(msg)
+		err := sendAck(msg)
 		if err != nil {
 			logger.Fatalf(MESSAGE_FAILED_TO_SEND_ACK, err)
 			return err
 		}
 	}
-	writer.messages = make([]amqp.Delivery, 0)
+	writer.messages = make([]TAckArgs, 0)
 	return nil
 }
 
 // Clean a file and synch
-func (writer *SynchWriter) CleanFileSynch() error {
+func (writer *SynchWriter[TAckArgs]) CleanFileSynch(sendAck func(TAckArgs) error) error {
 	logger := logging.MustGetLogger(MODULE_NAME)
 	// clean buffer
 	writer.buffer = ""
 	// send acks
-	if err := writer.sendAcks(); err != nil {
+	if err := writer.sendAcks(sendAck); err != nil {
 		return err
 	}
 	// Truncate the file
