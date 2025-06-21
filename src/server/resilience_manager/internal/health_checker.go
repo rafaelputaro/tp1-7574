@@ -9,11 +9,19 @@ import (
 	"github.com/op/go-logging"
 )
 
+// Container status constants
+const (
+	StatusHealthy   = "HEALTHY"
+	StatusPending   = "PENDING"
+	StatusUnhealthy = "UNHEALTHY"
+)
+
 type ServiceStatus struct {
-	Name        string
-	Healthy     bool
-	LastChecked time.Time
-	ErrorCount  int
+	Name         string
+	Status       string // HEALTHY, PENDING, UNHEALTHY
+	LastChecked  time.Time
+	ErrorCount   int
+	PendingSince time.Time // When the service entered PENDING state
 }
 
 type HealthChecker struct {
@@ -42,9 +50,10 @@ func (h *HealthChecker) AddService(name, hostPort string, config *Config) {
 	url := fmt.Sprintf("http://%s:%d%s", hostPort, config.HealthPort, config.HealthEndpoint)
 	h.services[name] = url
 	h.serviceStatus[name] = &ServiceStatus{
-		Name:        name,
-		Healthy:     true, // Assume initially healthy
-		LastChecked: time.Now(),
+		Name:         name,
+		Status:       StatusHealthy, // Assume initially healthy
+		LastChecked:  time.Now(),
+		PendingSince: time.Time{}, // Zero time
 	}
 	h.log.Infof("Added service for health monitoring: %s at %s", name, url)
 }
@@ -78,27 +87,51 @@ func (h *HealthChecker) checkAllServices(unhealthyCh chan<- string) {
 		status := h.serviceStatus[name]
 		healthy := h.checkHealth(url)
 
-		// Previous state
-		wasHealthy := status.Healthy
+		// Get previous state for transition detection
+		previousStatus := status.Status
 
+		// Health check logic
 		if healthy {
 			if status.ErrorCount > 0 {
 				h.log.Infof("Service %s is healthy again after %d errors", name, status.ErrorCount)
 			}
 			status.ErrorCount = 0
-			status.Healthy = true
+
+			// If it was pending and now healthy, transition to healthy
+			if status.Status == StatusPending {
+				h.log.Infof("Service %s recovered from PENDING state", name)
+				status.Status = StatusHealthy
+				status.PendingSince = time.Time{} // Reset pending timestamp
+			} else if status.Status == StatusUnhealthy {
+				// Recovered directly from unhealthy without pending transition
+				h.log.Infof("Service %s recovered from UNHEALTHY state", name)
+				status.Status = StatusHealthy
+			}
 		} else {
 			status.ErrorCount++
 			h.log.Warningf("Health check failed for service %s (%d/%d failures)", name, status.ErrorCount, h.unhealthyThreshold)
 
 			if status.ErrorCount >= h.unhealthyThreshold {
-				status.Healthy = false
-
-				if wasHealthy {
+				if status.Status == StatusHealthy {
+					// Only if transitioning from HEALTHY to UNHEALTHY
 					h.log.Errorf("Service %s is now UNHEALTHY after %d consecutive failures", name, status.ErrorCount)
+					status.Status = StatusUnhealthy
 					unhealthyCh <- name
+				} else if status.Status == StatusPending {
+					// Check if service has been in PENDING state too long
+					pendingDuration := time.Since(status.PendingSince)
+					if pendingDuration > 30*time.Second { // TODO: Make configurable
+						h.log.Errorf("Service %s stuck in PENDING state for %v, marking as UNHEALTHY", name, pendingDuration)
+						status.Status = StatusUnhealthy
+						unhealthyCh <- name
+					}
 				}
 			}
+		}
+
+		// Log status transitions
+		if previousStatus != status.Status {
+			h.log.Infof("Service %s transitioned from %s to %s", name, previousStatus, status.Status)
 		}
 
 		status.LastChecked = time.Now()
@@ -128,12 +161,30 @@ func (h *HealthChecker) GetServiceStatus() map[string]*ServiceStatus {
 
 	for name, status := range h.serviceStatus {
 		result[name] = &ServiceStatus{
-			Name:        status.Name,
-			Healthy:     status.Healthy,
-			LastChecked: status.LastChecked,
-			ErrorCount:  status.ErrorCount,
+			Name:         status.Name,
+			Status:       status.Status,
+			LastChecked:  status.LastChecked,
+			ErrorCount:   status.ErrorCount,
+			PendingSince: status.PendingSince,
 		}
 	}
 
 	return result
+}
+
+// SetServicePending marks a service as pending (during restart)
+func (h *HealthChecker) SetServicePending(name string) {
+	if status, exists := h.serviceStatus[name]; exists {
+		status.Status = StatusPending
+		status.PendingSince = time.Now()
+		h.log.Infof("Service %s marked as PENDING", name)
+	}
+}
+
+// IsServiceHealthy returns whether a service is currently healthy
+func (h *HealthChecker) IsServiceHealthy(name string) bool {
+	if status, exists := h.serviceStatus[name]; exists {
+		return status.Status == StatusHealthy
+	}
+	return false
 }

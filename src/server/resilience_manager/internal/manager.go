@@ -98,11 +98,15 @@ func (r *ResilienceManager) handleUnhealthyService(ctx context.Context, serviceN
 		return
 	}
 
+	// Mark the service as pending before restart
+	r.healthChecker.SetServicePending(serviceName)
+
 	r.log.Infof("Attempting to restart unhealthy service %s (container: %s)", serviceName, serviceInfo.ContainerName)
 
 	err := r.dockerClient.RestartContainer(ctx, serviceInfo.ContainerName)
 	if err != nil {
 		r.log.Errorf("Failed to restart container %s: %v", serviceInfo.ContainerName, err)
+		// Even if restart fails, we leave it in PENDING state for the health check to detect later
 		return
 	}
 
@@ -115,6 +119,9 @@ func (r *ResilienceManager) handleUnhealthyService(ctx context.Context, serviceN
 
 	// Give the service time to start up
 	time.Sleep(r.config.RestartWaitTime)
+
+	// The health checker will update the status to HEALTHY or keep it as PENDING
+	// If it remains PENDING for too long, it will be marked UNHEALTHY
 }
 
 func (r *ResilienceManager) Stop() {
@@ -128,7 +135,20 @@ func (r *ResilienceManager) GetServiceStatuses() map[string]bool {
 	result := make(map[string]bool)
 
 	for name, status := range statuses {
-		result[name] = status.Healthy
+		// Convert three-state status to boolean for backwards compatibility
+		result[name] = status.Status == StatusHealthy
+	}
+
+	return result
+}
+
+// GetServiceDetailedStatuses returns the detailed status for each service
+func (r *ResilienceManager) GetServiceDetailedStatuses() map[string]string {
+	statuses := r.healthChecker.GetServiceStatus()
+	result := make(map[string]string)
+
+	for name, status := range statuses {
+		result[name] = status.Status
 	}
 
 	return result
