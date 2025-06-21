@@ -57,8 +57,7 @@ func (r *ResilienceManager) RegisterService(serviceName, containerName, hostPort
 	r.services[serviceName] = serviceInfo
 	r.healthChecker.AddService(serviceName, hostPort, r.config)
 
-	r.log.Infof("Registered service %s (container: %s) at %s",
-		serviceName, containerName, hostPort)
+	r.log.Infof("Registered service %s (container: %s) at %s", serviceName, containerName, hostPort)
 }
 
 func (r *ResilienceManager) Start(ctx context.Context) {
@@ -95,18 +94,15 @@ func (r *ResilienceManager) handleUnhealthyService(ctx context.Context, serviceN
 
 	// Check if service was recently restarted to avoid restart loops
 	if time.Since(serviceInfo.LastRestart) < r.config.RestartWaitTime*2 {
-		r.log.Warningf("Service %s was recently restarted, waiting before another restart",
-			serviceName)
+		r.log.Warningf("Service %s was recently restarted, waiting before another restart", serviceName)
 		return
 	}
 
-	r.log.Infof("Attempting to restart unhealthy service %s (container: %s)",
-		serviceName, serviceInfo.ContainerName)
+	r.log.Infof("Attempting to restart unhealthy service %s (container: %s)", serviceName, serviceInfo.ContainerName)
 
 	err := r.dockerClient.RestartContainer(ctx, serviceInfo.ContainerName)
 	if err != nil {
-		r.log.Errorf("Failed to restart container %s: %v",
-			serviceInfo.ContainerName, err)
+		r.log.Errorf("Failed to restart container %s: %v", serviceInfo.ContainerName, err)
 		return
 	}
 
@@ -115,8 +111,7 @@ func (r *ResilienceManager) handleUnhealthyService(ctx context.Context, serviceN
 	serviceInfo.LastRestart = time.Now()
 	r.mutex.Unlock()
 
-	r.log.Infof("Waiting %v for service %s to become healthy...",
-		r.config.RestartWaitTime, serviceName)
+	r.log.Infof("Waiting %v for service %s to become healthy...", r.config.RestartWaitTime, serviceName)
 
 	// Give the service time to start up
 	time.Sleep(r.config.RestartWaitTime)
