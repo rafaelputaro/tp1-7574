@@ -56,8 +56,7 @@ func (h *HealthChecker) StartChecking(ctx context.Context) <-chan string {
 		ticker := time.NewTicker(h.checkInterval)
 		defer ticker.Stop()
 
-		h.log.Infof("Health checker started with interval: %v, threshold: %d",
-			h.checkInterval, h.unhealthyThreshold)
+		h.log.Infof("Health checker started with interval: %v, threshold: %d", h.checkInterval, h.unhealthyThreshold)
 
 		for {
 			select {
@@ -83,26 +82,20 @@ func (h *HealthChecker) checkAllServices(unhealthyCh chan<- string) {
 		wasHealthy := status.Healthy
 
 		if healthy {
-			// Reset error count if service is healthy
 			if status.ErrorCount > 0 {
-				h.log.Infof("Service %s is healthy again after %d errors",
-					name, status.ErrorCount)
+				h.log.Infof("Service %s is healthy again after %d errors", name, status.ErrorCount)
 			}
 			status.ErrorCount = 0
 			status.Healthy = true
 		} else {
 			status.ErrorCount++
-			h.log.Warningf("Health check failed for service %s (%d/%d failures)",
-				name, status.ErrorCount, h.unhealthyThreshold)
+			h.log.Warningf("Health check failed for service %s (%d/%d failures)", name, status.ErrorCount, h.unhealthyThreshold)
 
-			// Mark as unhealthy after reaching threshold
 			if status.ErrorCount >= h.unhealthyThreshold {
 				status.Healthy = false
 
-				// Only send notification on state change from healthy to unhealthy
 				if wasHealthy {
-					h.log.Errorf("Service %s is now UNHEALTHY after %d consecutive failures",
-						name, status.ErrorCount)
+					h.log.Errorf("Service %s is now UNHEALTHY after %d consecutive failures", name, status.ErrorCount)
 					unhealthyCh <- name
 				}
 			}
