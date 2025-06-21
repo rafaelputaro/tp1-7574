@@ -146,8 +146,8 @@ func NewStateHelper[TState any, TUpdateArgs any, TAckArgs any](id string, module
 	// Reload from files
 	state, countStates, _ := loadLastValidState(filePath, auxFilePath, updateState)
 	return &StateHelper[TState, TUpdateArgs, TAckArgs]{
-		stateOriginalWr: NewSynchWriter[TAckArgs]( /*fileStateWr,*/ filePath),
-		stateAuxWr:      NewSynchWriter[TAckArgs]( /*auxFileWr,*/ auxFilePath),
+		stateOriginalWr: NewSynchWriter[TAckArgs](filePath),
+		stateAuxWr:      NewSynchWriter[TAckArgs](auxFilePath),
 		lastValidState:  state,
 		countStates:     countStates,
 	}
@@ -279,28 +279,12 @@ func readLines[TState any, TUpdateArgs any](filePath string) ([]DataToSave[TStat
 }
 
 // SaveState encodes the provided state and message window into JSON format and writes it to the state file.
-func SaveState[TState any, TUpdateArgs any, TAckArgs any](stateHelper *StateHelper[TState, TUpdateArgs, TAckArgs], state TState, msg TAckArgs, sendAck func(TAckArgs) error, messageWindow window.MessageWindow, updateArgs TUpdateArgs) error {
+func SaveState[TState any, TUpdateArgs any, TAckArgs any](stateHelper *StateHelper[TState, TUpdateArgs, TAckArgs], state TState, msg *TAckArgs, sendAck func(TAckArgs) error, messageWindow window.MessageWindow, updateArgs TUpdateArgs) error {
 	// Save Complete state
 	saved, _ := tryToSaveCompleteStateOnStateNull(stateHelper, state, sendAck, messageWindow)
 	if !saved {
 		// Save operation
 		err := tryToSaveUpdateArgs(stateHelper, state, msg, sendAck, messageWindow, updateArgs)
-		if err != nil {
-			return err
-		}
-	}
-	// Try to clean
-	stateHelper.tryCleanFile(sendAck)
-	return nil
-}
-
-// SaveState encodes the provided state and message window into JSON format and writes it to the state file.
-func SaveStateNoMsg[TState any, TUpdateArgs any, TAckArgs any](stateHelper *StateHelper[TState, TUpdateArgs, TAckArgs], state TState, sendAck func(TAckArgs) error, messageWindow window.MessageWindow, updateArgs TUpdateArgs) error {
-	// Save Complete state
-	saved, _ := tryToSaveCompleteStateOnStateNull(stateHelper, state, sendAck, messageWindow)
-	if !saved {
-		// Save operation
-		err := tryToSaveUpdateArgsNoMsg(stateHelper, state, sendAck, messageWindow, updateArgs)
 		if err != nil {
 			return err
 		}
@@ -339,7 +323,7 @@ func tryToSaveCompleteStateOnStateNull[TState any, TUpdateArgs any, TAckArgs any
 			logger.Errorf(MSG_ERROR_ENCODING_STATE, err)
 			return false, err
 		}
-		if err := stateHelper.stateOriginalWr.WriteNoMsg(sendAck, encodedState); err != nil {
+		if err := stateHelper.stateOriginalWr.Write(nil, sendAck, encodedState); err != nil {
 			logger.Errorf(MSG_FAILED_TO_WRITE_STATE, stateHelper.stateOriginalWr.filePath, err)
 			return false, err
 		}
@@ -350,7 +334,7 @@ func tryToSaveCompleteStateOnStateNull[TState any, TUpdateArgs any, TAckArgs any
 }
 
 // encodes the provided updateArgs into JSON format and writes it to the state file.
-func tryToSaveUpdateArgs[TState any, TUpdateArgs any, TAckArgs any](stateHelper *StateHelper[TState, TUpdateArgs, TAckArgs], state TState, msg TAckArgs, sendAck func(TAckArgs) error, messageWindow window.MessageWindow, updateArgs TUpdateArgs) error {
+func tryToSaveUpdateArgs[TState any, TUpdateArgs any, TAckArgs any](stateHelper *StateHelper[TState, TUpdateArgs, TAckArgs], state TState, msg *TAckArgs, sendAck func(TAckArgs) error, messageWindow window.MessageWindow, updateArgs TUpdateArgs) error {
 	logger := logging.MustGetLogger(MODULE_NAME)
 	operationState := DataToSave[TState, TUpdateArgs]{
 		UpdateArgs:      updateArgs,
@@ -364,36 +348,6 @@ func tryToSaveUpdateArgs[TState any, TUpdateArgs any, TAckArgs any](stateHelper 
 	}
 
 	if err := stateHelper.stateOriginalWr.Write(msg, sendAck, encodedState); err != nil {
-		logger.Errorf(MSG_FAILED_TO_WRITE_UPDATE_ARGS, stateHelper.stateOriginalWr.filePath, err)
-		return err
-	}
-	// Update state helper
-	completeState := DataToSave[TState, TUpdateArgs]{
-		State:           state,
-		Window:          messageWindow,
-		TimeStamp:       time.Now().UTC().Format(LAYOUT_TIMESTAMP),
-		IsCompleteState: true,
-	}
-	stateHelper.countStates++
-	stateHelper.lastValidState = &completeState
-	logger.Debugf(MSG_UPDATE_ARGS_SAVED)
-	return nil
-}
-
-// encodes the provided updateArgs into JSON format and writes it to the state file.
-func tryToSaveUpdateArgsNoMsg[TState any, TUpdateArgs any, TAckArgs any](stateHelper *StateHelper[TState, TUpdateArgs, TAckArgs], state TState, sendAck func(TAckArgs) error, messageWindow window.MessageWindow, updateArgs TUpdateArgs) error {
-	logger := logging.MustGetLogger(MODULE_NAME)
-	operationState := DataToSave[TState, TUpdateArgs]{
-		UpdateArgs:      updateArgs,
-		TimeStamp:       time.Now().UTC().Format(LAYOUT_TIMESTAMP),
-		IsCompleteState: false,
-	}
-	encodedState, err := json.Marshal(operationState)
-	if err != nil {
-		logger.Errorf(MSG_ERROR_ENCODING_UPDATE_ARGS, err)
-		return err
-	}
-	if err := stateHelper.stateOriginalWr.WriteNoMsg(sendAck, encodedState); err != nil {
 		logger.Errorf(MSG_FAILED_TO_WRITE_UPDATE_ARGS, stateHelper.stateOriginalWr.filePath, err)
 		return err
 	}
@@ -436,14 +390,14 @@ func (stateHelper *StateHelper[TState, TOperation, TAckArgs]) tryCleanFile(sendA
 		logger.Errorf(MSG_ERROR_ENCODING_STATE, err)
 		return
 	}
-	if err := stateHelper.stateAuxWr.WriteSyncNoMsg(sendAck, encodedState); err != nil {
+	if err := stateHelper.stateAuxWr.WriteSync(nil, sendAck, encodedState); err != nil {
 		logger.Errorf(MSG_FAILED_TO_WRITE_STATE, stateHelper.stateAuxWr.filePath, err)
 		return
 	}
 	// clean state file
 	stateHelper.stateOriginalWr.CleanFileSynch(sendAck)
 	// write the last valid state on state file
-	if err := stateHelper.stateOriginalWr.WriteSyncNoMsg(sendAck, encodedState); err != nil {
+	if err := stateHelper.stateOriginalWr.WriteSync(nil, sendAck, encodedState); err != nil {
 		logger.Errorf(MSG_FAILED_TO_WRITE_STATE, stateHelper.stateOriginalWr.filePath, err)
 		return
 	}

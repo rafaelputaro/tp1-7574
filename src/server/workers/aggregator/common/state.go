@@ -219,7 +219,7 @@ func (aggregator *Aggregator) SaveMoviesStateAndSendAck(aggregatorState Aggregat
 	err := state.SaveState(
 		aggregator.StateHelperMovies,
 		aggregatorState,
-		AckArgs{
+		&AckArgs{
 			msg: msg,
 		},
 		SendAck,
@@ -234,8 +234,6 @@ func (aggregator *Aggregator) SaveMoviesStateAndSendAck(aggregatorState Aggregat
 		aggregator.Log.Fatalf(MESSAGE_UNABLE_TO_SAVE_STATE)
 		return err
 	}
-	// send ack
-	//return aggregator.sendAck(msg)
 	return nil
 }
 
@@ -247,7 +245,7 @@ func (aggregator *Aggregator) SaveTop5StateAndSendAck(aggregatorState Aggregator
 	err := state.SaveState(
 		aggregator.StateHelperTop5,
 		aggregatorState,
-		AckArgs{
+		&AckArgs{
 			msg: msg,
 		},
 		SendAck,
@@ -264,8 +262,6 @@ func (aggregator *Aggregator) SaveTop5StateAndSendAck(aggregatorState Aggregator
 		aggregator.Log.Fatalf(MESSAGE_UNABLE_TO_SAVE_STATE)
 		return err
 	}
-	// send ack
-	//return aggregator.sendAck(msg)
 	return nil
 }
 

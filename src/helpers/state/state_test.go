@@ -64,7 +64,7 @@ func TestStateCorrectFilesWithoutExceedingMaximumCapacity(t *testing.T) {
 			ClientId:     clientId,
 		}
 		UpdateState(state, windowData, &args)
-		SaveState(stateHelper, *state, dummyMsg, DummySendAck, *windowData, args)
+		SaveState(stateHelper, *state, &dummyMsg, DummySendAck, *windowData, args)
 		stateReaded, _ := GetLastValidState(stateHelper)
 		if stateReaded.Id != state.Id || stateReaded.Name != state.Name {
 			t.Errorf("Error in reloaded state")
@@ -136,7 +136,7 @@ func TestStateCorrectFilesExceedingMaximumCapacity(t *testing.T) {
 			ClientId:     clientId,
 		}
 		UpdateState(state, windowData, &args)
-		SaveState(stateHelper, *state, dummyMsg, DummySendAck, *windowData, args)
+		SaveState(stateHelper, *state, &dummyMsg, DummySendAck, *windowData, args)
 	}
 	// Check window and state
 	stateReaded, windowReaded := GetLastValidState(stateHelper)
@@ -203,7 +203,7 @@ func TestTimeStampFileGreaterThanAux(t *testing.T) {
 			ClientId:     clientId,
 		}
 		UpdateState(state, windowData, &args)
-		SaveState(stateHelper, *state, dummyMsg, DummySendAck, *windowData, args)
+		SaveState(stateHelper, *state, &dummyMsg, DummySendAck, *windowData, args)
 	}
 	// Check window and state
 	stateReaded, windowReaded := GetLastValidState(stateHelper)
@@ -272,7 +272,7 @@ func TestTimeStampFileLowerThanAux(t *testing.T) {
 			ClientId:     clientId,
 		}
 		UpdateState(state, windowData, &args)
-		SaveState(stateHelper, *state, dummyMsg, DummySendAck, *windowData, args)
+		SaveState(stateHelper, *state, &dummyMsg, DummySendAck, *windowData, args)
 	}
 	// Check window and state
 	stateReaded, windowReaded := GetLastValidState(stateHelper)
@@ -340,7 +340,7 @@ func TestStateOriginalFileBroken(t *testing.T) {
 			ClientId:     clientId,
 		}
 		UpdateState(state, windowData, &args)
-		SaveState(stateHelper, *state, dummyMsg, DummySendAck, *windowData, args)
+		SaveState(stateHelper, *state, &dummyMsg, DummySendAck, *windowData, args)
 	}
 	// Check window and state
 	stateReaded, windowReaded := GetLastValidState(stateHelper)
@@ -409,7 +409,7 @@ func TestStateAuxFileBroken(t *testing.T) {
 			ClientId:     clientId,
 		}
 		UpdateState(state, windowData, &args)
-		SaveState(stateHelper, *state, dummyMsg, DummySendAck, *windowData, args)
+		SaveState(stateHelper, *state, &dummyMsg, DummySendAck, *windowData, args)
 	}
 	// Check window and state
 	stateReaded, windowReaded := GetLastValidState(stateHelper)
@@ -478,7 +478,7 @@ func TestStateBohtFilesBroken(t *testing.T) {
 			ClientId:     clientId,
 		}
 		UpdateState(state, windowData, &args)
-		SaveState(stateHelper, *state, dummyMsg, DummySendAck, *windowData, args)
+		SaveState(stateHelper, *state, &dummyMsg, DummySendAck, *windowData, args)
 	}
 	// Check window and state
 	stateReaded, windowReaded := GetLastValidState(stateHelper)

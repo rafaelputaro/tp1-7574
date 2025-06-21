@@ -48,15 +48,15 @@ func UpdateFilterDefault(filterState *FilterDefaultState, messageWindow *window.
 	messageWindow.AddMessage(updateArgs.ClientId, updateArgs.MessageId)
 }
 
-// Refresh the window, save the state and send the ack
-func (f *Filter) SaveDefaultStateAndSendAck(msg amqp.Delivery, clientId string, messageId int64) error {
+// Refresh the window, save the state
+func (f *Filter) SaveDefaultState(msg amqp.Delivery, clientId string, messageId int64) error {
 	// update window
 	f.messageWindow.AddMessage(clientId, messageId)
 	// save state
 	err := state.SaveState(
 		f.stateHelperDefault,
 		"",
-		AckArgs{msg: msg},
+		&AckArgs{msg: msg},
 		SendAck,
 		*f.messageWindow, FilterDefaultUpdateArgs{
 			ClientId:  clientId,
@@ -66,9 +66,7 @@ func (f *Filter) SaveDefaultStateAndSendAck(msg amqp.Delivery, clientId string, 
 		f.log.Fatalf("Unable to save state")
 		return err
 	}
-	// send ack
 	return nil
-	//return f.sendAck(msg)
 }
 
 // Refresh the window, save the state and send the ack
@@ -76,7 +74,7 @@ func (f *Filter) SaveDefaultStateAndSendAckCoordinator(coordinator *coordinator.
 	// update window
 	f.messageWindow.AddMessage(clientId, messageId)
 	// save state
-	err := state.SaveStateNoMsg(f.stateHelperDefault, "", SendAck, *f.messageWindow, FilterDefaultUpdateArgs{
+	err := state.SaveState(f.stateHelperDefault, "", nil, SendAck, *f.messageWindow, FilterDefaultUpdateArgs{
 		ClientId:  clientId,
 		MessageId: messageId,
 	})

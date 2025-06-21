@@ -20,7 +20,7 @@ type SynchWriter[TAckArgs any] struct {
 	filePath    string
 }
 
-func NewSynchWriter[TAckArgs any]( /*fileDesc *os.File,*/ filePath string) *SynchWriter[TAckArgs] {
+func NewSynchWriter[TAckArgs any](filePath string) *SynchWriter[TAckArgs] {
 	logger := logging.MustGetLogger(MODULE_NAME)
 	// Open the state file for appending and writing
 	fileDesc, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
@@ -49,26 +49,14 @@ func (writer *SynchWriter[TAckArgs]) Dispose(sendAck func(TAckArgs) error) {
 }
 
 // Write on buffer and try to synchronization with disk and try to send ack
-func (writer *SynchWriter[TAckArgs]) Write(msg TAckArgs, sendAck func(TAckArgs) error, encodedData []byte) error {
+func (writer *SynchWriter[TAckArgs]) Write(msg *TAckArgs, sendAck func(TAckArgs) error, encodedData []byte) error {
 	writer.appendToBuffer(msg, encodedData)
 	return writer.trySync(sendAck)
 }
 
-// Write on buffer and try to synchronization with disk and try to send ack
-func (writer *SynchWriter[TAckArgs]) WriteNoMsg(sendAck func(TAckArgs) error, encodedData []byte) error {
-	writer.appendToBufferNoMsg(encodedData)
-	return writer.trySync(sendAck)
-}
-
 // Write on buffer and force synchronization with disk and the ack sending
-func (writer *SynchWriter[TAckArgs]) WriteSync(msg TAckArgs, sendAck func(TAckArgs) error, encodedData []byte) error {
+func (writer *SynchWriter[TAckArgs]) WriteSync(msg *TAckArgs, sendAck func(TAckArgs) error, encodedData []byte) error {
 	writer.appendToBuffer(msg, encodedData)
-	return writer.Synch(sendAck)
-}
-
-// Write on buffer and force synchronization with disk and the ack sending
-func (writer *SynchWriter[TAckArgs]) WriteSyncNoMsg(sendAck func(TAckArgs) error, encodedData []byte) error {
-	writer.appendToBufferNoMsg(encodedData)
 	return writer.Synch(sendAck)
 }
 
@@ -78,13 +66,10 @@ func (writer *SynchWriter[TAckArgs]) Synch(sendAck func(TAckArgs) error) error {
 }
 
 // Append the encoded data (<json>) to the buffer and the message to the list
-func (writer *SynchWriter[TAckArgs]) appendToBuffer(msg TAckArgs, encodedData []byte) {
-	writer.messages = append(writer.messages, msg)
-	writer.buffer = writer.buffer + string(encodedData) + "\n"
-}
-
-// Append the encoded data (<json>) to the buffer
-func (writer *SynchWriter[TAckArgs]) appendToBufferNoMsg(encodedData []byte) {
+func (writer *SynchWriter[TAckArgs]) appendToBuffer(msg *TAckArgs, encodedData []byte) {
+	if msg != nil {
+		writer.messages = append(writer.messages, *msg)
+	}
 	writer.buffer = writer.buffer + string(encodedData) + "\n"
 }
 
