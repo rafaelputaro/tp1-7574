@@ -213,12 +213,12 @@ func (aggregator *Aggregator) aggregateMovies() {
 					aggregator.checkErrorAndPublish(clientID, dataEof, errEof)
 					aggregator.Log.Infof("[client_id:%s] sent eof marker", clientID)
 				}
-				aggregator.SaveMoviesStateAndSendAck(*aggregatorState, msg, clientID, true, *movie.MessageId)
+				aggregator.SaveMoviesState(*aggregatorState, msg, clientID, true, *movie.MessageId)
 				state.Synch(aggregator.StateHelperMovies, SendAck)
 			} else {
 				aggregator.Log.Debugf("[client_id:%s] accepted: %s (%d)", movie.GetClientId(), movie.GetTitle(), movie.GetReleaseYear())
 				aggregator.publishData(msg.Body)
-				aggregator.SaveMoviesStateAndSendAck(*aggregatorState, msg, *movie.ClientId, false, *movie.MessageId)
+				aggregator.SaveMoviesState(*aggregatorState, msg, *movie.ClientId, false, *movie.MessageId)
 			}
 		}
 	}
@@ -231,32 +231,20 @@ func (a *Aggregator) aggregateTop5() {
 		a.Log.Fatalf("failed to consume messages: %v", err)
 	}
 	aggregatorState := a.CreateAggregatorTop5State()
-	//countriesByClient := make(map[string]map[string]int64)
 
 	for msg := range msgs {
-		/*
-			err := rabbitmq.SingleAck(msg)
-			if err != nil {
-				a.Log.Fatalf("failed to ack message: %v", err)
-			}
-		*/
 		var movie protopb.MovieSanit
 		err = proto.Unmarshal(msg.Body, &movie)
 		if err != nil {
 			a.Log.Errorf("failed to unmarshal message: %v", err)
 			continue
 		}
-
 		if a.Window.IsDuplicate(*movie.ClientId, *movie.MessageId) {
 			a.Log.Debugf("duplicate message: %v", *movie.MessageId)
 			a.sendAck(msg)
 			continue
 		}
-
 		clientID := movie.GetClientId()
-
-		// a.Log.Debugf("[client_id:%s] received: %v", clientID, &movie)
-
 		_, found := aggregatorState.CountriesByClient[clientID]
 		if !found {
 			aggregatorState.CountriesByClient[clientID] = make(map[string]int64)
@@ -317,7 +305,7 @@ func (a *Aggregator) aggregateTop5() {
 			a.Log.Infof("[client_id:%s] published top5: %v", clientID, &top5)
 			// TODO: clean map from client
 			//rabbitmq.SingleAck(msg)
-			a.SaveTop5StateAndSendAck(*aggregatorState, msg, clientID, 0, "", true, *movie.MessageId)
+			a.SaveTop5State(*aggregatorState, msg, clientID, 0, "", true, *movie.MessageId)
 			state.Synch(a.StateHelperTop5, SendAck)
 			continue
 		} else if movie.GetBudget() > 0 {
@@ -328,9 +316,9 @@ func (a *Aggregator) aggregateTop5() {
 				countryForClient[movie.GetProductionCountries()[0]] = 0
 			}
 			countryForClient[movie.GetProductionCountries()[0]] += movie.GetBudget()
-			a.SaveTop5StateAndSendAck(*aggregatorState, msg, *movie.ClientId, movie.GetBudget(), movie.GetProductionCountries()[0], false, *movie.MessageId)
+			a.SaveTop5State(*aggregatorState, msg, *movie.ClientId, movie.GetBudget(), movie.GetProductionCountries()[0], false, *movie.MessageId)
 		} else {
-			a.SaveTop5StateAndSendAck(*aggregatorState, msg, clientID, 0, "", false, *movie.MessageId)
+			a.SaveTop5State(*aggregatorState, msg, clientID, 0, "", false, *movie.MessageId)
 		}
 	}
 }
