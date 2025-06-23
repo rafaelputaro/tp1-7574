@@ -2,6 +2,7 @@ package filter
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"tp1/coordinator"
@@ -417,8 +418,14 @@ func (f *Filter) runShardedFilter(inputQueue string, declareInput bool, outputEx
 			f.log.Errorf("failed to unmarshal message: %v", err)
 			continue
 		}
-
+		shard := shardingFunc(&movie)
+		movie.SourceId = proto.String(strconv.Itoa(shard))
 		clientID := movie.GetClientId()
+		movieSharded, err := proto.Marshal(&movie)
+		if err != nil {
+			f.log.Fatalf("[cliend_id_%s %s] Failed to marshal message: %v", clientID, f.config.Type, err)
+			continue
+		}
 
 		if movie.GetEof() {
 			f.log.Infof("[client_id:%s] received EOF marker", clientID)
@@ -436,7 +443,7 @@ func (f *Filter) runShardedFilter(inputQueue string, declareInput bool, outputEx
 					false,          // immediate
 					amqp.Publishing{
 						ContentType: "application/protobuf",
-						Body:        msg.Body,
+						Body:        movieSharded, //msg.Body,
 					},
 				)
 				if err != nil {
@@ -451,7 +458,7 @@ func (f *Filter) runShardedFilter(inputQueue string, declareInput bool, outputEx
 		}
 
 		if filterFunc(&movie) {
-			shard := shardingFunc(&movie)
+			//shard := shardingFunc(&movie)
 			routingKey := fmt.Sprintf("%d", shard)
 
 			err = f.channel.Publish(
@@ -461,7 +468,7 @@ func (f *Filter) runShardedFilter(inputQueue string, declareInput bool, outputEx
 				false,          // inmediate
 				amqp.Publishing{
 					ContentType: "application/protobuf",
-					Body:        msg.Body,
+					Body:        movieSharded, //msg.Body,
 				})
 			if err != nil {
 				f.log.Errorf("[client_id:%s] failed to publish filtered message: %v", clientID, err)

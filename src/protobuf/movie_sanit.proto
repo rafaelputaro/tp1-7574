@@ -11,5 +11,6 @@ message MovieSanit {
   required string title = 8;
   required string clientId = 9;
   required int64 messageId = 10;
-  optional bool eof = 11;
+  optional string sourceId = 11;
+  optional bool eof = 12;
 }

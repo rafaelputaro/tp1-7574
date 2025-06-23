@@ -33,7 +33,8 @@ type MovieSanit struct {
 	Title               *string                `protobuf:"bytes,8,req,name=title" json:"title,omitempty"`
 	ClientId            *string                `protobuf:"bytes,9,req,name=clientId" json:"clientId,omitempty"`
 	MessageId           *int64                 `protobuf:"varint,10,req,name=messageId" json:"messageId,omitempty"`
-	Eof                 *bool                  `protobuf:"varint,11,opt,name=eof" json:"eof,omitempty"`
+	SourceId            *string                `protobuf:"bytes,11,opt,name=sourceId" json:"sourceId,omitempty"`
+	Eof                 *bool                  `protobuf:"varint,12,opt,name=eof" json:"eof,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -138,6 +139,13 @@ func (x *MovieSanit) GetMessageId() int64 {
 	return 0
 }
 
+func (x *MovieSanit) GetSourceId() string {
+	if x != nil && x.SourceId != nil {
+		return *x.SourceId
+	}
+	return ""
+}
+
 func (x *MovieSanit) GetEof() bool {
 	if x != nil && x.Eof != nil {
 		return *x.Eof
@@ -149,7 +157,7 @@ var File_movie_sanit_proto protoreflect.FileDescriptor
 
 const file_movie_sanit_proto_rawDesc = "" +
 	"\n" +
-	"\x11movie_sanit.proto\"\xba\x02\n" +
+	"\x11movie_sanit.proto\"\xd6\x02\n" +
 	"\n" +
 	"MovieSanit\x12\x16\n" +
 	"\x06budget\x18\x01 \x02(\x03R\x06budget\x12\x16\n" +
@@ -162,8 +170,9 @@ const file_movie_sanit_proto_rawDesc = "" +
 	"\x05title\x18\b \x02(\tR\x05title\x12\x1a\n" +
 	"\bclientId\x18\t \x02(\tR\bclientId\x12\x1c\n" +
 	"\tmessageId\x18\n" +
-	" \x02(\x03R\tmessageId\x12\x10\n" +
-	"\x03eof\x18\v \x01(\bR\x03eofB\vZ\t./protopb"
+	" \x02(\x03R\tmessageId\x12\x1a\n" +
+	"\bsourceId\x18\v \x01(\tR\bsourceId\x12\x10\n" +
+	"\x03eof\x18\f \x01(\bR\x03eofB\vZ\t./protopb"
 
 var (
 	file_movie_sanit_proto_rawDescOnce sync.Once

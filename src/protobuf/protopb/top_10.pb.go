@@ -28,7 +28,8 @@ type Top10 struct {
 	CountMovies   []int64                `protobuf:"varint,3,rep,name=countMovies" json:"countMovies,omitempty"`
 	ClientId      *string                `protobuf:"bytes,4,req,name=clientId" json:"clientId,omitempty"`
 	MessageId     *int64                 `protobuf:"varint,5,req,name=messageId" json:"messageId,omitempty"`
-	Eof           *bool                  `protobuf:"varint,6,opt,name=eof" json:"eof,omitempty"`
+	SourceId      *string                `protobuf:"bytes,6,opt,name=sourceId" json:"sourceId,omitempty"`
+	Eof           *bool                  `protobuf:"varint,7,opt,name=eof" json:"eof,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -98,6 +99,13 @@ func (x *Top10) GetMessageId() int64 {
 	return 0
 }
 
+func (x *Top10) GetSourceId() string {
+	if x != nil && x.SourceId != nil {
+		return *x.SourceId
+	}
+	return ""
+}
+
 func (x *Top10) GetEof() bool {
 	if x != nil && x.Eof != nil {
 		return *x.Eof
@@ -109,14 +117,15 @@ var File_top_10_proto protoreflect.FileDescriptor
 
 const file_top_10_proto_rawDesc = "" +
 	"\n" +
-	"\ftop_10.proto\"\xaf\x01\n" +
+	"\ftop_10.proto\"\xcb\x01\n" +
 	"\x05Top10\x12\x14\n" +
 	"\x05names\x18\x01 \x03(\tR\x05names\x12\"\n" +
 	"\fprofilePaths\x18\x02 \x03(\tR\fprofilePaths\x12 \n" +
 	"\vcountMovies\x18\x03 \x03(\x03R\vcountMovies\x12\x1a\n" +
 	"\bclientId\x18\x04 \x02(\tR\bclientId\x12\x1c\n" +
-	"\tmessageId\x18\x05 \x02(\x03R\tmessageId\x12\x10\n" +
-	"\x03eof\x18\x06 \x01(\bR\x03eofB\vZ\t./protopb"
+	"\tmessageId\x18\x05 \x02(\x03R\tmessageId\x12\x1a\n" +
+	"\bsourceId\x18\x06 \x01(\tR\bsourceId\x12\x10\n" +
+	"\x03eof\x18\a \x01(\bR\x03eofB\vZ\t./protopb"
 
 var (
 	file_top_10_proto_rawDescOnce sync.Once
