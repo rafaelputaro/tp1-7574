@@ -98,6 +98,18 @@ func (aggregator *Aggregator) CreateAggregatorTop5State() *AggregatorTop5State {
 	return aggregatorState
 }
 
+// Create a state from file or from scratch. Also return the window
+func (aggregator *Aggregator) CreateAggregatorTop10State() *AggregatorTop10State {
+	aggregatorState, _ := state.GetLastValidState(aggregator.StateHelperTop10)
+	if aggregatorState == nil {
+		aggregatorState = &AggregatorTop10State{
+			AmountEOF:  make(map[string]int),
+			ActorsData: make(map[string](*utils.ActorsData)),
+		}
+	}
+	return aggregatorState
+}
+
 // Return the state helpers and the window
 func (aggregator *Aggregator) InitStateHelperMovie() {
 	stateHelper := state.NewStateHelper[AggregatorMoviesState, AggregatorMoviesUpdateArgs, AckArgs](
@@ -183,7 +195,6 @@ func UpdateMovie(aggregatorState *AggregatorMoviesState, messageWindow *window.M
 	messageWindow.AddMessage(updateArgs.ClientId, updateArgs.MessageId)
 	if updateArgs.EOF {
 		aggregatorState.AmountEOF[updateArgs.ClientId] = utils.GetOrInitKeyMap(&aggregatorState.AmountEOF, updateArgs.ClientId, utils.InitEOFCount) + 1
-		//aggregatorState.AmountEOF[updateArgs.ClientId]++
 	}
 }
 
@@ -274,6 +285,35 @@ func (aggregator *Aggregator) SaveTop5State(aggregatorState AggregatorTop5State,
 			ProductionCountry: productionCountry,
 			Budget:            budget,
 			EOF:               eof,
+		},
+	)
+	if err != nil {
+		aggregator.Log.Fatalf(MESSAGE_UNABLE_TO_SAVE_STATE)
+		return err
+	}
+	return nil
+}
+
+// Refresh the window, save the state and send the ack
+func (aggregator *Aggregator) SaveTop10State(aggregatorState AggregatorTop10State, msg amqp.Delivery, clientId string, profilePath string, name string, countMovies int64, eof bool, messageId int64) error {
+	// update window
+	aggregator.Window.AddMessage(clientId, messageId)
+	// save state
+	err := state.SaveState(
+		aggregator.StateHelperTop10,
+		aggregatorState,
+		&AckArgs{
+			msg: msg,
+		},
+		SendAck,
+		*aggregator.Window,
+		AggregatorTop10UpdateArgs{
+			MessageId:   messageId,
+			ClientId:    clientId,
+			ProfilePath: profilePath,
+			Name:        name,
+			CountMovies: countMovies,
+			EOF:         eof,
 		},
 	)
 	if err != nil {

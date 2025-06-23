@@ -8,6 +8,7 @@ import (
 )
 
 const TIMEOUT = 1 * time.Second
+const MAX_MESSAGES = 1000
 const MESSAGE_FAILED_TO_SEND_ACK string = "failed to ack message: %v"
 const MESSAGE_FAILED_TO_SYNCH string = "Failed to sync with disk: %v"
 const MESSAGE_SUCCESS_SYNCH string = "Successful synchronization"
@@ -79,9 +80,15 @@ func generateExpirationDate() string {
 
 // If it's time to sync do it
 func (writer *SynchWriter[TAckArgs]) trySync(sendAck func(TAckArgs) error) error {
-	if len(writer.messages) == 0 {
+	lenMessages := len(writer.messages)
+	if lenMessages == 0 {
 		return nil
 	}
+	// synch by length
+	if lenMessages >= MAX_MESSAGES {
+		return writer.writeAndSendAcks(sendAck)
+	}
+	// sych by time
 	t, err := time.Parse(LAYOUT_TIMESTAMP, writer.timeToSynch)
 	if err != nil {
 		return err

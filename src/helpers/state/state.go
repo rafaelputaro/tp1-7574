@@ -294,6 +294,7 @@ func SaveState[TState any, TUpdateArgs any, TAckArgs any](stateHelper *StateHelp
 	return nil
 }
 
+// force synchronization
 func Synch[TState any, TUpdateArgs any, TAckArgs any](stateHelper *StateHelper[TState, TUpdateArgs, TAckArgs], sendAck func(TAckArgs) error) error {
 	if err := stateHelper.stateOriginalWr.Synch(sendAck); err != nil {
 		return err

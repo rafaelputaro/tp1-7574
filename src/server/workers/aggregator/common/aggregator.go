@@ -330,10 +330,13 @@ func (aggregator *Aggregator) aggregateTop10() {
 	}
 
 	// Count EOF and actors data for all clients
-	amountEOF := make(map[string]int)
-	actorsData := make(map[string](*utils.ActorsData))
 
+	aggregatorState := aggregator.CreateAggregatorTop10State()
+	/*	amountEOF := make(map[string]int)
+		actorsData := make(map[string](*utils.ActorsData))
+	*/
 	for msg := range msgs {
+
 		err := rabbitmq.SingleAck(msg)
 		if err != nil {
 			aggregator.Log.Fatalf("failed to ack message: %v", err)
@@ -345,14 +348,23 @@ func (aggregator *Aggregator) aggregateTop10() {
 			continue
 		}
 		clientID := actorCount.GetClientId()
+
+		if aggregator.Window.IsDuplicate(clientID, *actorCount.MessageId) {
+			aggregator.Log.Debugf("duplicate message: %v", *actorCount.MessageId)
+			//		aggregator.sendAck(msg)
+			//continue
+		} else {
+			aggregator.Window.AddMessage(clientID, *actorCount.MessageId)
+		}
+
 		aggregator.Log.Debugf("[aggregator_%s client_%s] %s : %s", aggregator.Config.AggregatorType, clientID, MSG_RECEIVED, protoUtils.ActorToString(&actorCount))
 		// Actual data for a client
-		actorsDataClient := utils.GetOrInitKeyMapWithKey(&actorsData, clientID, utils.InitActorsData)
+		actorsDataClient := utils.GetOrInitKeyMapWithKey(&aggregatorState.ActorsData, clientID, utils.InitActorsData)
 		// EOF
 		if actorCount.GetEof() {
-			amountEOF[clientID] = utils.GetOrInitKeyMap(&amountEOF, clientID, utils.InitEOFCount) + 1
+			aggregatorState.AmountEOF[clientID] = utils.GetOrInitKeyMap(&aggregatorState.AmountEOF, clientID, utils.InitEOFCount) + 1
 			// If all sources sent EOF, send top 10 and submit the EOF to report
-			if aggregator.checkEofSingleQueue(amountEOF[clientID]) {
+			if aggregator.checkEofSingleQueue(aggregatorState.AmountEOF[clientID]) {
 				top10 := actorsDataClient.GetTop10(clientID, DEFAULT_MESSAGE_ID_UNIQUE_OUTPUT)
 				data, err := proto.Marshal(top10)
 				if err != nil {
@@ -366,10 +378,13 @@ func (aggregator *Aggregator) aggregateTop10() {
 				dataEof, errEof := protoUtils.CreateEofMessageTop10(clientID, DEFAULT_MESSAGE_ID_EOF_UNIQUE_OUTPUT)
 				aggregator.checkErrorAndPublish(clientID, dataEof, errEof)
 			}
+			//aggregator.SaveTop10State(*aggregatorState, msg, clientID, "", "", 0, true, actorCount.GetMessageId())
+			//state.Synch(aggregator.StateHelperTop10, SendAck)
 			continue
 		}
 		// Update top for a client
 		actorsDataClient.UpdateCount(&actorCount)
+		//aggregator.SaveTop10State(*aggregatorState, msg, clientID, actorCount.GetProfilePath(), actorCount.GetName(), actorCount.GetCountMovies(), false, *actorCount.MessageId)
 	}
 }
 
