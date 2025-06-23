@@ -12,6 +12,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+const DEFAULT_SOURCE_ID = "Unique source"
+
 var logger = logging.MustGetLogger("report")
 
 // ReportState holds all the report data that needs to be persisted
@@ -23,6 +25,7 @@ type ReportState struct {
 // ReportUpdateArgs holds the incremental updates to be applied to the state
 type ReportUpdateArgs struct {
 	ClientID     string
+	SourceId     string
 	AnswerNumber int
 	Data         []byte // Store serialized data from the specific Answer type
 	IsDoneMarker bool   // Mark if this update is from DoneAnswer
@@ -80,14 +83,14 @@ func NewReportRegistry(moduleName string) *ReportRegistry {
 // applyUpdate applies incremental updates to the state
 func (rr *ReportRegistry) applyUpdate(reportState *ReportState, msgWindow *window.MessageWindow, updateArgs *ReportUpdateArgs) {
 	// Skip if we've already seen this message
-	if msgWindow != nil && msgWindow.IsDuplicate(updateArgs.ClientID, updateArgs.MessageID) {
+	if msgWindow != nil && msgWindow.IsDuplicate(updateArgs.ClientID, updateArgs.SourceId, updateArgs.MessageID) {
 		logger.Debugf("Skipping duplicate message ID: %d", updateArgs.MessageID)
 		return
 	}
 
 	// Add message ID to window to prevent duplicate processing
 	if msgWindow != nil {
-		msgWindow.AddMessage(updateArgs.ClientID, updateArgs.MessageID)
+		msgWindow.AddMessage(updateArgs.ClientID, updateArgs.SourceId, updateArgs.MessageID)
 	}
 
 	clientID := updateArgs.ClientID
@@ -220,6 +223,7 @@ func (rr *ReportRegistry) DoneAnswer(clientID string) {
 		ClientID:     clientID,
 		IsDoneMarker: true,
 		MessageID:    generateMessageID(),
+		SourceId:     DEFAULT_SOURCE_ID,
 	}
 
 	reportState := ReportState{
@@ -255,6 +259,7 @@ func (rr *ReportRegistry) AddToAnswer1(clientID string, entry *pb.MovieEntry) {
 		AnswerNumber: 1,
 		Data:         data,
 		MessageID:    generateMessageID(),
+		SourceId:     DEFAULT_SOURCE_ID,
 	}
 
 	reportState := ReportState{
@@ -283,6 +288,7 @@ func (rr *ReportRegistry) AddAnswer2(clientID string, answer2 *pb.Answer2) {
 		AnswerNumber: 2,
 		Data:         serializeProto(answer2),
 		MessageID:    generateMessageID(),
+		SourceId:     DEFAULT_SOURCE_ID,
 	}
 
 	reportState := ReportState{
@@ -311,6 +317,7 @@ func (rr *ReportRegistry) AddAnswer3(clientID string, answer3 *pb.Answer3) {
 		AnswerNumber: 3,
 		Data:         serializeProto(answer3),
 		MessageID:    generateMessageID(),
+		SourceId:     DEFAULT_SOURCE_ID,
 	}
 
 	reportState := ReportState{
@@ -339,6 +346,7 @@ func (rr *ReportRegistry) AddAnswer4(clientID string, answer4 *pb.Answer4) {
 		AnswerNumber: 4,
 		Data:         serializeProto(answer4),
 		MessageID:    generateMessageID(),
+		SourceId:     DEFAULT_SOURCE_ID,
 	}
 
 	reportState := ReportState{
@@ -367,6 +375,7 @@ func (rr *ReportRegistry) AddAnswer5(clientID string, answer5 *pb.Answer5) {
 		AnswerNumber: 5,
 		Data:         serializeProto(answer5),
 		MessageID:    generateMessageID(),
+		SourceId:     DEFAULT_SOURCE_ID,
 	}
 
 	reportState := ReportState{

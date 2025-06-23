@@ -220,7 +220,7 @@ func (f *Filter) processYearFilters() {
 			continue
 		}
 
-		if f.messageWindow.IsDuplicate(*movie.ClientId, *movie.MessageId) {
+		if f.messageWindow.IsDuplicate(*movie.ClientId, movie.GetSourceId(), *movie.MessageId) {
 			f.log.Debugf("duplicate message: %v", *movie.MessageId)
 			f.sendAck(msg)
 			continue
@@ -245,7 +245,7 @@ func (f *Filter) processYearFilters() {
 
 				f.log.Infof("[client_id:%s] propagated EOF to %s", movie.GetClientId(), queueName)
 			}
-			f.SaveDefaultState(msg, *movie.ClientId, *movie.MessageId)
+			f.SaveDefaultState(msg, *movie.ClientId, movie.GetSourceId(), *movie.MessageId)
 			state.Synch(f.stateHelperDefault, SendAck)
 			continue
 		}
@@ -263,7 +263,7 @@ func (f *Filter) processYearFilters() {
 				}
 			}
 		}
-		f.SaveDefaultStateAndSendAckCoordinator(coord, msg, *movie.ClientId, *movie.MessageId)
+		f.SaveDefaultStateAndSendAckCoordinator(coord, msg, *movie.ClientId, movie.GetSourceId(), *movie.MessageId)
 	}
 
 	f.log.Infof("job finished")
@@ -332,7 +332,7 @@ func (f *Filter) processSingleCountryOriginFilter() {
 		clientID := movie.GetClientId()
 
 		// check duplicate
-		if f.messageWindow.IsDuplicate(clientID, *movie.MessageId) {
+		if f.messageWindow.IsDuplicate(clientID, movie.GetSourceId(), *movie.MessageId) {
 			f.log.Debugf("duplicate message: %v", *movie.MessageId)
 			f.sendAck(msg)
 			continue
@@ -355,7 +355,7 @@ func (f *Filter) processSingleCountryOriginFilter() {
 			}
 
 			f.log.Infof("[client_id:%s] published eof", clientID)
-			f.SaveDefaultState(msg, *movie.ClientId, *movie.MessageId)
+			f.SaveDefaultState(msg, *movie.ClientId, movie.GetSourceId(), *movie.MessageId)
 			state.Synch(f.stateHelperDefault, SendAck)
 			continue
 		}
@@ -366,7 +366,7 @@ func (f *Filter) processSingleCountryOriginFilter() {
 				f.log.Errorf("[client_id:%s] failed to publish movie: %v", clientID, err)
 			}
 			// f.log.Debugf("[client_id:%s] published movie: %s", clientID, movie.GetTitle())
-			f.SaveDefaultStateAndSendAckCoordinator(coord, msg, *movie.ClientId, *movie.MessageId)
+			f.SaveDefaultStateAndSendAckCoordinator(coord, msg, *movie.ClientId, movie.GetSourceId(), *movie.MessageId)
 		}
 	}
 }

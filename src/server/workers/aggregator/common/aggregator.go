@@ -193,7 +193,7 @@ func (aggregator *Aggregator) aggregateMovies() {
 				continue
 			}
 
-			if aggregator.Window.IsDuplicate(*movie.ClientId, *movie.MessageId) {
+			if aggregator.Window.IsDuplicate(*movie.ClientId, movie.GetSourceId(), *movie.MessageId) {
 				aggregator.Log.Debugf("duplicate message: %v", *movie.MessageId)
 				aggregator.sendAck(msg)
 				continue
@@ -213,12 +213,12 @@ func (aggregator *Aggregator) aggregateMovies() {
 					aggregator.checkErrorAndPublish(clientID, dataEof, errEof)
 					aggregator.Log.Infof("[client_id:%s] sent eof marker", clientID)
 				}
-				aggregator.SaveMoviesState(*aggregatorState, msg, clientID, true, *movie.MessageId)
+				aggregator.SaveMoviesState(*aggregatorState, msg, clientID, movie.GetSourceId(), true, *movie.MessageId)
 				state.Synch(aggregator.StateHelperMovies, SendAck)
 			} else {
 				aggregator.Log.Debugf("[client_id:%s] accepted: %s (%d)", movie.GetClientId(), movie.GetTitle(), movie.GetReleaseYear())
 				aggregator.publishData(msg.Body)
-				aggregator.SaveMoviesState(*aggregatorState, msg, *movie.ClientId, false, *movie.MessageId)
+				aggregator.SaveMoviesState(*aggregatorState, msg, *movie.ClientId, movie.GetSourceId(), false, *movie.MessageId)
 			}
 		}
 	}
@@ -239,7 +239,7 @@ func (a *Aggregator) aggregateTop5() {
 			a.Log.Errorf("failed to unmarshal message: %v", err)
 			continue
 		}
-		if a.Window.IsDuplicate(*movie.ClientId, *movie.MessageId) {
+		if a.Window.IsDuplicate(*movie.ClientId, movie.GetSourceId(), *movie.MessageId) {
 			a.Log.Debugf("duplicate message: %v", *movie.MessageId)
 			a.sendAck(msg)
 			continue
@@ -305,7 +305,7 @@ func (a *Aggregator) aggregateTop5() {
 			a.Log.Infof("[client_id:%s] published top5: %v", clientID, &top5)
 			// TODO: clean map from client
 			//rabbitmq.SingleAck(msg)
-			a.SaveTop5State(*aggregatorState, msg, clientID, 0, "", true, *movie.MessageId)
+			a.SaveTop5State(*aggregatorState, msg, clientID, movie.GetSourceId(), 0, "", true, *movie.MessageId)
 			state.Synch(a.StateHelperTop5, SendAck)
 			continue
 		} else if movie.GetBudget() > 0 {
@@ -316,9 +316,9 @@ func (a *Aggregator) aggregateTop5() {
 				countryForClient[movie.GetProductionCountries()[0]] = 0
 			}
 			countryForClient[movie.GetProductionCountries()[0]] += movie.GetBudget()
-			a.SaveTop5State(*aggregatorState, msg, *movie.ClientId, movie.GetBudget(), movie.GetProductionCountries()[0], false, *movie.MessageId)
+			a.SaveTop5State(*aggregatorState, msg, *movie.ClientId, movie.GetSourceId(), movie.GetBudget(), movie.GetProductionCountries()[0], false, *movie.MessageId)
 		} else {
-			a.SaveTop5State(*aggregatorState, msg, clientID, 0, "", false, *movie.MessageId)
+			a.SaveTop5State(*aggregatorState, msg, clientID, movie.GetSourceId(), 0, "", false, *movie.MessageId)
 		}
 	}
 }
@@ -349,12 +349,12 @@ func (aggregator *Aggregator) aggregateTop10() {
 		}
 		clientID := actorCount.GetClientId()
 
-		if aggregator.Window.IsDuplicate(clientID, *actorCount.MessageId) {
+		if aggregator.Window.IsDuplicate(clientID, actorCount.GetSourceId(), *actorCount.MessageId) {
 			aggregator.Log.Debugf("duplicate message: %v", *actorCount.MessageId)
 			//		aggregator.sendAck(msg)
 			//continue
 		} else {
-			aggregator.Window.AddMessage(clientID, *actorCount.MessageId)
+			aggregator.Window.AddMessage(clientID, actorCount.GetSourceId(), *actorCount.MessageId)
 		}
 
 		aggregator.Log.Debugf("[aggregator_%s client_%s] %s : %s", aggregator.Config.AggregatorType, clientID, MSG_RECEIVED, protoUtils.ActorToString(&actorCount))

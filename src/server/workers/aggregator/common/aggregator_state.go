@@ -24,6 +24,7 @@ type AggregatorMoviesState struct {
 type AggregatorMoviesUpdateArgs struct {
 	MessageId int64
 	ClientId  string
+	SourceId  string
 	EOF       bool
 }
 
@@ -34,6 +35,7 @@ type AggregatorTop5State struct {
 type AggregatorTop5UpdateArgs struct {
 	MessageId         int64
 	ClientId          string
+	SourceId          string
 	ProductionCountry string
 	Budget            int64
 	EOF               bool
@@ -47,6 +49,7 @@ type AggregatorTop10State struct {
 type AggregatorTop10UpdateArgs struct {
 	MessageId   int64
 	ClientId    string
+	SourceId    string
 	ProfilePath string
 	Name        string
 	CountMovies int64
@@ -58,6 +61,7 @@ type AggregatorTopAndBottomState string
 type AggregatorTopAndBottomUpdateArgs struct {
 	MessageId int64
 	ClientId  string
+	SourceId  string
 }
 
 type AggregatorMetricsState string
@@ -65,6 +69,7 @@ type AggregatorMetricsState string
 type AggregatorMetricsUpdateArgs struct {
 	MessageId int64
 	ClientId  string
+	SourceId  string
 }
 
 func SendAck(args AckArgs) error {
@@ -192,7 +197,7 @@ func (aggregator *Aggregator) InitiStateHelperMetrics() {
 
 // Updates the aggregator status and refresh the window
 func UpdateMovie(aggregatorState *AggregatorMoviesState, messageWindow *window.MessageWindow, updateArgs *AggregatorMoviesUpdateArgs) {
-	messageWindow.AddMessage(updateArgs.ClientId, updateArgs.MessageId)
+	messageWindow.AddMessage(updateArgs.ClientId, updateArgs.SourceId, updateArgs.MessageId)
 	if updateArgs.EOF {
 		aggregatorState.AmountEOF[updateArgs.ClientId] = utils.GetOrInitKeyMap(&aggregatorState.AmountEOF, updateArgs.ClientId, utils.InitEOFCount) + 1
 	}
@@ -200,7 +205,7 @@ func UpdateMovie(aggregatorState *AggregatorMoviesState, messageWindow *window.M
 
 // Updates the aggregator status and refresh the window
 func UpdateTop5(aggregatorState *AggregatorTop5State, messageWindow *window.MessageWindow, updateArgs *AggregatorTop5UpdateArgs) {
-	messageWindow.AddMessage(updateArgs.ClientId, updateArgs.MessageId)
+	messageWindow.AddMessage(updateArgs.ClientId, updateArgs.SourceId, updateArgs.MessageId)
 	if !updateArgs.EOF && updateArgs.Budget > 0 {
 		clientID := updateArgs.ClientId
 		_, found := aggregatorState.CountriesByClient[clientID]
@@ -218,7 +223,7 @@ func UpdateTop5(aggregatorState *AggregatorTop5State, messageWindow *window.Mess
 
 // Updates the aggregator status and refresh the window
 func UpdateTop10(aggregatorState *AggregatorTop10State, messageWindow *window.MessageWindow, updateArgs *AggregatorTop10UpdateArgs) {
-	messageWindow.AddMessage(updateArgs.ClientId, updateArgs.MessageId)
+	messageWindow.AddMessage(updateArgs.ClientId, updateArgs.SourceId, updateArgs.MessageId)
 	if updateArgs.EOF {
 		aggregatorState.AmountEOF[updateArgs.ClientId] = utils.GetOrInitKeyMap(&aggregatorState.AmountEOF, updateArgs.ClientId, utils.InitEOFCount) + 1
 		return
@@ -232,18 +237,18 @@ func UpdateTop10(aggregatorState *AggregatorTop10State, messageWindow *window.Me
 
 // Updates the aggregator status and refresh the window
 func UpdateTopAndBottom(aggregatorState *AggregatorTopAndBottomState, messageWindow *window.MessageWindow, updateArgs *AggregatorTopAndBottomUpdateArgs) {
-	messageWindow.AddMessage(updateArgs.ClientId, updateArgs.MessageId)
+	messageWindow.AddMessage(updateArgs.ClientId, updateArgs.SourceId, updateArgs.MessageId)
 }
 
 // Updates the aggregator status and refresh the window
 func UpdateMetrics(aggregatorState *AggregatorMetricsState, messageWindow *window.MessageWindow, updateArgs *AggregatorMetricsUpdateArgs) {
-	messageWindow.AddMessage(updateArgs.ClientId, updateArgs.MessageId)
+	messageWindow.AddMessage(updateArgs.ClientId, updateArgs.SourceId, updateArgs.MessageId)
 }
 
 // Refresh the window, save the state and send the ack
-func (aggregator *Aggregator) SaveMoviesState(aggregatorState AggregatorMoviesState, msg amqp.Delivery, clientId string, eof bool, messageId int64) error {
+func (aggregator *Aggregator) SaveMoviesState(aggregatorState AggregatorMoviesState, msg amqp.Delivery, clientId string, sourceId string, eof bool, messageId int64) error {
 	// update window
-	aggregator.Window.AddMessage(clientId, messageId)
+	aggregator.Window.AddMessage(clientId, sourceId, messageId)
 	// save state
 	err := state.SaveState(
 		aggregator.StateHelperMovies,
@@ -267,9 +272,9 @@ func (aggregator *Aggregator) SaveMoviesState(aggregatorState AggregatorMoviesSt
 }
 
 // Refresh the window, save the state and send the ack
-func (aggregator *Aggregator) SaveTop5State(aggregatorState AggregatorTop5State, msg amqp.Delivery, clientId string, budget int64, productionCountry string, eof bool, messageId int64) error {
+func (aggregator *Aggregator) SaveTop5State(aggregatorState AggregatorTop5State, msg amqp.Delivery, clientId string, sourceId string, budget int64, productionCountry string, eof bool, messageId int64) error {
 	// update window
-	aggregator.Window.AddMessage(clientId, messageId)
+	aggregator.Window.AddMessage(clientId, sourceId, messageId)
 	// save state
 	err := state.SaveState(
 		aggregator.StateHelperTop5,
@@ -295,9 +300,9 @@ func (aggregator *Aggregator) SaveTop5State(aggregatorState AggregatorTop5State,
 }
 
 // Refresh the window, save the state and send the ack
-func (aggregator *Aggregator) SaveTop10State(aggregatorState AggregatorTop10State, msg amqp.Delivery, clientId string, profilePath string, name string, countMovies int64, eof bool, messageId int64) error {
+func (aggregator *Aggregator) SaveTop10State(aggregatorState AggregatorTop10State, msg amqp.Delivery, clientId string, sourceId string, profilePath string, name string, countMovies int64, eof bool, messageId int64) error {
 	// update window
-	aggregator.Window.AddMessage(clientId, messageId)
+	aggregator.Window.AddMessage(clientId, sourceId, messageId)
 	// save state
 	err := state.SaveState(
 		aggregator.StateHelperTop10,

@@ -22,13 +22,13 @@ func NewMessageWindow() *MessageWindow {
 	}
 }
 
-func generateKey(clientId string, messageId int64) string {
-	return clientId + "_" + strconv.FormatInt(messageId, 10)
+func generateKey(clientId string, sourceId string, messageId int64) string {
+	return clientId + "_" + sourceId + "_" + strconv.FormatInt(messageId, 10)
 }
 
 // Return true if the clientId + messageId is already present in the messageWindow slice, indicating a duplicate message.
-func (messageWindow *MessageWindow) IsDuplicate(clientId string, messageId int64) bool {
-	_, exists := messageWindow.Messages[generateKey(clientId, messageId)]
+func (messageWindow *MessageWindow) IsDuplicate(clientId string, sourceId string, messageId int64) bool {
+	_, exists := messageWindow.Messages[generateKey(clientId, sourceId, messageId)]
 	return exists
 }
 
@@ -38,16 +38,16 @@ func (messageWindow *MessageWindow) IsEmpty() bool {
 }
 
 // Adds new message to the window
-func (messageWindow *MessageWindow) AddMessage(clientId string, messageId int64) {
+func (messageWindow *MessageWindow) AddMessage(clientId string, sourceId string, messageId int64) {
 	messageWindow.tryCleanOld()
-	key := generateKey(clientId, messageId)
+	key := generateKey(clientId, sourceId, messageId)
 	messageWindow.Messages[key] = time.Now().Add(MAX_AGE).UTC().Format(LAYOUT_TIMESTAMP)
 	messageWindow.Queue = append(messageWindow.Queue, key)
 }
 
 // RemoveMessage removes a message from the messageWindow by its ID.
-func (messageWindow *MessageWindow) removeMessage(clientId string, messageId int64) {
-	messageWindow.removeMessageByKey(generateKey(clientId, messageId))
+func (messageWindow *MessageWindow) removeMessage(clientId string, sourceId string, messageId int64) {
+	messageWindow.removeMessageByKey(generateKey(clientId, sourceId, messageId))
 }
 
 // RemoveMessage removes a message from the messageWindow by its ID.

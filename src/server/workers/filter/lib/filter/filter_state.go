@@ -21,6 +21,7 @@ type FilterDefaultState string
 type FilterDefaultUpdateArgs struct {
 	MessageId int64
 	ClientId  string
+	SourceId  string
 }
 
 func SendAck(args AckArgs) error {
@@ -45,13 +46,13 @@ func (f *Filter) InitStateHelperDefault() {
 
 // Refresh the window
 func UpdateFilterDefault(filterState *FilterDefaultState, messageWindow *window.MessageWindow, updateArgs *FilterDefaultUpdateArgs) {
-	messageWindow.AddMessage(updateArgs.ClientId, updateArgs.MessageId)
+	messageWindow.AddMessage(updateArgs.ClientId, updateArgs.SourceId, updateArgs.MessageId)
 }
 
 // Refresh the window, save the state
-func (f *Filter) SaveDefaultState(msg amqp.Delivery, clientId string, messageId int64) error {
+func (f *Filter) SaveDefaultState(msg amqp.Delivery, clientId string, sourceId string, messageId int64) error {
 	// update window
-	f.messageWindow.AddMessage(clientId, messageId)
+	f.messageWindow.AddMessage(clientId, sourceId, messageId)
 	// save state
 	err := state.SaveState(
 		f.stateHelperDefault,
@@ -61,6 +62,7 @@ func (f *Filter) SaveDefaultState(msg amqp.Delivery, clientId string, messageId 
 		*f.messageWindow, FilterDefaultUpdateArgs{
 			ClientId:  clientId,
 			MessageId: messageId,
+			SourceId:  sourceId,
 		})
 	if err != nil {
 		f.log.Fatalf("Unable to save state")
@@ -70,13 +72,14 @@ func (f *Filter) SaveDefaultState(msg amqp.Delivery, clientId string, messageId 
 }
 
 // Refresh the window, save the state and send the ack
-func (f *Filter) SaveDefaultStateAndSendAckCoordinator(coordinator *coordinator.EOFLeader, msg amqp.Delivery, clientId string, messageId int64) error {
+func (f *Filter) SaveDefaultStateAndSendAckCoordinator(coordinator *coordinator.EOFLeader, msg amqp.Delivery, clientId string, sourceId string, messageId int64) error {
 	// update window
-	f.messageWindow.AddMessage(clientId, messageId)
+	f.messageWindow.AddMessage(clientId, sourceId, messageId)
 	// save state
 	err := state.SaveState(f.stateHelperDefault, "", nil, SendAck, *f.messageWindow, FilterDefaultUpdateArgs{
 		ClientId:  clientId,
 		MessageId: messageId,
+		SourceId:  sourceId,
 	})
 	if err != nil {
 		f.log.Fatalf("Unable to save state")

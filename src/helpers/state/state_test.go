@@ -24,11 +24,12 @@ type UpdateArgs struct {
 	ConcatToName int64
 	MessageId    int64
 	ClientId     string
+	SourceId     string
 }
 
 func UpdateState(state *Data, messageWindow *window.MessageWindow, updateArgs *UpdateArgs) {
 	state.Name = "Pepe" + strconv.FormatInt(updateArgs.ConcatToName, 10)
-	messageWindow.AddMessage(updateArgs.ClientId, updateArgs.MessageId)
+	messageWindow.AddMessage(updateArgs.ClientId, updateArgs.SourceId, updateArgs.MessageId)
 }
 
 func DummySendAck(msg amqp.Delivery) error { return nil }
@@ -39,6 +40,7 @@ func TestStateCorrectFilesWithoutExceedingMaximumCapacity(t *testing.T) {
 	clientId := "cli-1"
 	moduleName := "testing"
 	shard := "0"
+	sourceId := "source_1"
 	StatesDir = "/tmp/states_test"
 	var dummyMsg = amqp.Delivery{}
 	// Set env to clean previus files
@@ -62,6 +64,7 @@ func TestStateCorrectFilesWithoutExceedingMaximumCapacity(t *testing.T) {
 			ConcatToName: int64(id),
 			MessageId:    int64(id),
 			ClientId:     clientId,
+			SourceId:     sourceId,
 		}
 		UpdateState(state, windowData, &args)
 		SaveState(stateHelper, *state, &dummyMsg, DummySendAck, *windowData, args)
@@ -96,7 +99,7 @@ func TestStateCorrectFilesWithoutExceedingMaximumCapacity(t *testing.T) {
 		t.Errorf("Error on reload window")
 	} else {
 		for id := range MAX_STATES - 1 {
-			if windowData.IsDuplicate(clientId, int64(id)) != windowReaded.IsDuplicate(clientId, int64(id)) {
+			if windowData.IsDuplicate(clientId, sourceId, int64(id)) != windowReaded.IsDuplicate(clientId, sourceId, int64(id)) {
 				t.Errorf("Error in reloaded window")
 			}
 		}
@@ -111,6 +114,7 @@ func TestStateCorrectFilesExceedingMaximumCapacity(t *testing.T) {
 	clientId := "cli-1"
 	moduleName := "testing"
 	shard := "0"
+	sourceId := "source_1"
 	StatesDir = "/tmp/states_test"
 	var dummyMsg = amqp.Delivery{}
 	// Set env to clean previus files
@@ -134,6 +138,7 @@ func TestStateCorrectFilesExceedingMaximumCapacity(t *testing.T) {
 			ConcatToName: int64(id + 10),
 			MessageId:    int64(id),
 			ClientId:     clientId,
+			SourceId:     sourceId,
 		}
 		UpdateState(state, windowData, &args)
 		SaveState(stateHelper, *state, &dummyMsg, DummySendAck, *windowData, args)
@@ -163,7 +168,7 @@ func TestStateCorrectFilesExceedingMaximumCapacity(t *testing.T) {
 		t.Errorf("Error on reload window")
 	} else {
 		for id := range MAX_STATES - 1 {
-			if windowData.IsDuplicate(clientId, int64(id)) != windowReaded.IsDuplicate(clientId, int64(id)) {
+			if windowData.IsDuplicate(clientId, sourceId, int64(id)) != windowReaded.IsDuplicate(clientId, sourceId, int64(id)) {
 				t.Errorf("Error in reloaded window")
 			}
 		}
@@ -178,6 +183,7 @@ func TestTimeStampFileGreaterThanAux(t *testing.T) {
 	clientId := "cli-1"
 	moduleName := "testing"
 	shard := "0"
+	sourceId := "source_1"
 	StatesDir = "/tmp/states_test"
 	var dummyMsg = amqp.Delivery{}
 	// Set env to clean previus files
@@ -232,7 +238,7 @@ func TestTimeStampFileGreaterThanAux(t *testing.T) {
 		t.Errorf("Error on reload window")
 	} else {
 		for id := range MAX_STATES - 1 {
-			if windowData.IsDuplicate(clientId, int64(id)) != windowReaded.IsDuplicate(clientId, int64(id)) {
+			if windowData.IsDuplicate(clientId, sourceId, int64(id)) != windowReaded.IsDuplicate(clientId, sourceId, int64(id)) {
 				t.Errorf("Error in reloaded window")
 			}
 		}
@@ -247,6 +253,7 @@ func TestTimeStampFileLowerThanAux(t *testing.T) {
 	clientId := "cli-1"
 	moduleName := "testing"
 	shard := "0"
+	sourceId := "source_1"
 	StatesDir = "/tmp/states_test"
 	var dummyMsg = amqp.Delivery{}
 	// Set env to clean previus files
@@ -301,7 +308,7 @@ func TestTimeStampFileLowerThanAux(t *testing.T) {
 		t.Errorf("Error on reload window")
 	} else {
 		for id := range MAX_STATES - 1 {
-			if windowData.IsDuplicate(clientId, int64(id)) != windowReaded.IsDuplicate(clientId, int64(id)) {
+			if windowData.IsDuplicate(clientId, sourceId, int64(id)) != windowReaded.IsDuplicate(clientId, sourceId, int64(id)) {
 				t.Errorf("Error in reloaded window")
 			}
 		}
@@ -315,6 +322,7 @@ func TestStateOriginalFileBroken(t *testing.T) {
 	clientId := "cli-1"
 	moduleName := "testing"
 	shard := "0"
+	sourceId := "source_1"
 	StatesDir = "/tmp/states_test"
 	var dummyMsg = amqp.Delivery{}
 	// Set env to clean previus files
@@ -369,7 +377,7 @@ func TestStateOriginalFileBroken(t *testing.T) {
 		t.Errorf("Error on reload window")
 	} else {
 		for id := range MAX_STATES - 1 {
-			if windowData.IsDuplicate(clientId, int64(id)) != windowReaded.IsDuplicate(clientId, int64(id)) {
+			if windowData.IsDuplicate(clientId, sourceId, int64(id)) != windowReaded.IsDuplicate(clientId, sourceId, int64(id)) {
 				t.Errorf("Error in reloaded window")
 			}
 		}
@@ -384,6 +392,7 @@ func TestStateAuxFileBroken(t *testing.T) {
 	clientId := "cli-1"
 	moduleName := "testing"
 	shard := "0"
+	sourceId := "source_1"
 	StatesDir = "/tmp/states_test"
 	var dummyMsg = amqp.Delivery{}
 	// Set env to clean previus files
@@ -438,7 +447,7 @@ func TestStateAuxFileBroken(t *testing.T) {
 		t.Errorf("Error on reload window")
 	} else {
 		for id := range MAX_STATES - 1 {
-			if windowData.IsDuplicate(clientId, int64(id)) != windowReaded.IsDuplicate(clientId, int64(id)) {
+			if windowData.IsDuplicate(clientId, sourceId, int64(id)) != windowReaded.IsDuplicate(clientId, sourceId, int64(id)) {
 				t.Errorf("Error in reloaded window")
 			}
 		}
@@ -453,6 +462,7 @@ func TestStateBohtFilesBroken(t *testing.T) {
 	clientId := "cli-1"
 	moduleName := "testing"
 	shard := "0"
+	//sourceId := "source_1"
 	StatesDir = "/tmp/states_test"
 	var dummyMsg = amqp.Delivery{}
 	// Set env to clean previus files
