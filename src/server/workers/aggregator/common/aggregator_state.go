@@ -210,6 +210,27 @@ func (aggregator *Aggregator) CreateAggregatorMetricsState(negative bool) *Aggre
 }
 
 // Return the state helpers and the window
+func (aggregator *Aggregator) CreateStateHelperMetrics(possitive bool) (*state.StateHelper[AggregatorMetricsState, AggregatorMetricsUpdateArgs, AckArgs], *window.MessageWindow) {
+	var postfix string
+	if possitive {
+		postfix = "possitive"
+	} else {
+		postfix = "negative"
+	}
+	stateHelper := state.NewStateHelper[AggregatorMetricsState, AggregatorMetricsUpdateArgs, AckArgs](
+		aggregator.Config.ID+"_"+postfix,
+		aggregator.Config.AggregatorType,
+		DEFAULT_UNIQUE_SHARD,
+		UpdateMetrics)
+	if stateHelper == nil {
+		aggregator.Log.Fatalf(MESSAGE_FAILED_TO_CREATE_STATE_HELPER)
+		return nil, nil
+	}
+	_, messageWindow := state.GetLastValidState(stateHelper)
+	return stateHelper, &messageWindow
+}
+
+// Return the state helpers and the window
 func (aggregator *Aggregator) InitStateHelperMovie() {
 	stateHelper := state.NewStateHelper[AggregatorMoviesState, AggregatorMoviesUpdateArgs, AckArgs](
 		aggregator.Config.ID,
@@ -271,27 +292,6 @@ func (aggregator *Aggregator) InitiStateHelperTopAndBottom() {
 	_, messageWindow := state.GetLastValidState(stateHelper)
 	aggregator.StateHelperTopAndBottom = stateHelper
 	aggregator.Window = &messageWindow
-}
-
-// Return the state helpers and the window
-func (aggregator *Aggregator) CreateStateHelperMetrics(possitive bool) (*state.StateHelper[AggregatorMetricsState, AggregatorMetricsUpdateArgs, AckArgs], *window.MessageWindow) {
-	var postfix string
-	if possitive {
-		postfix = "possitive"
-	} else {
-		postfix = "negative"
-	}
-	stateHelper := state.NewStateHelper[AggregatorMetricsState, AggregatorMetricsUpdateArgs, AckArgs](
-		aggregator.Config.ID+"_"+postfix,
-		aggregator.Config.AggregatorType,
-		DEFAULT_UNIQUE_SHARD,
-		UpdateMetrics)
-	if stateHelper == nil {
-		aggregator.Log.Fatalf(MESSAGE_FAILED_TO_CREATE_STATE_HELPER)
-		return nil, nil
-	}
-	_, messageWindow := state.GetLastValidState(stateHelper)
-	return stateHelper, &messageWindow
 }
 
 // Return the state helpers and the window

@@ -31,13 +31,13 @@ const MSG_FAILED_TO_PUBLISH_ON_OUTPUT_QUEUE = "Failed to publish on outputqueue"
 
 // Joiner which can be of types "group_by_movie_id_ratings" or "group_by_movie_id_credits".
 type Joiner struct {
-	Channel            *amqp.Channel
-	Connection         *amqp.Connection
-	Config             JoinerConfig
-	Log                *logging.Logger
-	WindowMovies       *window.MessageWindow
-	WindowSec          *window.MessageWindow // Ratings or Credits
-	StateHelperMovies  *state.StateHelper[JoinerMoviesState, JoinerMoviesUpdateArgs, AckArgs]
+	Channel    *amqp.Channel
+	Connection *amqp.Connection
+	Config     JoinerConfig
+	Log        *logging.Logger
+	//WindowMovies       *window.MessageWindow
+	MessagesWindow *window.MessageWindow // Ratings or Credits
+	//StateHelperMovies  *state.StateHelper[JoinerMoviesState, JoinerMoviesUpdateArgs, AckArgs]
 	StateHelperRatings *state.StateHelper[JoinerRatingsState, JoinerRatingsUpdateArgs, AckArgs]
 	StateHelperCredits *state.StateHelper[JoinerCreditsState, JoinerCreditsUpdateArgs, AckArgs]
 }
@@ -91,11 +91,12 @@ func (joiner *Joiner) Start() {
 	joiner.Log.Infof("[%s] %s", joiner.Config.JoinerType, MSG_JOB_FINISHED)
 }
 
+/*
 // Check EOF condition
 func (joiner *Joiner) logEofQueue(queueName string) {
 	joiner.Log.Infof("[%s,%s] %s", joiner.Config.JoinerType, queueName, MSG_RECEIVED_EOF_MARKER)
 }
-
+*/
 // Send to report
 func (joiner *Joiner) publishData(data []byte) {
 	err := joiner.Channel.Publish("", joiner.Config.OutputQueueName, false, false, amqp.Publishing{
@@ -109,8 +110,9 @@ func (joiner *Joiner) publishData(data []byte) {
 
 func (joiner *Joiner) joiner_g_b_m_id_credits() {
 	inputExchange := "ar_movies_after_2000_exchange"
-	// Init state movies
-	joiner.InitStateHelperMovies(inputExchange)
+
+	// Init state credits
+	joiner.InitStateHelperCredits(inputExchange)
 
 	err := rabbitmq.DeclareDirectExchanges(joiner.Channel, inputExchange)
 	if err != nil {
@@ -126,15 +128,8 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 	if err != nil {
 		Shutdown(joiner.Log, joiner.Connection, joiner.Channel, "failed to bind queue to exchange", err)
 	}
-	/*
-		// Store client-specific data
-		type ClientStateCredits struct {
-			counter   *utils.ActorsCounter
-			movieEOF  bool
-			creditEOF bool
-		}*/
-	clientStates := make(map[string]*utils.ClientStateCredits)
-	//clientStates := joiner.CreateJoinerCreditsState()
+	//clientStates := make(map[string]*utils.ClientStateCredits)
+	clientStates := joiner.CreateJoinerCreditsState()
 	var clientStatesMutex sync.RWMutex
 
 	// Function to send the report when both EOFs are received
@@ -163,8 +158,6 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 			joiner.publishData(data)
 			joiner.Log.Debugf("[client_id:%s] sent eof marker", clientID)
 
-			// TODO: Remove processed client to free resources
-			// delete(clientStates, clientID)
 		}
 	}
 
@@ -181,10 +174,10 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 
 			clientID = credit.GetClientId()
 
-			if _, exists := clientStates[clientID]; !exists {
-				clientStates[clientID] = &utils.ClientStateCredits{Counter: utils.NewActorCounter()}
+			if _, exists := clientStates.ClientStates[clientID]; !exists {
+				clientStates.ClientStates[clientID] = &utils.ClientStateCredits{Counter: utils.NewActorCounter()}
 			}
-			state = clientStates[clientID]
+			state = clientStates.ClientStates[clientID]
 
 			if credit.GetEof() {
 				state.CreditEOF = true
@@ -203,10 +196,10 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 
 			clientID = movie.GetClientId()
 
-			if _, exists := clientStates[clientID]; !exists {
-				clientStates[clientID] = &utils.ClientStateCredits{Counter: utils.NewActorCounter()}
+			if _, exists := clientStates.ClientStates[clientID]; !exists {
+				clientStates.ClientStates[clientID] = &utils.ClientStateCredits{Counter: utils.NewActorCounter()}
 			}
-			state = clientStates[clientID]
+			state = clientStates.ClientStates[clientID]
 
 			if movie.GetEof() {
 				state.MovieEOF = true
@@ -260,8 +253,9 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 
 func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 	inputExchange := "ar_movies_2000_and_later_exchange"
-	// Init state movies
-	joiner.InitStateHelperMovies(inputExchange)
+
+	// Init state ratings
+	joiner.InitStateHelperRatings(inputExchange)
 
 	err := rabbitmq.DeclareDirectExchanges(joiner.Channel, inputExchange)
 	if err != nil {
@@ -279,19 +273,15 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 	}
 
 	// Store client-specific data
-	type clientState struct {
-		totalizer *utils.RatingTotalizer
-		movieEOF  bool
-		ratingEOF bool
-	}
-	clientStates := make(map[string]*clientState)
+	//clientStates := make(map[string]*utils.ClientStateRatings)
+	clientStates := joiner.CreateJoinerRatingsState()
 	var clientStatesMutex sync.RWMutex
 
 	// Send report when both EOFs are received for a client
-	sendReportIfReady := func(clientID string, state *clientState) {
-		if state.movieEOF && state.ratingEOF {
+	sendReportIfReady := func(clientID string, state *utils.ClientStateRatings) {
+		if state.MovieEOF && state.RatingEOF {
 			// Get top and bottom ratings
-			topAndBottom := state.totalizer.GetTopAndBottom(clientID, DEFAULT_MESSAGE_ID_UNIQUE_OUTPUT, joiner.Config.InputQueueName)
+			topAndBottom := state.Totalizer.GetTopAndBottom(clientID, DEFAULT_MESSAGE_ID_UNIQUE_OUTPUT, joiner.Config.InputQueueName)
 
 			// Prepare report
 			joiner.Log.Debugf("[client_id:%s] send top and bottom: %s", clientID, utils.TopAndBottomToString(topAndBottom))
@@ -319,7 +309,7 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 
 	processMessage := func(msg amqp.Delivery, isRating bool) {
 		var clientID string
-		var state *clientState
+		var state *utils.ClientStateRatings
 
 		if isRating {
 			var rating protopb.RatingSanit
@@ -329,16 +319,16 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 			}
 			clientID = rating.GetClientId()
 
-			if _, exists := clientStates[clientID]; !exists {
-				clientStates[clientID] = &clientState{totalizer: utils.NewRatingTotalizer()}
+			if _, exists := clientStates.ClientStates[clientID]; !exists {
+				clientStates.ClientStates[clientID] = &utils.ClientStateRatings{Totalizer: utils.NewRatingTotalizer()}
 			}
-			state = clientStates[clientID]
+			state = clientStates.ClientStates[clientID]
 
 			if rating.GetEof() {
-				state.ratingEOF = true
+				state.RatingEOF = true
 				joiner.Log.Infof("[client_id:%s][queue:%s] recevied EOF", clientID, joiner.Config.InputQueueSecName)
 			} else {
-				state.totalizer.Sum(&rating)
+				state.Totalizer.Sum(&rating)
 			}
 
 		} else {
@@ -349,16 +339,16 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 			}
 			clientID = movie.GetClientId()
 
-			if _, exists := clientStates[clientID]; !exists {
-				clientStates[clientID] = &clientState{totalizer: utils.NewRatingTotalizer()}
+			if _, exists := clientStates.ClientStates[clientID]; !exists {
+				clientStates.ClientStates[clientID] = &utils.ClientStateRatings{Totalizer: utils.NewRatingTotalizer()}
 			}
-			state = clientStates[clientID]
+			state = clientStates.ClientStates[clientID]
 
 			if movie.GetEof() {
-				state.movieEOF = true
+				state.MovieEOF = true
 				joiner.Log.Infof("[client_id:%s][queue:%s] recevied EOF", clientID, joiner.Config.InputQueueName)
 			} else {
-				state.totalizer.AppendMovie(&movie)
+				state.Totalizer.AppendMovie(&movie)
 			}
 		}
 
@@ -408,6 +398,7 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 
 func (joiner *Joiner) Dispose() {
 	joiner.Log.Infof("Close joiner")
+	joiner.DisposeStateHelpers()
 	Shutdown(joiner.Log, joiner.Connection, joiner.Channel, "", nil)
 }
 

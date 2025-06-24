@@ -20,6 +20,12 @@ type RatingTotalizer struct {
 	SeenMovies map[int64]struct{}
 }
 
+type ClientStateRatings struct {
+	Totalizer *RatingTotalizer
+	MovieEOF  bool
+	RatingEOF bool
+}
+
 func newMovieInfo(title string) *MovieInfo {
 	return &MovieInfo{
 		Title:     title,
