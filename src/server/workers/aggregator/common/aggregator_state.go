@@ -8,6 +8,7 @@ import (
 	"tp1/server/workers/aggregator/common/utils"
 
 	amqp "github.com/rabbitmq/amqp091-go"
+	"google.golang.org/protobuf/proto"
 )
 
 const DEFAULT_UNIQUE_SHARD string = ""
@@ -62,6 +63,17 @@ type AggregatorTop10UpdateArgs struct {
 	EOF         bool
 }
 
+type TopAndBottomDB struct {
+	TitleTop        string
+	TitleBottom     string
+	RatingAvgTop    float64
+	RatingAvgBottom float64
+	ClientId        string
+	MessageId       int64
+	SourceId        string
+	Eof             bool
+}
+
 type AggregatorTopAndBottomStateInternal struct {
 	AmountEOF          map[string]int
 	GlobalTopAndBottom map[string](*protopb.TopAndBottomRatingAvg)
@@ -69,13 +81,15 @@ type AggregatorTopAndBottomStateInternal struct {
 
 type AggregatorTopAndBottomState struct {
 	AmountEOF          map[string]int
-	GlobalTopAndBottom map[string](*protopb.TopAndBottomRatingAvg)
+	GlobalTopAndBottom map[string](TopAndBottomDB)
 }
 
 type AggregatorTopAndBottomUpdateArgs struct {
-	MessageId int64
-	ClientId  string
-	SourceId  string
+	MessageId    int64
+	ClientId     string
+	SourceId     string
+	TopAndBottom TopAndBottomDB
+	Eof          bool
 }
 
 type AggregatorMetricsState string
@@ -138,15 +152,32 @@ func (aggregator *Aggregator) CreateAggregatorTop10State() *AggregatorTop10State
 }
 
 // Create a state from file or from scratch. Also return the window
-func (aggregator *Aggregator) CreateAggregatorTopAndBottom() *AggregatorTopAndBottomState {
-	aggregatorState, _ := state.GetLastValidState(aggregator.StateHelperTopAndBottom)
-	if aggregatorState == nil {
-		aggregatorState = &AggregatorTopAndBottomState{
+func (aggregator *Aggregator) CreateAggregatorTopAndBottom() *AggregatorTopAndBottomStateInternal {
+	aggregatorStateDB, _ := state.GetLastValidState(aggregator.StateHelperTopAndBottom)
+	if aggregatorStateDB == nil {
+		return &AggregatorTopAndBottomStateInternal{
 			AmountEOF:          make(map[string]int),
 			GlobalTopAndBottom: make(map[string](*protopb.TopAndBottomRatingAvg)),
 		}
+	} else {
+		toReturn := AggregatorTopAndBottomStateInternal{
+			AmountEOF:          aggregatorStateDB.AmountEOF,
+			GlobalTopAndBottom: make(map[string](*protopb.TopAndBottomRatingAvg)),
+		}
+		for keyDB, stateDB := range aggregatorStateDB.GlobalTopAndBottom {
+			toReturn.GlobalTopAndBottom[keyDB] = &protopb.TopAndBottomRatingAvg{
+				TitleTop:        proto.String(stateDB.TitleTop),
+				TitleBottom:     proto.String(stateDB.TitleBottom),
+				RatingAvgTop:    proto.Float64(stateDB.RatingAvgTop),
+				RatingAvgBottom: proto.Float64(stateDB.RatingAvgBottom),
+				ClientId:        proto.String(stateDB.ClientId),
+				MessageId:       proto.Int64(stateDB.MessageId),
+				SourceId:        proto.String(stateDB.SourceId),
+				Eof:             proto.Bool(stateDB.Eof),
+			}
+		}
+		return &toReturn
 	}
-	return aggregatorState
 }
 
 // Return the state helpers and the window
@@ -214,19 +245,36 @@ func (aggregator *Aggregator) InitiStateHelperTopAndBottom() {
 }
 
 // Return the state helpers and the window
-func (aggregator *Aggregator) InitiStateHelperMetrics() {
+func (aggregator *Aggregator) CreateStateHelperMetrics(possitive bool) (*state.StateHelper[AggregatorMetricsState, AggregatorMetricsUpdateArgs, AckArgs], *window.MessageWindow) {
+	var postfix string
+	if possitive {
+		postfix = "possitive"
+	} else {
+		postfix = "negative"
+	}
 	stateHelper := state.NewStateHelper[AggregatorMetricsState, AggregatorMetricsUpdateArgs, AckArgs](
-		aggregator.Config.ID,
+		aggregator.Config.ID+"_"+postfix,
 		aggregator.Config.AggregatorType,
 		DEFAULT_UNIQUE_SHARD,
 		UpdateMetrics)
 	if stateHelper == nil {
 		aggregator.Log.Fatalf(MESSAGE_FAILED_TO_CREATE_STATE_HELPER)
-		return
+		return nil, nil
 	}
 	_, messageWindow := state.GetLastValidState(stateHelper)
-	aggregator.StateHelperMetrics = stateHelper
-	aggregator.Window = &messageWindow
+	return stateHelper, &messageWindow
+}
+
+// Return the state helpers and the window
+func (aggregator *Aggregator) InitiStateHelperMetrics() {
+	// Possitive
+	stateHelperPos, messageWindowPos := aggregator.CreateStateHelperMetrics(true)
+	aggregator.StateHelperMetricsPos = stateHelperPos
+	aggregator.Window = messageWindowPos
+	// Negative
+	stateHelperNeg, messageWindowNeg := aggregator.CreateStateHelperMetrics(false)
+	aggregator.StateHelperMetricsNeg = stateHelperNeg
+	aggregator.WindowSec = messageWindowNeg
 }
 
 // Updates the aggregator status and refresh the window
@@ -271,14 +319,17 @@ func UpdateTop10(aggregatorState *AggregatorTop10State, messageWindow *window.Me
 			actorsCount := aggregatorState.ActorsData[updateArgs.ClientId]
 			actorsCount.DoUpdateCount(updateArgs.ProfilePath, updateArgs.Name, updateArgs.CountMovies)
 		}
-		//actorsDataClient := utils.GetOrInitKeyMapWithKey(&aggregatorState.ActorsData, clientID, utils.InitActorsData)
-		//actorsDataClient.DoUpdateCount(updateArgs.ProfilePath, updateArgs.Name, updateArgs.CountMovies)
 	}
 }
 
 // Updates the aggregator status and refresh the window
 func UpdateTopAndBottom(aggregatorState *AggregatorTopAndBottomState, messageWindow *window.MessageWindow, updateArgs *AggregatorTopAndBottomUpdateArgs) {
 	messageWindow.AddMessage(updateArgs.ClientId, updateArgs.SourceId, updateArgs.MessageId)
+	if updateArgs.Eof {
+		aggregatorState.AmountEOF[updateArgs.ClientId] = utils.GetOrInitKeyMap(&aggregatorState.AmountEOF, updateArgs.ClientId, utils.InitEOFCount) + 1
+		return
+	}
+	aggregatorState.GlobalTopAndBottom[updateArgs.ClientId] = updateArgs.TopAndBottom
 }
 
 // Updates the aggregator status and refresh the window
@@ -344,7 +395,7 @@ func (aggregator *Aggregator) SaveTop5State(aggregatorState AggregatorTop5State,
 func (aggregator *Aggregator) SaveTop10State(aggregatorState AggregatorTop10StateInternal, msg amqp.Delivery, clientId string, sourceId string, profilePath string, name string, countMovies int64, eof bool, messageId int64) error {
 	// update window
 	aggregator.Window.AddMessage(clientId, sourceId, messageId)
-	// load state from db
+	// create state to save
 	toSave := AggregatorTop10State{
 		AmountEOF:  aggregatorState.AmountEOF,
 		ActorsData: make(map[string](utils.ActorsData)),
@@ -360,11 +411,66 @@ func (aggregator *Aggregator) SaveTop10State(aggregatorState AggregatorTop10Stat
 		CountMovies: countMovies,
 		EOF:         eof,
 	}
-	//UpdateTop10(aggregatorStateDB, aggregator.Window, &updateArgs)
-
 	// save state
 	err := state.SaveState(
 		aggregator.StateHelperTop10,
+		toSave,
+		&AckArgs{
+			msg: msg,
+		},
+		SendAck,
+		*aggregator.Window,
+		updateArgs,
+	)
+	if err != nil {
+		aggregator.Log.Fatalf(MESSAGE_UNABLE_TO_SAVE_STATE)
+		return err
+	}
+	return nil
+}
+
+// Refresh the window, save the state and send the ack
+func (aggregator *Aggregator) SaveTopAndBottomState(aggregatorState AggregatorTopAndBottomStateInternal, msg amqp.Delivery, clientId string, sourceId string, reduced *protopb.TopAndBottomRatingAvg, eof bool, messageId int64) error {
+	// update window
+	aggregator.Window.AddMessage(clientId, sourceId, messageId)
+	// parse
+	topAndBottom := TopAndBottomDB{
+		TitleTop:        reduced.GetTitleTop(),
+		TitleBottom:     reduced.GetTitleBottom(),
+		RatingAvgTop:    reduced.GetRatingAvgTop(),
+		RatingAvgBottom: reduced.GetRatingAvgBottom(),
+		ClientId:        reduced.GetClientId(),
+		MessageId:       reduced.GetMessageId(),
+		SourceId:        reduced.GetSourceId(),
+		Eof:             reduced.GetEof(),
+	}
+	// create state to save
+	toSave := AggregatorTopAndBottomState{
+		AmountEOF:          aggregatorState.AmountEOF,
+		GlobalTopAndBottom: make(map[string](TopAndBottomDB)),
+	}
+	for key, state := range aggregatorState.GlobalTopAndBottom {
+		toSave.GlobalTopAndBottom[key] = TopAndBottomDB{
+			TitleTop:        state.GetTitleTop(),
+			TitleBottom:     state.GetTitleBottom(),
+			RatingAvgTop:    state.GetRatingAvgTop(),
+			RatingAvgBottom: state.GetRatingAvgBottom(),
+			ClientId:        state.GetClientId(),
+			MessageId:       state.GetMessageId(),
+			SourceId:        state.GetSourceId(),
+			Eof:             state.GetEof(),
+		}
+	}
+	updateArgs := AggregatorTopAndBottomUpdateArgs{
+		MessageId:    messageId,
+		ClientId:     clientId,
+		SourceId:     sourceId,
+		TopAndBottom: topAndBottom,
+		Eof:          eof,
+	}
+	// save state
+	err := state.SaveState(
+		aggregator.StateHelperTopAndBottom,
 		toSave,
 		&AckArgs{
 			msg: msg,
@@ -393,7 +499,7 @@ func (aggregator *Aggregator) DisposeStateHelpers() {
 	if aggregator.StateHelperTopAndBottom != nil {
 		aggregator.StateHelperTopAndBottom.Dispose(SendAck)
 	}
-	if aggregator.StateHelperMetrics != nil {
-		aggregator.StateHelperMetrics.Dispose(SendAck)
+	if aggregator.StateHelperMetricsNeg != nil {
+		aggregator.StateHelperMetricsNeg.Dispose(SendAck)
 	}
 }

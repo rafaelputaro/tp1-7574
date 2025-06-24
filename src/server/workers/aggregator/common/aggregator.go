@@ -59,8 +59,10 @@ type Aggregator struct {
 	StateHelperTop5         *state.StateHelper[AggregatorTop5State, AggregatorTop5UpdateArgs, AckArgs]
 	StateHelperTop10        *state.StateHelper[AggregatorTop10State, AggregatorTop10UpdateArgs, AckArgs]
 	StateHelperTopAndBottom *state.StateHelper[AggregatorTopAndBottomState, AggregatorTopAndBottomUpdateArgs, AckArgs]
-	StateHelperMetrics      *state.StateHelper[AggregatorMetricsState, AggregatorMetricsUpdateArgs, AckArgs]
-	Window                  *window.MessageWindow
+	StateHelperMetricsNeg   *state.StateHelper[AggregatorMetricsState, AggregatorMetricsUpdateArgs, AckArgs]
+	StateHelperMetricsPos   *state.StateHelper[AggregatorMetricsState, AggregatorMetricsUpdateArgs, AckArgs]
+	Window                  *window.MessageWindow // All state helper and possitive metrics
+	WindowSec               *window.MessageWindow // Negative metrics
 }
 
 // Returns new aggregator ready to work with rabbit
@@ -384,17 +386,15 @@ func (aggregator *Aggregator) aggregateTopAndBottom() {
 	if err != nil {
 		aggregator.Log.Fatalf("%s '%s': %v", MSG_FAILED_CONSUME, aggregator.Config.InputQueue, err)
 	}
-
 	// Count EOF and top_and_bottom for all clients
-	/*amountEOF := make(map[string]int)
-	globalTopAndBottom := make(map[string](*protopb.TopAndBottomRatingAvg))*/
 	aggregatorState := aggregator.CreateAggregatorTopAndBottom()
-
 	for msg := range msgs {
-		err := rabbitmq.SingleAck(msg)
-		if err != nil {
-			aggregator.Log.Fatalf("failed to ack message: %v", err)
-		}
+
+		/*
+			err := rabbitmq.SingleAck(msg)
+			if err != nil {
+				aggregator.Log.Fatalf("failed to ack message: %v", err)
+			}*/
 
 		var topAndBottom protopb.TopAndBottomRatingAvg
 		if err := proto.Unmarshal(msg.Body, &topAndBottom); err != nil {
@@ -402,6 +402,13 @@ func (aggregator *Aggregator) aggregateTopAndBottom() {
 			continue
 		}
 		clientID := topAndBottom.GetClientId()
+		if aggregator.Window.IsDuplicate(clientID, topAndBottom.GetSourceId(), *topAndBottom.MessageId) {
+			aggregator.Log.Debugf("duplicate message: %v", *topAndBottom.MessageId)
+			aggregator.sendAck(msg)
+			continue
+		} else {
+			aggregator.Window.AddMessage(clientID, topAndBottom.GetSourceId(), *topAndBottom.MessageId)
+		}
 		aggregator.Log.Debugf("[aggregator_%s client_%s] %s : %s", aggregator.Config.AggregatorType, clientID, MSG_RECEIVED, protoUtils.TopAndBottomToString(&topAndBottom))
 		// Actual top and bottom for a client
 		globalTopAndBottomClient := utils.GetOrInitKeyMapWithKeyAndMsgIdAndSrcId(&aggregatorState.GlobalTopAndBottom, clientID, DEFAULT_MESSAGE_ID_UNIQUE_OUTPUT, DEFAULT_MESSAGE_SOURCE_ID, protoUtils.CreateSeedTopAndBottom)
@@ -422,9 +429,13 @@ func (aggregator *Aggregator) aggregateTopAndBottom() {
 				dataEof, errEof := protoUtils.CreateEofMessageTopAndBottomRatingAvg(clientID, DEFAULT_MESSAGE_ID_EOF_UNIQUE_OUTPUT, DEFAULT_MESSAGE_SOURCE_ID)
 				aggregator.checkErrorAndPublish(clientID, dataEof, errEof)
 			}
+			aggregator.SaveTopAndBottomState(*aggregatorState, msg, clientID, topAndBottom.GetSourceId(), protoUtils.CreateDummyTopAndBottomRatingAvg(clientID, topAndBottom.GetMessageId(), topAndBottom.GetSourceId(), true), true, topAndBottom.GetMessageId())
+			state.Synch(aggregator.StateHelperTopAndBottom, SendAck)
 			continue
 		}
-		aggregatorState.GlobalTopAndBottom[clientID] = utils.ReduceTopAndBottom(globalTopAndBottomClient, &topAndBottom, DEFAULT_MESSAGE_ID_UNIQUE_OUTPUT, DEFAULT_MESSAGE_SOURCE_ID)
+		reduced := utils.ReduceTopAndBottom(globalTopAndBottomClient, &topAndBottom, DEFAULT_MESSAGE_ID_UNIQUE_OUTPUT, DEFAULT_MESSAGE_SOURCE_ID)
+		aggregatorState.GlobalTopAndBottom[clientID] = reduced
+		aggregator.SaveTopAndBottomState(*aggregatorState, msg, clientID, topAndBottom.GetSourceId(), reduced, false, *topAndBottom.MessageId)
 	}
 }
 
