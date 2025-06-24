@@ -390,12 +390,6 @@ func (aggregator *Aggregator) aggregateTopAndBottom() {
 	aggregatorState := aggregator.CreateAggregatorTopAndBottom()
 	for msg := range msgs {
 
-		/*
-			err := rabbitmq.SingleAck(msg)
-			if err != nil {
-				aggregator.Log.Fatalf("failed to ack message: %v", err)
-			}*/
-
 		var topAndBottom protopb.TopAndBottomRatingAvg
 		if err := proto.Unmarshal(msg.Body, &topAndBottom); err != nil {
 			aggregator.Log.Errorf("[aggregator_%s] %s: %v", aggregator.Config.AggregatorType, MSG_FAILED_TO_UNMARSHAL, err)
@@ -516,11 +510,6 @@ func (aggregator *Aggregator) aggregateMetric(queueName string, channelResults c
 
 	// read all message from queue for each clients
 	for msg := range msgs {
-		/*
-			err := rabbitmq.SingleAck(msg)
-			if err != nil {
-				aggregator.Log.Fatalf("failed to ack message: %v", err)
-			}*/
 
 		var movie protopb.MovieSanit
 		if err := proto.Unmarshal(msg.Body, &movie); err != nil {

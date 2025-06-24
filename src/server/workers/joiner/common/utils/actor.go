@@ -16,6 +16,12 @@ type ActorsCounter struct {
 	Actors map[string]*ActorInfo
 }
 
+type ClientStateCredits struct {
+	Counter   *ActorsCounter
+	MovieEOF  bool
+	CreditEOF bool
+}
+
 func newActorInfo(name string) *ActorInfo {
 	return &ActorInfo{
 		Name:   name,

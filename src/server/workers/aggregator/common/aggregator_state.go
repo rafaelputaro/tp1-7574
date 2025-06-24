@@ -116,7 +116,7 @@ func SendAck(args AckArgs) error {
 	return nil
 }
 
-// Create a state from file or from scratch. Also return the window
+// Create a state from file or from scratch.
 func (aggregator *Aggregator) CreateAggregatorMoviesState() *AggregatorMoviesState {
 	aggregatorState, _ := state.GetLastValidState(aggregator.StateHelperMovies)
 	if aggregatorState == nil {
@@ -127,7 +127,7 @@ func (aggregator *Aggregator) CreateAggregatorMoviesState() *AggregatorMoviesSta
 	return aggregatorState
 }
 
-// Create a state from file or from scratch. Also return the window
+// Create a state from file or from scratch.
 func (aggregator *Aggregator) CreateAggregatorTop5State() *AggregatorTop5State {
 	aggregatorState, _ := state.GetLastValidState(aggregator.StateHelperTop5)
 	if aggregatorState == nil {
@@ -138,7 +138,7 @@ func (aggregator *Aggregator) CreateAggregatorTop5State() *AggregatorTop5State {
 	return aggregatorState
 }
 
-// Create a state from file or from scratch. Also return the window
+// Create a state from file or from scratch.
 func (aggregator *Aggregator) CreateAggregatorTop10State() *AggregatorTop10StateInternal {
 	aggregatorStateDB, _ := state.GetLastValidState(aggregator.StateHelperTop10)
 	if aggregatorStateDB == nil {
@@ -158,7 +158,7 @@ func (aggregator *Aggregator) CreateAggregatorTop10State() *AggregatorTop10State
 	}
 }
 
-// Create a state from file or from scratch. Also return the window
+// Create a state from file or from scratch.
 func (aggregator *Aggregator) CreateAggregatorTopAndBottom() *AggregatorTopAndBottomStateInternal {
 	aggregatorStateDB, _ := state.GetLastValidState(aggregator.StateHelperTopAndBottom)
 	if aggregatorStateDB == nil {
@@ -187,7 +187,7 @@ func (aggregator *Aggregator) CreateAggregatorTopAndBottom() *AggregatorTopAndBo
 	}
 }
 
-// Create a state from file or from scratch. Also return the window
+// Create a state from file or from scratch.
 func (aggregator *Aggregator) CreateAggregatorMetricsState(negative bool) *AggregatorMetricsState {
 	var aggregatorState *AggregatorMetricsState
 	if negative {
