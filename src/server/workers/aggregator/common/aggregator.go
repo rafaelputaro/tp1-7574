@@ -303,8 +303,7 @@ func (a *Aggregator) aggregateTop5() {
 			}
 
 			a.Log.Infof("[client_id:%s] published top5: %v", clientID, &top5)
-			// TODO: clean map from client
-			//rabbitmq.SingleAck(msg)
+
 			a.SaveTop5State(*aggregatorState, msg, clientID, movie.GetSourceId(), 0, "", true, *movie.MessageId)
 			state.Synch(a.StateHelperTop5, SendAck)
 			continue

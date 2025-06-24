@@ -42,9 +42,14 @@ type AggregatorTop5UpdateArgs struct {
 	EOF               bool
 }
 
-type AggregatorTop10State struct {
+type AggregatorTop10StateInternal struct {
 	AmountEOF  map[string]int
 	ActorsData map[string](*utils.ActorsData)
+}
+
+type AggregatorTop10State struct {
+	AmountEOF  map[string]int
+	ActorsData map[string](utils.ActorsData)
 }
 
 type AggregatorTop10UpdateArgs struct {
@@ -55,6 +60,11 @@ type AggregatorTop10UpdateArgs struct {
 	Name        string
 	CountMovies int64
 	EOF         bool
+}
+
+type AggregatorTopAndBottomStateInternal struct {
+	AmountEOF          map[string]int
+	GlobalTopAndBottom map[string](*protopb.TopAndBottomRatingAvg)
 }
 
 type AggregatorTopAndBottomState struct {
@@ -108,15 +118,23 @@ func (aggregator *Aggregator) CreateAggregatorTop5State() *AggregatorTop5State {
 }
 
 // Create a state from file or from scratch. Also return the window
-func (aggregator *Aggregator) CreateAggregatorTop10State() *AggregatorTop10State {
-	aggregatorState, _ := state.GetLastValidState(aggregator.StateHelperTop10)
-	if aggregatorState == nil {
-		aggregatorState = &AggregatorTop10State{
+func (aggregator *Aggregator) CreateAggregatorTop10State() *AggregatorTop10StateInternal {
+	aggregatorStateDB, _ := state.GetLastValidState(aggregator.StateHelperTop10)
+	if aggregatorStateDB == nil {
+		return &AggregatorTop10StateInternal{
 			AmountEOF:  make(map[string]int),
 			ActorsData: make(map[string](*utils.ActorsData)),
 		}
+	} else {
+		toReturn := AggregatorTop10StateInternal{
+			AmountEOF:  aggregatorStateDB.AmountEOF,
+			ActorsData: make(map[string](*utils.ActorsData)),
+		}
+		for keyDB, stateDB := range aggregatorStateDB.ActorsData {
+			toReturn.ActorsData[keyDB] = &stateDB
+		}
+		return &toReturn
 	}
-	return aggregatorState
 }
 
 // Create a state from file or from scratch. Also return the window
@@ -245,9 +263,16 @@ func UpdateTop10(aggregatorState *AggregatorTop10State, messageWindow *window.Me
 		return
 	}
 	if updateArgs.CountMovies > 0 {
-		clientID := updateArgs.ClientId
-		actorsDataClient := utils.GetOrInitKeyMapWithKey(&aggregatorState.ActorsData, clientID, utils.InitActorsData)
-		actorsDataClient.DoUpdateCount(updateArgs.ProfilePath, updateArgs.Name, updateArgs.CountMovies)
+		found, ok := (aggregatorState.ActorsData)[updateArgs.ClientId]
+		if ok {
+			found.DoUpdateCount(updateArgs.ProfilePath, updateArgs.Name, updateArgs.CountMovies)
+		} else {
+			aggregatorState.ActorsData[updateArgs.ClientId] = *utils.InitActorsData(updateArgs.ClientId)
+			actorsCount := aggregatorState.ActorsData[updateArgs.ClientId]
+			actorsCount.DoUpdateCount(updateArgs.ProfilePath, updateArgs.Name, updateArgs.CountMovies)
+		}
+		//actorsDataClient := utils.GetOrInitKeyMapWithKey(&aggregatorState.ActorsData, clientID, utils.InitActorsData)
+		//actorsDataClient.DoUpdateCount(updateArgs.ProfilePath, updateArgs.Name, updateArgs.CountMovies)
 	}
 }
 
@@ -316,26 +341,37 @@ func (aggregator *Aggregator) SaveTop5State(aggregatorState AggregatorTop5State,
 }
 
 // Refresh the window, save the state and send the ack
-func (aggregator *Aggregator) SaveTop10State(aggregatorState AggregatorTop10State, msg amqp.Delivery, clientId string, sourceId string, profilePath string, name string, countMovies int64, eof bool, messageId int64) error {
+func (aggregator *Aggregator) SaveTop10State(aggregatorState AggregatorTop10StateInternal, msg amqp.Delivery, clientId string, sourceId string, profilePath string, name string, countMovies int64, eof bool, messageId int64) error {
 	// update window
 	aggregator.Window.AddMessage(clientId, sourceId, messageId)
+	// load state from db
+	toSave := AggregatorTop10State{
+		AmountEOF:  aggregatorState.AmountEOF,
+		ActorsData: make(map[string](utils.ActorsData)),
+	}
+	for key, state := range aggregatorState.ActorsData {
+		toSave.ActorsData[key] = *state
+	}
+	updateArgs := AggregatorTop10UpdateArgs{
+		MessageId:   messageId,
+		ClientId:    clientId,
+		ProfilePath: profilePath,
+		Name:        name,
+		CountMovies: countMovies,
+		EOF:         eof,
+	}
+	//UpdateTop10(aggregatorStateDB, aggregator.Window, &updateArgs)
+
 	// save state
 	err := state.SaveState(
 		aggregator.StateHelperTop10,
-		aggregatorState,
+		toSave,
 		&AckArgs{
 			msg: msg,
 		},
 		SendAck,
 		*aggregator.Window,
-		AggregatorTop10UpdateArgs{
-			MessageId:   messageId,
-			ClientId:    clientId,
-			ProfilePath: profilePath,
-			Name:        name,
-			CountMovies: countMovies,
-			EOF:         eof,
-		},
+		updateArgs,
 	)
 	if err != nil {
 		aggregator.Log.Fatalf(MESSAGE_UNABLE_TO_SAVE_STATE)
