@@ -330,17 +330,9 @@ func (aggregator *Aggregator) aggregateTop10() {
 	}
 
 	// Count EOF and actors data for all clients
-
 	aggregatorState := aggregator.CreateAggregatorTop10State()
-	/*	amountEOF := make(map[string]int)
-		actorsData := make(map[string](*utils.ActorsData))
-	*/
-	for msg := range msgs {
 
-		err := rabbitmq.SingleAck(msg)
-		if err != nil {
-			aggregator.Log.Fatalf("failed to ack message: %v", err)
-		}
+	for msg := range msgs {
 
 		var actorCount protopb.Actor
 		if err := proto.Unmarshal(msg.Body, &actorCount); err != nil {
@@ -351,8 +343,8 @@ func (aggregator *Aggregator) aggregateTop10() {
 
 		if aggregator.Window.IsDuplicate(clientID, actorCount.GetSourceId(), *actorCount.MessageId) {
 			aggregator.Log.Debugf("duplicate message: %v", *actorCount.MessageId)
-			//		aggregator.sendAck(msg)
-			//continue
+			aggregator.sendAck(msg)
+			continue
 		} else {
 			aggregator.Window.AddMessage(clientID, actorCount.GetSourceId(), *actorCount.MessageId)
 		}
@@ -378,13 +370,13 @@ func (aggregator *Aggregator) aggregateTop10() {
 				dataEof, errEof := protoUtils.CreateEofMessageTop10(clientID, DEFAULT_MESSAGE_ID_EOF_UNIQUE_OUTPUT)
 				aggregator.checkErrorAndPublish(clientID, dataEof, errEof)
 			}
-			//aggregator.SaveTop10State(*aggregatorState, msg, clientID, "", "", 0, true, actorCount.GetMessageId())
-			//state.Synch(aggregator.StateHelperTop10, SendAck)
+			aggregator.SaveTop10State(*aggregatorState, msg, clientID, actorCount.GetSourceId(), "", "", 0, true, actorCount.GetMessageId())
+			state.Synch(aggregator.StateHelperTop10, SendAck)
 			continue
 		}
 		// Update top for a client
 		actorsDataClient.UpdateCount(&actorCount)
-		//aggregator.SaveTop10State(*aggregatorState, msg, clientID, actorCount.GetProfilePath(), actorCount.GetName(), actorCount.GetCountMovies(), false, *actorCount.MessageId)
+		aggregator.SaveTop10State(*aggregatorState, msg, clientID, actorCount.GetSourceId(), actorCount.GetProfilePath(), actorCount.GetName(), actorCount.GetCountMovies(), false, *actorCount.MessageId)
 	}
 }
 
@@ -395,8 +387,9 @@ func (aggregator *Aggregator) aggregateTopAndBottom() {
 	}
 
 	// Count EOF and top_and_bottom for all clients
-	amountEOF := make(map[string]int)
-	globalTopAndBottom := make(map[string](*protopb.TopAndBottomRatingAvg))
+	/*amountEOF := make(map[string]int)
+	globalTopAndBottom := make(map[string](*protopb.TopAndBottomRatingAvg))*/
+	aggregatorState := aggregator.CreateAggregatorTopAndBottom()
 
 	for msg := range msgs {
 		err := rabbitmq.SingleAck(msg)
@@ -412,12 +405,12 @@ func (aggregator *Aggregator) aggregateTopAndBottom() {
 		clientID := topAndBottom.GetClientId()
 		aggregator.Log.Debugf("[aggregator_%s client_%s] %s : %s", aggregator.Config.AggregatorType, clientID, MSG_RECEIVED, protoUtils.TopAndBottomToString(&topAndBottom))
 		// Actual top and bottom for a client
-		globalTopAndBottomClient := utils.GetOrInitKeyMapWithKeyAndMsgIdAndSrcId(&globalTopAndBottom, clientID, DEFAULT_MESSAGE_ID_UNIQUE_OUTPUT, DEFAULT_MESSAGE_SOURCE_ID, protoUtils.CreateSeedTopAndBottom)
+		globalTopAndBottomClient := utils.GetOrInitKeyMapWithKeyAndMsgIdAndSrcId(&aggregatorState.GlobalTopAndBottom, clientID, DEFAULT_MESSAGE_ID_UNIQUE_OUTPUT, DEFAULT_MESSAGE_SOURCE_ID, protoUtils.CreateSeedTopAndBottom)
 		// EOF
 		if topAndBottom.GetEof() {
-			amountEOF[clientID] = utils.GetOrInitKeyMap(&amountEOF, clientID, utils.InitEOFCount) + 1
+			aggregatorState.AmountEOF[clientID] = utils.GetOrInitKeyMap(&aggregatorState.AmountEOF, clientID, utils.InitEOFCount) + 1
 			// If all sources sent EOF, send top and Bottom and submit the EOF to report
-			if aggregator.checkEofSingleQueue(amountEOF[clientID]) {
+			if aggregator.checkEofSingleQueue(aggregatorState.AmountEOF[clientID]) {
 				data, err := proto.Marshal(globalTopAndBottomClient)
 				if err != nil {
 					aggregator.Log.Fatalf("[aggregator_%s cliente_%s] %s: %v", aggregator.Config.AggregatorType, clientID, MSG_FAILED_TO_MARSHAL, err)
@@ -432,7 +425,7 @@ func (aggregator *Aggregator) aggregateTopAndBottom() {
 			}
 			continue
 		}
-		globalTopAndBottom[clientID] = utils.ReduceTopAndBottom(globalTopAndBottomClient, &topAndBottom, DEFAULT_MESSAGE_ID_UNIQUE_OUTPUT, DEFAULT_MESSAGE_SOURCE_ID)
+		aggregatorState.GlobalTopAndBottom[clientID] = utils.ReduceTopAndBottom(globalTopAndBottomClient, &topAndBottom, DEFAULT_MESSAGE_ID_UNIQUE_OUTPUT, DEFAULT_MESSAGE_SOURCE_ID)
 	}
 }
 

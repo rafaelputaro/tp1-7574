@@ -3,6 +3,7 @@ package common
 import (
 	"tp1/helpers/state"
 	"tp1/helpers/window"
+	"tp1/protobuf/protopb"
 	"tp1/rabbitmq"
 	"tp1/server/workers/aggregator/common/utils"
 
@@ -56,7 +57,10 @@ type AggregatorTop10UpdateArgs struct {
 	EOF         bool
 }
 
-type AggregatorTopAndBottomState string
+type AggregatorTopAndBottomState struct {
+	AmountEOF          map[string]int
+	GlobalTopAndBottom map[string](*protopb.TopAndBottomRatingAvg)
+}
 
 type AggregatorTopAndBottomUpdateArgs struct {
 	MessageId int64
@@ -110,6 +114,18 @@ func (aggregator *Aggregator) CreateAggregatorTop10State() *AggregatorTop10State
 		aggregatorState = &AggregatorTop10State{
 			AmountEOF:  make(map[string]int),
 			ActorsData: make(map[string](*utils.ActorsData)),
+		}
+	}
+	return aggregatorState
+}
+
+// Create a state from file or from scratch. Also return the window
+func (aggregator *Aggregator) CreateAggregatorTopAndBottom() *AggregatorTopAndBottomState {
+	aggregatorState, _ := state.GetLastValidState(aggregator.StateHelperTopAndBottom)
+	if aggregatorState == nil {
+		aggregatorState = &AggregatorTopAndBottomState{
+			AmountEOF:          make(map[string]int),
+			GlobalTopAndBottom: make(map[string](*protopb.TopAndBottomRatingAvg)),
 		}
 	}
 	return aggregatorState

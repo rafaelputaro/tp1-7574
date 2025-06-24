@@ -39,20 +39,6 @@ func InitActorsData(clientId string) *ActorsData {
 }
 
 func (actorsData *ActorsData) UpdateCount(actor *protopb.Actor) {
-	/*key := actor.GetProfilePath()
-	foundIndex, existsData := actorsData.index[key]
-	if existsData {
-		// update
-		foundActorData := actorsData.data[foundIndex]
-		newData := *newActorData(*actor.Name, actor.GetProfilePath(), foundActorData.CountMovies+actor.GetCountMovies())
-		actorsData.data[foundIndex] = newData
-	} else {
-		// append
-		newIndex := len(actorsData.data)
-		actorsData.index[key] = newIndex
-		newData := *newActorData(actor.GetName(), actor.GetProfilePath(), actor.GetCountMovies())
-		actorsData.data = append(actorsData.data, newData)
-	}*/
 	actorsData.DoUpdateCount(*actor.ProfilePath, *actor.Name, *actor.CountMovies)
 }
 
