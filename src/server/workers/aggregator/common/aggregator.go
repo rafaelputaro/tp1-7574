@@ -502,23 +502,25 @@ func (aggregator *Aggregator) aggregateMetric(queueName string, channelResults c
 
 	// check negative
 	var isNegative bool
+	var messagesWindow *window.MessageWindow
 	if aggregator.Config.InputQueue == queueName {
 		isNegative = true
+		messagesWindow = aggregator.WindowSec
 	} else {
 		isNegative = false
+		messagesWindow = aggregator.Window
 	}
 
 	// count EOF and count and sumAvg for each clients
-	amountEOF := make(map[string]int)
-	count := make(map[string]int64)
-	sumAvg := make(map[string]float64)
+	aggregatorState := aggregator.CreateAggregatorMetricsState(isNegative)
 
 	// read all message from queue for each clients
 	for msg := range msgs {
-		err := rabbitmq.SingleAck(msg)
-		if err != nil {
-			aggregator.Log.Fatalf("failed to ack message: %v", err)
-		}
+		/*
+			err := rabbitmq.SingleAck(msg)
+			if err != nil {
+				aggregator.Log.Fatalf("failed to ack message: %v", err)
+			}*/
 
 		var movie protopb.MovieSanit
 		if err := proto.Unmarshal(msg.Body, &movie); err != nil {
@@ -526,31 +528,55 @@ func (aggregator *Aggregator) aggregateMetric(queueName string, channelResults c
 			continue
 		}
 		clientID := movie.GetClientId()
+
+		if messagesWindow.IsDuplicate(clientID, movie.GetSourceId(), *movie.MessageId) {
+			aggregator.Log.Debugf("duplicate message: %v", *movie.MessageId)
+			aggregator.sendAck(msg)
+			continue
+		} else {
+			messagesWindow.AddMessage(clientID, movie.GetSourceId(), *movie.MessageId)
+		}
+
 		aggregator.Log.Debugf("[aggregator_%s client_%s] %s : queue(%s) - title(%s) - eof(%t)", aggregator.Config.AggregatorType, clientID, MSG_RECEIVED, queueName, movie.GetTitle(), movie.GetEof())
 		// EOF
 		if movie.GetEof() {
-			amountEOF[clientID] = utils.GetOrInitKeyMap(&amountEOF, clientID, utils.InitEOFCount) + 1
+			aggregatorState.AmountEOF[clientID] = utils.GetOrInitKeyMap(&aggregatorState.AmountEOF, clientID, utils.InitEOFCount) + 1
 			// If all sources sent EOF calculate avg and send result to channel
-			if aggregator.checkEofSingleQueue(amountEOF[clientID]) {
-				result, errResult := utils.CreateMetricResult(clientID, isNegative, &count, &sumAvg)
+			if aggregator.checkEofSingleQueue(aggregatorState.AmountEOF[clientID]) {
+				result, errResult := utils.CreateMetricResult(clientID, isNegative, &aggregatorState.Count, &aggregatorState.SumAvg)
 				if errResult != nil {
 					aggregator.Log.Errorf("[aggregator_%s client_%s] error: %s", aggregator.Config.AggregatorType, clientID, errResult)
 					continue
 				}
 				channelResults <- *result
 			}
+			aggregator.SaveMetricsState(*aggregatorState, msg, clientID, movie.GetSourceId(), 0, 0, true, movie.GetMessageId(), isNegative)
+			if isNegative {
+				state.Synch(aggregator.StateHelperMetricsNeg, SendAck)
+			} else {
+				state.Synch(aggregator.StateHelperMetricsPos, SendAck)
+			}
 			continue
 		}
 		if *movie.Budget == 0 {
 			aggregator.Log.Errorf("[aggregator_%s client_%s] %s: %s", aggregator.Config.AggregatorType, clientID, MSG_NO_BUDGET_MOVIE, movie.GetTitle())
+			err := rabbitmq.SingleAck(msg)
+			if err != nil {
+				aggregator.Log.Fatalf("failed to ack message: %v", err)
+			}
 			continue
 		}
 		// update sum and count
-		count[clientID] = utils.GetOrInitKeyMap(&count, clientID, utils.InitCount) + 1
-		avg := (*movie.Revenue) / float64(*movie.Budget)
-		sumAvg[clientID] = utils.GetOrInitKeyMap(&sumAvg, clientID, utils.InitSumAvg) + avg
+		UpdateSumAndCount(aggregatorState, clientID, *movie.Revenue, *movie.Budget)
+		aggregator.SaveMetricsState(*aggregatorState, msg, clientID, movie.GetSourceId(), *movie.Revenue, *movie.Budget, false, *movie.MessageId, isNegative)
 	}
 	return nil
+}
+
+func UpdateSumAndCount(aggregatorState *AggregatorMetricsState, clientID string, movieRevenue float64, movieBudget int64) {
+	aggregatorState.Count[clientID] = utils.GetOrInitKeyMap(&aggregatorState.Count, clientID, utils.InitCount) + 1
+	avg := (movieRevenue) / float64(movieBudget)
+	aggregatorState.SumAvg[clientID] = utils.GetOrInitKeyMap(&aggregatorState.SumAvg, clientID, utils.InitSumAvg) + avg
 }
 
 func (aggregator *Aggregator) consumeQueue(queueName string) (<-chan amqp.Delivery, error) {

@@ -92,12 +92,19 @@ type AggregatorTopAndBottomUpdateArgs struct {
 	Eof          bool
 }
 
-type AggregatorMetricsState string
+type AggregatorMetricsState struct {
+	AmountEOF map[string]int
+	Count     map[string]int64
+	SumAvg    map[string]float64
+}
 
 type AggregatorMetricsUpdateArgs struct {
-	MessageId int64
-	ClientId  string
-	SourceId  string
+	MessageId    int64
+	ClientId     string
+	SourceId     string
+	MovieRevenue float64
+	MovieBudget  int64
+	Eof          bool
 }
 
 func SendAck(args AckArgs) error {
@@ -177,6 +184,28 @@ func (aggregator *Aggregator) CreateAggregatorTopAndBottom() *AggregatorTopAndBo
 			}
 		}
 		return &toReturn
+	}
+}
+
+// Create a state from file or from scratch. Also return the window
+func (aggregator *Aggregator) CreateAggregatorMetricsState(negative bool) *AggregatorMetricsState {
+	var aggregatorState *AggregatorMetricsState
+	if negative {
+		aggregatorState, _ = state.GetLastValidState(aggregator.StateHelperMetricsNeg)
+	} else {
+		aggregatorState, _ = state.GetLastValidState(aggregator.StateHelperMetricsPos)
+	}
+	if aggregatorState == nil {
+		return &AggregatorMetricsState{
+			AmountEOF: make(map[string]int),
+			Count:     make(map[string]int64),
+			SumAvg:    make(map[string]float64),
+		}
+	}
+	return &AggregatorMetricsState{
+		AmountEOF: aggregatorState.AmountEOF,
+		Count:     aggregatorState.Count,
+		SumAvg:    aggregatorState.SumAvg,
 	}
 }
 
@@ -335,6 +364,11 @@ func UpdateTopAndBottom(aggregatorState *AggregatorTopAndBottomState, messageWin
 // Updates the aggregator status and refresh the window
 func UpdateMetrics(aggregatorState *AggregatorMetricsState, messageWindow *window.MessageWindow, updateArgs *AggregatorMetricsUpdateArgs) {
 	messageWindow.AddMessage(updateArgs.ClientId, updateArgs.SourceId, updateArgs.MessageId)
+	if updateArgs.Eof {
+		aggregatorState.AmountEOF[updateArgs.ClientId] = utils.GetOrInitKeyMap(&aggregatorState.AmountEOF, updateArgs.ClientId, utils.InitEOFCount) + 1
+		return
+	}
+	UpdateSumAndCount(aggregatorState, updateArgs.ClientId, updateArgs.MovieRevenue, updateArgs.MovieBudget)
 }
 
 // Refresh the window, save the state and send the ack
@@ -406,6 +440,7 @@ func (aggregator *Aggregator) SaveTop10State(aggregatorState AggregatorTop10Stat
 	updateArgs := AggregatorTop10UpdateArgs{
 		MessageId:   messageId,
 		ClientId:    clientId,
+		SourceId:    sourceId,
 		ProfilePath: profilePath,
 		Name:        name,
 		CountMovies: countMovies,
@@ -486,6 +521,46 @@ func (aggregator *Aggregator) SaveTopAndBottomState(aggregatorState AggregatorTo
 	return nil
 }
 
+// Refresh the window, save the state and send the ack
+func (aggregator *Aggregator) SaveMetricsState(aggregatorState AggregatorMetricsState, msg amqp.Delivery, clientId string, sourceId string, movieRevenue float64, movieBudget int64, eof bool, messageId int64, negative bool) error {
+	var aggregatorStateHelper *state.StateHelper[AggregatorMetricsState, AggregatorMetricsUpdateArgs, AckArgs]
+	var messagesWindow *window.MessageWindow
+	if negative {
+		aggregatorStateHelper = aggregator.StateHelperMetricsNeg
+		messagesWindow = aggregator.WindowSec
+	} else {
+		aggregatorStateHelper = aggregator.StateHelperMetricsPos
+		messagesWindow = aggregator.Window
+	}
+	// update window
+	messagesWindow.AddMessage(clientId, sourceId, messageId)
+	// args
+	updateArgs := AggregatorMetricsUpdateArgs{
+		MessageId:    messageId,
+		ClientId:     clientId,
+		SourceId:     sourceId,
+		MovieRevenue: movieRevenue,
+		MovieBudget:  movieBudget,
+		Eof:          eof,
+	}
+	// save state
+	err := state.SaveState(
+		aggregatorStateHelper,
+		aggregatorState,
+		&AckArgs{
+			msg: msg,
+		},
+		SendAck,
+		*messagesWindow,
+		updateArgs,
+	)
+	if err != nil {
+		aggregator.Log.Fatalf(MESSAGE_UNABLE_TO_SAVE_STATE)
+		return err
+	}
+	return nil
+}
+
 func (aggregator *Aggregator) DisposeStateHelpers() {
 	if aggregator.StateHelperMovies != nil {
 		aggregator.StateHelperMovies.Dispose(SendAck)
@@ -501,5 +576,8 @@ func (aggregator *Aggregator) DisposeStateHelpers() {
 	}
 	if aggregator.StateHelperMetricsNeg != nil {
 		aggregator.StateHelperMetricsNeg.Dispose(SendAck)
+	}
+	if aggregator.StateHelperMetricsPos != nil {
+		aggregator.StateHelperMetricsPos.Dispose(SendAck)
 	}
 }
