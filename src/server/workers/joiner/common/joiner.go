@@ -371,7 +371,7 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 
 	processMessage := func(msg amqp.Delivery, isRating bool) {
 		var clientID string
-		var state *utils.ClientStateRatings
+		var stateRatings *utils.ClientStateRatings
 
 		if isRating {
 			var rating protopb.RatingSanit
@@ -380,17 +380,50 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 				return
 			}
 			clientID = rating.GetClientId()
-
+			/*
+				if joiner.MessagesWindow.IsDuplicate(*rating.ClientId, "ratings", *rating.MessageId) {
+					joiner.Log.Debugf("duplicate message: %v", *rating.MessageId)
+					joiner.sendAck(msg)
+					return
+				}
+			*/
 			if _, exists := clientStates.ClientStates[clientID]; !exists {
 				clientStates.ClientStates[clientID] = &utils.ClientStateRatings{Totalizer: utils.NewRatingTotalizer()}
 			}
-			state = clientStates.ClientStates[clientID]
+			stateRatings = clientStates.ClientStates[clientID]
 
 			if rating.GetEof() {
-				state.RatingEOF = true
+				stateRatings.RatingEOF = true
+				/*
+					joiner.SaveRatingsState(
+						clientStates,
+						msg,
+						clientID,
+						"ratings",
+						0,
+						0,
+						0,
+						"",
+						true,
+						true,
+						*rating.MessageId)
+					state.Synch(joiner.StateHelperRatings, SendAck)*/
 				joiner.Log.Infof("[client_id:%s][queue:%s] recevied EOF", clientID, joiner.Config.InputQueueSecName)
 			} else {
-				state.Totalizer.Sum(&rating)
+				stateRatings.Totalizer.Sum(&rating)
+				/*
+					joiner.SaveRatingsState(
+						clientStates,
+						msg,
+						clientID,
+						"ratings",
+						rating.GetMovieId(),
+						rating.GetRating(),
+						0,
+						"",
+						true,
+						false,
+						rating.GetMessageId())*/
 			}
 
 		} else {
@@ -400,21 +433,55 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 				return
 			}
 			clientID = movie.GetClientId()
-
+			/*
+				if joiner.MessagesWindow.IsDuplicate(*movie.ClientId, GenerateSourceIdMovies(movie.GetSourceId()), *movie.MessageId) {
+					joiner.Log.Debugf("duplicate message: %v", *movie.MessageId)
+					joiner.sendAck(msg)
+					return
+				}
+			*/
 			if _, exists := clientStates.ClientStates[clientID]; !exists {
 				clientStates.ClientStates[clientID] = &utils.ClientStateRatings{Totalizer: utils.NewRatingTotalizer()}
 			}
-			state = clientStates.ClientStates[clientID]
+			stateRatings = clientStates.ClientStates[clientID]
 
 			if movie.GetEof() {
-				state.MovieEOF = true
+				stateRatings.MovieEOF = true
+				/*
+					joiner.SaveRatingsState(
+						clientStates,
+						msg,
+						clientID,
+						GenerateSourceIdMovies(movie.GetSourceId()),
+						0,
+						0,
+						0,
+						"",
+						false,
+						true,
+						*movie.MessageId)
+					state.Synch(joiner.StateHelperRatings, SendAck)
+				*/
 				joiner.Log.Infof("[client_id:%s][queue:%s] recevied EOF", clientID, joiner.Config.InputQueueName)
 			} else {
-				state.Totalizer.AppendMovie(&movie)
+				/*
+					joiner.SaveRatingsState(
+						clientStates,
+						msg,
+						clientID,
+						GenerateSourceIdMovies(movie.GetSourceId()),
+						0,
+						0,
+						movie.GetId(),
+						movie.GetTitle(),
+						false,
+						false,
+						*movie.MessageId)*/
+				stateRatings.Totalizer.AppendMovie(&movie)
 			}
 		}
 
-		sendReportIfReady(clientID, state)
+		sendReportIfReady(clientID, stateRatings)
 	}
 
 	// Start message consumers
@@ -425,11 +492,12 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 		}
 
 		for msg := range msgs {
+			//Coment to test
 			err := rabbitmq.SingleAck(msg)
 			if err != nil {
 				joiner.Log.Fatalf("failed to ack message: %v", err)
 			}
-
+			//Coment to test
 			clientStatesMutex.Lock()
 			processMessage(msg, false)
 			clientStatesMutex.Unlock()
@@ -443,11 +511,13 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 		}
 
 		for msg := range msgs {
+
+			//Coment to test
 			err := rabbitmq.SingleAck(msg)
 			if err != nil {
 				joiner.Log.Fatalf("failed to ack message: %v", err)
 			}
-
+			//Coment to test
 			clientStatesMutex.Lock()
 			processMessage(msg, true)
 			clientStatesMutex.Unlock()

@@ -182,6 +182,7 @@ func UpdateCredits(joinerState *JoinerCreditsState, messageWindow *window.Messag
 		} else {
 			state.Counter.Count(updateArgs.CreditMovieId, updateArgs.CreditCastNames, updateArgs.CreditProfilePaths)
 		}
+		joinerState.ClientStates[updateArgs.ClientId] = state
 		return
 	}
 	if updateArgs.EOF {
@@ -189,6 +190,7 @@ func UpdateCredits(joinerState *JoinerCreditsState, messageWindow *window.Messag
 	} else {
 		state.Counter.AppendMovie(updateArgs.MovieId)
 	}
+	joinerState.ClientStates[updateArgs.ClientId] = state
 }
 
 // Updates the joiner status and refresh the window
@@ -201,6 +203,7 @@ func UpdateRatings(joinerState *JoinerRatingsState, messageWindow *window.Messag
 		} else {
 			state.Totalizer.Sum(updateArgs.RatingMovieId, updateArgs.Rating)
 		}
+		joinerState.ClientStates[updateArgs.ClientId] = state
 		return
 	}
 	if updateArgs.EOF {
@@ -208,6 +211,7 @@ func UpdateRatings(joinerState *JoinerRatingsState, messageWindow *window.Messag
 	} else {
 		state.Totalizer.AppendMovie(updateArgs.MovieId, updateArgs.MovieTitle)
 	}
+	joinerState.ClientStates[updateArgs.ClientId] = state
 }
 
 // Refresh the window, save the state and send the ack
