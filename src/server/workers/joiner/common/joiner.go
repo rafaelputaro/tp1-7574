@@ -148,7 +148,6 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 				numMsg++
 				joiner.Log.Debugf("[client_id:%s][message_id:%d] sent actor count: %v", clientID, numMsg, actor)
 			}
-
 			// Send EOF for the client
 			eof := utils.CreateActorEof(clientID, numMsg, joiner.Config.InputQueueName)
 			data, err := proto.Marshal(eof)
@@ -157,7 +156,6 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 			}
 			joiner.publishData(data)
 			joiner.Log.Debugf("[client_id:%s] sent eof marker", clientID)
-
 		}
 	}
 
@@ -273,7 +271,6 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 	}
 
 	// Store client-specific data
-	//clientStates := make(map[string]*utils.ClientStateRatings)
 	clientStates := joiner.CreateJoinerRatingsState()
 	var clientStatesMutex sync.RWMutex
 
@@ -302,8 +299,6 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 			}
 			joiner.publishData(data)
 
-			// TODO: Remove client state to free resources
-			// delete(clientStates, clientID)
 		}
 	}
 
