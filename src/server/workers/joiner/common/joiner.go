@@ -161,7 +161,7 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 
 	processMessage := func(msg amqp.Delivery, isCredit bool) {
 		var clientID string
-		var state *utils.ClientStateCredits
+		var stateCred *utils.ClientStateCredits
 
 		if isCredit {
 			var credit protopb.CreditSanit
@@ -172,16 +172,47 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 
 			clientID = credit.GetClientId()
 
+			if joiner.MessagesWindow.IsDuplicate(*credit.ClientId, "credits", *credit.MessageId) {
+				joiner.Log.Debugf("duplicate message: %v", *credit.MessageId)
+				joiner.sendAck(msg)
+				return
+			}
+
 			if _, exists := clientStates.ClientStates[clientID]; !exists {
 				clientStates.ClientStates[clientID] = &utils.ClientStateCredits{Counter: utils.NewActorCounter()}
 			}
-			state = clientStates.ClientStates[clientID]
+			stateCred = clientStates.ClientStates[clientID]
 
 			if credit.GetEof() {
-				state.CreditEOF = true
+				stateCred.CreditEOF = true
+				joiner.SaveCreditsState(
+					clientStates,
+					msg,
+					clientID,
+					"credits",
+					0,
+					[]string{},
+					[]string{},
+					0,
+					true,
+					true,
+					*credit.MessageId)
+				state.Synch(joiner.StateHelperCredits, SendAck)
 				joiner.Log.Infof("[client_id:%s][queue:%s] recevied EOF", clientID, joiner.Config.InputQueueSecName)
 			} else {
-				state.Counter.Count(&credit)
+				stateCred.Counter.Count(&credit)
+				joiner.SaveCreditsState(
+					clientStates,
+					msg,
+					clientID,
+					"credits",
+					*credit.Id,
+					credit.GetCastNames(),
+					credit.GetProfilePaths(),
+					0,
+					true,
+					false,
+					*credit.MessageId)
 				joiner.Log.Infof("[client_id:%s][queue:%s] processed credit: %v", clientID, joiner.Config.InputQueueSecName, &credit)
 			}
 
@@ -194,31 +225,66 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 
 			clientID = movie.GetClientId()
 
+			if joiner.MessagesWindow.IsDuplicate(*movie.ClientId, GenerateSourceIdMovies(movie.GetSourceId()), *movie.MessageId) {
+				joiner.Log.Debugf("duplicate message: %v", *movie.MessageId)
+				joiner.sendAck(msg)
+				return
+			}
+
 			if _, exists := clientStates.ClientStates[clientID]; !exists {
 				clientStates.ClientStates[clientID] = &utils.ClientStateCredits{Counter: utils.NewActorCounter()}
 			}
-			state = clientStates.ClientStates[clientID]
+			stateCred = clientStates.ClientStates[clientID]
 
 			if movie.GetEof() {
-				state.MovieEOF = true
+				stateCred.MovieEOF = true
+				joiner.SaveCreditsState(
+					clientStates,
+					msg,
+					clientID,
+					GenerateSourceIdMovies(movie.GetSourceId()),
+					0,
+					[]string{},
+					[]string{},
+					0,
+					false,
+					true,
+					*movie.MessageId)
+				state.Synch(joiner.StateHelperCredits, SendAck)
 				joiner.Log.Infof("[client_id:%s][queue:%s] recevied EOF", clientID, joiner.Config.InputQueueName)
 			} else {
-				state.Counter.AppendMovie(&movie)
+				stateCred.Counter.AppendMovie(&movie)
+				joiner.SaveCreditsState(
+					clientStates,
+					msg,
+					clientID,
+					GenerateSourceIdMovies(movie.GetSourceId()),
+					0,
+					[]string{},
+					[]string{},
+					movie.GetId(),
+					false,
+					false,
+					*movie.MessageId)
 				joiner.Log.Infof("[client_id:%s][queue:%s] processed movie: %v", clientID, joiner.Config.InputQueueName, &movie)
 			}
 		}
 
-		sendReportIfReady(clientID, state)
+		sendReportIfReady(clientID, stateCred)
 	}
 
 	go func() {
 		msgs, err := rabbitmq.ConsumeFromQueue(joiner.Channel, joiner.Config.InputQueueName)
 		if err == nil {
 			for msg := range msgs {
-				err := rabbitmq.SingleAck(msg)
-				if err != nil {
-					joiner.Log.Fatalf("failed to ack message: %v", err)
-				}
+				/*
+					err := rabbitmq.SingleAck(msg)
+
+					if err != nil {
+						joiner.Log.Fatalf("failed to ack message: %v", err)
+					}
+				*/
+
 				clientStatesMutex.Lock()
 				processMessage(msg, false)
 				clientStatesMutex.Unlock()
@@ -235,10 +301,11 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 		}
 
 		for msg := range msgs {
-			err := rabbitmq.SingleAck(msg)
-			if err != nil {
-				joiner.Log.Fatalf("failed to ack message: %v", err)
-			}
+			/*
+				err := rabbitmq.SingleAck(msg)
+				if err != nil {
+					joiner.Log.Fatalf("failed to ack message: %v", err)
+				}*/
 			clientStatesMutex.Lock()
 			processMessage(msg, true)
 			clientStatesMutex.Unlock()
@@ -404,4 +471,13 @@ func Shutdown(log *logging.Logger, connection *amqp.Connection, channel *amqp.Ch
 	if err != nil {
 		log.Fatalf("%v: %v", message, err)
 	}
+}
+
+func (joiner *Joiner) sendAck(msg amqp.Delivery) error {
+	err := rabbitmq.SingleAck(msg)
+	if err != nil {
+		joiner.Log.Fatalf("failed to ack message: %v", err)
+		return err
+	}
+	return nil
 }

@@ -390,14 +390,6 @@ func GenerateSourceIdMovies(sourceId string) string {
 	return "movies_" + sourceId
 }
 
-func GenerateSourceIdCredits(sourceId string) string {
-	return "credits_" + sourceId
-}
-
-func GenerateSourceIdRatings(sourceId string) string {
-	return "ratings_" + sourceId
-}
-
 func (joiner *Joiner) DisposeStateHelpers() {
 	if joiner.StateHelperCredits != nil {
 		joiner.StateHelperCredits.Dispose(SendAck)
