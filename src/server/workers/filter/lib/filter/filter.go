@@ -431,6 +431,16 @@ func (f *Filter) runShardedFilter(inputQueue string, declareInput bool, outputEx
 		shard := shardingFunc(&movie)
 		movie.SourceId = proto.String(strconv.Itoa(shard))
 		clientID := movie.GetClientId()
+		// Build a source id to individualize messages between different shards
+		sourceId := movie.GetSourceId() + "_" + strconv.Itoa(shard) + "_" + inputQueue
+
+		// check duplicate
+		if f.messageWindow.IsDuplicate(clientID, sourceId, *movie.MessageId) {
+			f.log.Debugf("duplicate message: %v", *movie.MessageId)
+			f.sendAck(msg)
+			continue
+		}
+
 		movieSharded, err := proto.Marshal(&movie)
 		if err != nil {
 			f.log.Fatalf("[cliend_id_%s %s] Failed to marshal message: %v", clientID, f.config.Type, err)
@@ -463,7 +473,9 @@ func (f *Filter) runShardedFilter(inputQueue string, declareInput bool, outputEx
 				f.log.Infof("[client_id:%s] propagated EOF to %s shard %d", clientID, outputExchange, i)
 			}
 
-			f.sendAck(msg)
+			//			f.sendAck(msg)
+			f.SaveDefaultState(msg, *movie.ClientId, sourceId, *movie.MessageId)
+			state.Synch(f.stateHelperDefault, SendAck)
 			continue
 		}
 
@@ -484,8 +496,10 @@ func (f *Filter) runShardedFilter(inputQueue string, declareInput bool, outputEx
 				f.log.Errorf("[client_id:%s] failed to publish filtered message: %v", clientID, err)
 			}
 
-			f.sendAck(msg)
-			coord.SendACKs()
+			//f.sendAck(msg)
+
+			//coord.SendACKs()
+			f.SaveDefaultStateAndSendAckCoordinator(coord, msg, *movie.ClientId, sourceId, *movie.MessageId)
 		}
 	}
 }
