@@ -301,7 +301,7 @@ func doSaveState[TState any, TUpdateArgs any, TAckArgs any](stateHelper *StateHe
 }
 
 // Save the complete on a synchronization and append ack. When not synch only append ack. (Optimization for large states)
-func SaveStateOnSych[TState any, TUpdateArgs any, TAckArgs any](stateHelper *StateHelper[TState, TUpdateArgs, TAckArgs], state func() *TState, msg *TAckArgs, sendAck func(TAckArgs) error, messageWindow window.MessageWindow) error {
+func SaveStateOnSynch[TState any, TUpdateArgs any, TAckArgs any](stateHelper *StateHelper[TState, TUpdateArgs, TAckArgs], state func() *TState, msg *TAckArgs, sendAck func(TAckArgs) error, messageWindow window.MessageWindow) error {
 	encode := func() []byte {
 		logger := logging.MustGetLogger(MODULE_NAME)
 		operationState := DataToSave[TState, TUpdateArgs]{

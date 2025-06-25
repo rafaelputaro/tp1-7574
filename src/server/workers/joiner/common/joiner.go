@@ -340,7 +340,7 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 	// Store client-specific data
 	clientStates := joiner.CreateJoinerRatingsState()
 	var clientStatesMutex sync.RWMutex
-
+	joiner.StateHelperRatings.SetMaxStates(state.MAX_STATES / 100)
 	// Send report when both EOFs are received for a client
 	sendReportIfReady := func(clientID string, state *utils.ClientStateRatings) {
 		if state.MovieEOF && state.RatingEOF {
@@ -507,6 +507,7 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 				*/
 				joiner.Log.Infof("[client_id:%s][queue:%s] recevied EOF", clientID, joiner.Config.InputQueueName)
 			} else {
+				stateRatings.Totalizer.AppendMovie(&movie)
 				/*
 					joiner.SaveRatingsState(
 						clientStates,
@@ -533,8 +534,8 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 						movie.GetTitle(),
 						false,
 						false,
-						*movie.MessageId)*/
-				stateRatings.Totalizer.AppendMovie(&movie)
+						*movie.MessageId)
+				*/
 			}
 		}
 

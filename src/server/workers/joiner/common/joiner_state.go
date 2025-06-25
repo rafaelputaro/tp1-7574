@@ -378,7 +378,7 @@ func (joiner *Joiner) SaveRatingsStatePerformant(
 		}
 		return &joinerStateDB
 	}
-	err := state.SaveStateOnSych(
+	err := state.SaveStateOnSynch(
 		joiner.StateHelperRatings,
 		getState,
 		&AckArgs{
