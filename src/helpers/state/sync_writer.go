@@ -11,7 +11,7 @@ const TIMEOUT = 3 * time.Second //1
 const MAX_MESSAGES = 10000      //1000
 const MESSAGE_FAILED_TO_SEND_ACK string = "failed to ack message: %v"
 const MESSAGE_FAILED_TO_SYNCH string = "Failed to sync with disk: %v"
-const MESSAGE_SUCCESS_SYNCH string = "Successful synchronization"
+const MESSAGE_SUCCESS_SYNCH string = "Successful synchronization: %s"
 
 type SynchWriter[TAckArgs any] struct {
 	fileDesc    *os.File   // File descriptor for writing to the state file
@@ -116,7 +116,7 @@ func (writer *SynchWriter[TAckArgs]) writeAndSendAcks(sendAck func(TAckArgs) err
 		return err
 	}
 	writer.timeToSynch = generateExpirationDate()
-	logger.Debugf(MESSAGE_SUCCESS_SYNCH)
+	logger.Debugf(MESSAGE_SUCCESS_SYNCH, writer.filePath)
 	return nil
 }
 
