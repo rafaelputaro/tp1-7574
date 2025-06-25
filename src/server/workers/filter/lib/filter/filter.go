@@ -144,6 +144,13 @@ func (f *Filter) processArEsFilter() {
 
 		clientID := movie.GetClientId()
 
+		// check duplicate
+		if f.messageWindow.IsDuplicate(clientID, movie.GetSourceId(), *movie.MessageId) {
+			f.log.Debugf("duplicate message: %v", *movie.MessageId)
+			f.sendAck(msg)
+			continue
+		}
+
 		if movie.GetEof() {
 			f.log.Infof("[client_id:%s] received EOF marker", clientID)
 
@@ -160,7 +167,9 @@ func (f *Filter) processArEsFilter() {
 
 			f.log.Infof("[client_id:%s] propagated EOF marker to %s", movie.GetClientId(), outputQueue)
 
-			f.sendAck(msg)
+			//f.sendAck(msg)
+			f.SaveDefaultState(msg, *movie.ClientId, movie.GetSourceId(), *movie.MessageId)
+			state.Synch(f.stateHelperDefault, SendAck)
 			continue
 		}
 
@@ -175,8 +184,9 @@ func (f *Filter) processArEsFilter() {
 				f.log.Errorf("[client_id:%s]failed to publish filtered message: %v", movie.GetClientId(), err)
 			}
 
-			f.sendAck(msg)
-			coord.SendACKs()
+			//f.sendAck(msg)
+			//coord.SendACKs()
+			f.SaveDefaultStateAndSendAckCoordinator(coord, msg, *movie.ClientId, movie.GetSourceId(), *movie.MessageId)
 		}
 	}
 
