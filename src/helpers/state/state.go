@@ -55,6 +55,7 @@ type StateHelper[TState any, TUpdateArgs any, TAckArgs any] struct {
 	stateAuxWr      *SynchWriter[TAckArgs]
 	countStates     int // Counter to keep track of the number of states written to the state file
 	lastValidState  *DataToSave[TState, TUpdateArgs]
+	maxStates       int
 }
 
 // DataToSave is a generic struct that holds the state of type T and a message window or holds a sequece of update args
@@ -150,7 +151,12 @@ func NewStateHelper[TState any, TUpdateArgs any, TAckArgs any](id string, module
 		stateAuxWr:      NewSynchWriter[TAckArgs](auxFilePath),
 		lastValidState:  state,
 		countStates:     countStates,
+		maxStates:       MAX_STATES,
 	}
+}
+
+func (stateHelper *StateHelper[TState, TUpdateArgs, TAckArgs]) SetMaxStates(maxStates int) {
+	stateHelper.maxStates = maxStates
 }
 
 // Dispose closes the file descriptors used by the StateHelper.
@@ -279,7 +285,7 @@ func readLines[TState any, TUpdateArgs any](filePath string) ([]DataToSave[TStat
 }
 
 // SaveState encodes the provided state and message window into JSON format and writes it to the state file.
-func SaveState[TState any, TUpdateArgs any, TAckArgs any](stateHelper *StateHelper[TState, TUpdateArgs, TAckArgs], state TState, msg *TAckArgs, sendAck func(TAckArgs) error, messageWindow window.MessageWindow, updateArgs TUpdateArgs) error {
+func doSaveState[TState any, TUpdateArgs any, TAckArgs any](stateHelper *StateHelper[TState, TUpdateArgs, TAckArgs], state func() *TState, msg *TAckArgs, sendAck func(TAckArgs) error, messageWindow window.MessageWindow, updateArgs TUpdateArgs) error {
 	// Save Complete state
 	saved, _ := tryToSaveCompleteStateOnStateNull(stateHelper, state, sendAck, messageWindow)
 	if !saved {
@@ -294,6 +300,40 @@ func SaveState[TState any, TUpdateArgs any, TAckArgs any](stateHelper *StateHelp
 	return nil
 }
 
+// Save the complete on a synchronization and append ack. When not synch only append ack. (Optimization for large states)
+func SaveStateOnSych[TState any, TUpdateArgs any, TAckArgs any](stateHelper *StateHelper[TState, TUpdateArgs, TAckArgs], state func() *TState, msg *TAckArgs, sendAck func(TAckArgs) error, messageWindow window.MessageWindow) error {
+	encode := func() []byte {
+		logger := logging.MustGetLogger(MODULE_NAME)
+		operationState := DataToSave[TState, TUpdateArgs]{
+			State:           *state(),
+			TimeStamp:       time.Now().UTC().Format(LAYOUT_TIMESTAMP),
+			IsCompleteState: true,
+		}
+		encodedState, err := json.Marshal(operationState)
+		if err != nil {
+			logger.Errorf(MSG_ERROR_ENCODING_UPDATE_ARGS, err)
+			return encodedState
+		}
+		stateHelper.lastValidState = &operationState
+		stateHelper.countStates++
+		return []byte{}
+	}
+	if err := stateHelper.stateOriginalWr.WriteOnSynch(msg, sendAck, encode); err != nil {
+		return err
+	}
+	// Try to clean
+	stateHelper.tryCleanFile(sendAck)
+	return nil
+}
+
+// SaveState encodes the provided state and message window into JSON format and writes it to the state file.
+func SaveState[TState any, TUpdateArgs any, TAckArgs any](stateHelper *StateHelper[TState, TUpdateArgs, TAckArgs], state TState, msg *TAckArgs, sendAck func(TAckArgs) error, messageWindow window.MessageWindow, updateArgs TUpdateArgs) error {
+	stateFunc := func() *TState {
+		return &state
+	}
+	return doSaveState(stateHelper, stateFunc, msg, sendAck, messageWindow, updateArgs)
+}
+
 // force synchronization
 func Synch[TState any, TUpdateArgs any, TAckArgs any](stateHelper *StateHelper[TState, TUpdateArgs, TAckArgs], sendAck func(TAckArgs) error) error {
 	if err := stateHelper.stateOriginalWr.Synch(sendAck); err != nil {
@@ -305,13 +345,40 @@ func Synch[TState any, TUpdateArgs any, TAckArgs any](stateHelper *StateHelper[T
 	return nil
 }
 
+// force synchronization (Optimization for large states)
+func SynchPerformant[TState any, TUpdateArgs any, TAckArgs any](stateHelper *StateHelper[TState, TUpdateArgs, TAckArgs], state func() *TState, sendAck func(TAckArgs) error) error {
+	encode := func() []byte {
+		logger := logging.MustGetLogger(MODULE_NAME)
+		operationState := DataToSave[TState, TUpdateArgs]{
+			State:           *state(),
+			TimeStamp:       time.Now().UTC().Format(LAYOUT_TIMESTAMP),
+			IsCompleteState: true,
+		}
+		encodedState, err := json.Marshal(operationState)
+		if err != nil {
+			logger.Errorf(MSG_ERROR_ENCODING_UPDATE_ARGS, err)
+			return encodedState
+		}
+		stateHelper.lastValidState = &operationState
+		stateHelper.countStates++
+		return []byte{}
+	}
+	if err := stateHelper.stateOriginalWr.WriteSyncPerformant(sendAck, encode); err != nil {
+		return err
+	}
+	if err := stateHelper.stateAuxWr.Synch(sendAck); err != nil {
+		return err
+	}
+	return nil
+}
+
 // when the last valid state is null. If it actually saves the state, it returns true.
-func tryToSaveCompleteStateOnStateNull[TState any, TUpdateArgs any, TAckArgs any](stateHelper *StateHelper[TState, TUpdateArgs, TAckArgs], state TState, sendAck func(TAckArgs) error, messageWindow window.MessageWindow) (bool, error) {
+func tryToSaveCompleteStateOnStateNull[TState any, TUpdateArgs any, TAckArgs any](stateHelper *StateHelper[TState, TUpdateArgs, TAckArgs], state func() *TState, sendAck func(TAckArgs) error, messageWindow window.MessageWindow) (bool, error) {
 	if stateHelper.lastValidState == nil {
 		logger := logging.MustGetLogger(MODULE_NAME)
 		// Update state helper
 		completeState := DataToSave[TState, TUpdateArgs]{
-			State:           state,
+			State:           *state(),
 			Window:          messageWindow,
 			TimeStamp:       time.Now().UTC().Format(LAYOUT_TIMESTAMP),
 			IsCompleteState: true,
@@ -335,7 +402,7 @@ func tryToSaveCompleteStateOnStateNull[TState any, TUpdateArgs any, TAckArgs any
 }
 
 // encodes the provided updateArgs into JSON format and writes it to the state file.
-func tryToSaveUpdateArgs[TState any, TUpdateArgs any, TAckArgs any](stateHelper *StateHelper[TState, TUpdateArgs, TAckArgs], state TState, msg *TAckArgs, sendAck func(TAckArgs) error, messageWindow window.MessageWindow, updateArgs TUpdateArgs) error {
+func tryToSaveUpdateArgs[TState any, TUpdateArgs any, TAckArgs any](stateHelper *StateHelper[TState, TUpdateArgs, TAckArgs], state func() *TState, msg *TAckArgs, sendAck func(TAckArgs) error, messageWindow window.MessageWindow, updateArgs TUpdateArgs) error {
 	logger := logging.MustGetLogger(MODULE_NAME)
 	operationState := DataToSave[TState, TUpdateArgs]{
 		UpdateArgs:      updateArgs,
@@ -354,7 +421,7 @@ func tryToSaveUpdateArgs[TState any, TUpdateArgs any, TAckArgs any](stateHelper 
 	}
 	// Update state helper
 	completeState := DataToSave[TState, TUpdateArgs]{
-		State:           state,
+		State:           *state(),
 		Window:          messageWindow,
 		TimeStamp:       time.Now().UTC().Format(LAYOUT_TIMESTAMP),
 		IsCompleteState: true,
@@ -368,7 +435,7 @@ func tryToSaveUpdateArgs[TState any, TUpdateArgs any, TAckArgs any](stateHelper 
 // check clean conditiones
 func (stateHelper *StateHelper[TState, TOperation, TAckArgs]) shouldClean() bool {
 	// check count valids states
-	if stateHelper.countStates > MAX_STATES {
+	if stateHelper.countStates > stateHelper.maxStates {
 		logger := logging.MustGetLogger(MODULE_NAME)
 		logger.Debugf(MSG_CLEAN_FILES_ON_SAVE)
 		return true

@@ -380,13 +380,14 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 				return
 			}
 			clientID = rating.GetClientId()
-			/*
-				if joiner.MessagesWindow.IsDuplicate(*rating.ClientId, "ratings", *rating.MessageId) {
-					joiner.Log.Debugf("duplicate message: %v", *rating.MessageId)
-					joiner.sendAck(msg)
-					return
-				}
-			*/
+
+			// check duplicate
+			if joiner.MessagesWindow.IsDuplicate(*rating.ClientId, "ratings", *rating.MessageId) {
+				joiner.Log.Debugf("rating duplicate message: %v", *rating.MessageId)
+				//joiner.sendAck(msg)
+				//return
+			}
+
 			if _, exists := clientStates.ClientStates[clientID]; !exists {
 				clientStates.ClientStates[clientID] = &utils.ClientStateRatings{Totalizer: utils.NewRatingTotalizer()}
 			}
@@ -408,11 +409,38 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 						true,
 						*rating.MessageId)
 					state.Synch(joiner.StateHelperRatings, SendAck)*/
+				/*
+					joiner.SaveRatingsStatePerformant(
+						clientStates,
+						msg,
+						clientID,
+						"ratings",
+						0,
+						0,
+						0,
+						"",
+						true,
+						true,
+						*rating.MessageId)
+					joiner.SynchRatingsStatePerformant(clientStates)*/
 				joiner.Log.Infof("[client_id:%s][queue:%s] recevied EOF", clientID, joiner.Config.InputQueueSecName)
 			} else {
 				stateRatings.Totalizer.Sum(&rating)
 				/*
 					joiner.SaveRatingsState(
+						clientStates,
+						msg,
+						clientID,
+						"ratings",
+						rating.GetMovieId(),
+						rating.GetRating(),
+						0,
+						"",
+						true,
+						false,
+						rating.GetMessageId())*/
+				/*
+					joiner.SaveRatingsStatePerformant(
 						clientStates,
 						msg,
 						clientID,
@@ -433,13 +461,13 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 				return
 			}
 			clientID = movie.GetClientId()
-			/*
-				if joiner.MessagesWindow.IsDuplicate(*movie.ClientId, GenerateSourceIdMovies(movie.GetSourceId()), *movie.MessageId) {
-					joiner.Log.Debugf("duplicate message: %v", *movie.MessageId)
-					joiner.sendAck(msg)
-					return
-				}
-			*/
+
+			if joiner.MessagesWindow.IsDuplicate(*movie.ClientId, GenerateSourceIdMovies(movie.GetSourceId()), *movie.MessageId) {
+				joiner.Log.Debugf("movie duplicate message: %v %v", *movie.MessageId, movie.GetTitle())
+				//joiner.sendAck(msg)
+				//return
+			}
+
 			if _, exists := clientStates.ClientStates[clientID]; !exists {
 				clientStates.ClientStates[clientID] = &utils.ClientStateRatings{Totalizer: utils.NewRatingTotalizer()}
 			}
@@ -462,10 +490,39 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 						*movie.MessageId)
 					state.Synch(joiner.StateHelperRatings, SendAck)
 				*/
+				/*
+					joiner.SaveRatingsStatePerformant(
+						clientStates,
+						msg,
+						clientID,
+						GenerateSourceIdMovies(movie.GetSourceId()),
+						0,
+						0,
+						0,
+						"",
+						false,
+						true,
+						*movie.MessageId)
+					joiner.SynchRatingsStatePerformant(clientStates)
+				*/
 				joiner.Log.Infof("[client_id:%s][queue:%s] recevied EOF", clientID, joiner.Config.InputQueueName)
 			} else {
 				/*
 					joiner.SaveRatingsState(
+						clientStates,
+						msg,
+						clientID,
+						GenerateSourceIdMovies(movie.GetSourceId()),
+						0,
+						0,
+						movie.GetId(),
+						movie.GetTitle(),
+						false,
+						false,
+						*movie.MessageId)
+				*/
+				/*
+					joiner.SaveRatingsStatePerformant(
 						clientStates,
 						msg,
 						clientID,
@@ -513,6 +570,7 @@ func (joiner *Joiner) joiner_g_b_m_id_ratings() {
 		for msg := range msgs {
 
 			//Coment to test
+
 			err := rabbitmq.SingleAck(msg)
 			if err != nil {
 				joiner.Log.Fatalf("failed to ack message: %v", err)

@@ -7,8 +7,8 @@ import (
 	"github.com/op/go-logging"
 )
 
-const TIMEOUT = 3 * time.Second //1
-const MAX_MESSAGES = 10000      //1000
+const TIMEOUT = 10 * time.Second //1
+const MAX_MESSAGES = 10000       //1000
 const MESSAGE_FAILED_TO_SEND_ACK string = "failed to ack message: %v"
 const MESSAGE_FAILED_TO_SYNCH string = "Failed to sync with disk: %v"
 const MESSAGE_SUCCESS_SYNCH string = "Successful synchronization: %s"
@@ -49,6 +49,11 @@ func (writer *SynchWriter[TAckArgs]) Dispose(sendAck func(TAckArgs) error) {
 	}
 }
 
+// TODO Una escritura que no aggregue al buffer si no hay que sincronizar, que guarde acks y sincronice
+/*
+	chequear sync -> guardar en buffer
+*/
+
 // Write on buffer and try to synchronization with disk and try to send ack
 func (writer *SynchWriter[TAckArgs]) Write(msg *TAckArgs, sendAck func(TAckArgs) error, encodedData []byte) error {
 	writer.appendToBuffer(msg, encodedData)
@@ -59,6 +64,41 @@ func (writer *SynchWriter[TAckArgs]) Write(msg *TAckArgs, sendAck func(TAckArgs)
 func (writer *SynchWriter[TAckArgs]) WriteSync(msg *TAckArgs, sendAck func(TAckArgs) error, encodedData []byte) error {
 	writer.appendToBuffer(msg, encodedData)
 	return writer.Synch(sendAck)
+}
+
+// Write on buffer and force synchronization with disk and the ack sending (Optimization for large states)
+func (writer *SynchWriter[TAckArgs]) WriteSyncPerformant(sendAck func(TAckArgs) error, encodeData func() []byte) error {
+	writer.appendToBuffer(nil, encodeData())
+	return writer.Synch(sendAck)
+}
+
+// Append ack and write if synchronization is necessary. Return true if synch. (Optimization for large states)
+func (writer *SynchWriter[TAckArgs]) WriteOnSynch(msg *TAckArgs, sendAck func(TAckArgs) error, encodedData func() []byte) error {
+	if msg != nil {
+		// append ack
+		writer.messages = append(writer.messages, *msg)
+		// synch by length
+		lenMessages := len(writer.messages)
+		if lenMessages >= MAX_MESSAGES {
+			return writer.doWriteOnSynch(sendAck, encodedData)
+		}
+		// sych by time
+		t, err := time.Parse(LAYOUT_TIMESTAMP, writer.timeToSynch)
+		if err != nil {
+			return err
+		}
+		now := time.Now().UTC()
+		if t.Before(now) {
+			return writer.doWriteOnSynch(sendAck, encodedData)
+		}
+	}
+	return nil
+}
+
+// Append ack and write on synchronization is necessary
+func (writer *SynchWriter[TAckArgs]) doWriteOnSynch(sendAck func(TAckArgs) error, encodeData func() []byte) error {
+	writer.buffer = writer.buffer + string(encodeData()) + "\n"
+	return writer.trySync(sendAck)
 }
 
 // Force synchronization with disk

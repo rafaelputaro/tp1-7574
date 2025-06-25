@@ -338,6 +338,91 @@ func (joiner *Joiner) SaveRatingsState(
 	return nil
 }
 
+// Refresh the window, save the state and send the ack
+func (joiner *Joiner) SaveRatingsStatePerformant(
+	joinerStateInternal *ClientStatesRatingsInternal,
+	msg amqp.Delivery,
+	clientId string,
+	sourceId string,
+	ratingMovieId int64,
+	rating float32,
+	movieId int32,
+	movieTitle string,
+	isRating bool,
+	eof bool,
+	messageId int64) error {
+	// update window
+	joiner.MessagesWindow.AddMessage(clientId, sourceId, messageId)
+	// parse state
+	getState := func() *JoinerRatingsState {
+		var joinerStateDB = JoinerRatingsState{
+			ClientStates: make(map[string]ClientStateRatingsDB),
+		}
+		if joinerStateInternal != nil {
+			for keyDB, state := range joinerStateInternal.ClientStates {
+				totalizer := RatingTotalizerDB{
+					Movies:     make(map[int64]utils.MovieInfo),
+					SeenMovies: state.Totalizer.SeenMovies,
+				}
+				for keyMov, movInfo := range state.Totalizer.Movies {
+					totalizer.Movies[keyMov] = *movInfo
+				}
+				clientStateRatings := ClientStateRatingsDB{
+					Totalizer: totalizer,
+					MovieEOF:  state.MovieEOF,
+					RatingEOF: state.RatingEOF,
+				}
+
+				joinerStateDB.ClientStates[keyDB] = clientStateRatings
+			}
+		}
+		return &joinerStateDB
+	}
+	err := state.SaveStateOnSych(
+		joiner.StateHelperRatings,
+		getState,
+		&AckArgs{
+			msg: msg,
+		},
+		SendAck,
+		*joiner.MessagesWindow)
+	if err != nil {
+		joiner.Log.Fatalf(MESSAGE_UNABLE_TO_SAVE_STATE)
+		return err
+	}
+	return nil
+}
+
+// Refresh the window, save the state and send the ack
+func (joiner *Joiner) SynchRatingsStatePerformant(joinerStateInternal *ClientStatesRatingsInternal) {
+	// parse state
+	getState := func() *JoinerRatingsState {
+		var joinerStateDB = JoinerRatingsState{
+			ClientStates: make(map[string]ClientStateRatingsDB),
+		}
+		if joinerStateInternal != nil {
+			for keyDB, state := range joinerStateInternal.ClientStates {
+				totalizer := RatingTotalizerDB{
+					Movies:     make(map[int64]utils.MovieInfo),
+					SeenMovies: state.Totalizer.SeenMovies,
+				}
+				for keyMov, movInfo := range state.Totalizer.Movies {
+					totalizer.Movies[keyMov] = *movInfo
+				}
+				clientStateRatings := ClientStateRatingsDB{
+					Totalizer: totalizer,
+					MovieEOF:  state.MovieEOF,
+					RatingEOF: state.RatingEOF,
+				}
+
+				joinerStateDB.ClientStates[keyDB] = clientStateRatings
+			}
+		}
+		return &joinerStateDB
+	}
+	state.SynchPerformant(joiner.StateHelperRatings, getState, SendAck)
+}
+
 func (counter *ActorsCounterDB) Count(creditMovieId int64, creditCastNames []string, creditProfilePaths []string) {
 	for index := 0; index < len(creditCastNames); index++ {
 		profilePath := creditProfilePaths[index]
