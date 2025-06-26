@@ -587,8 +587,9 @@ services:
     volumes:
       - /tmp/states:/tmp/states
 
-  resilience_manager:
-    container_name: resilience_manager
+
+  resilience_manager-1:
+    container_name: resilience_manager-1
     image: resilience_manager:latest
     build:
       context: .
@@ -606,6 +607,8 @@ services:
       - RESILIENCE_UNHEALTHY_THRESHOLD=3
       - RESILIENCE_RESTART_WAIT=15
       - HEALTH_ENDPOINT=/ping
+      - RESILIENCE_NODE_ID=node-0
+      - RESILIENCE_TOTAL_NODES=2
 
       - MONITOR_SERVICE_FILTER_1=2000s-filter-1
       - MONITOR_SERVICE_FILTER_2=2000s-filter-2
@@ -642,6 +645,65 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+
+  resilience_manager-2:
+    container_name: resilience_manager-2
+    image: resilience_manager:latest
+    build:
+      context: .
+      dockerfile: src/server/resilience_manager/Dockerfile
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/states:/tmp/states
+    networks:
+      - tp1_net
+    depends_on:
+      controller:
+        condition: service_healthy
+    environment:
+      - RESILIENCE_CHECK_INTERVAL=5
+      - RESILIENCE_UNHEALTHY_THRESHOLD=3
+      - RESILIENCE_RESTART_WAIT=15
+      - HEALTH_ENDPOINT=/ping
+      - RESILIENCE_NODE_ID=node-1
+      - RESILIENCE_TOTAL_NODES=2
+
+      - MONITOR_SERVICE_FILTER_1=2000s-filter-1
+      - MONITOR_SERVICE_FILTER_2=2000s-filter-2
+
+      - MONITOR_SERVICE_FILTER_3=ar-es-filter-1
+      - MONITOR_SERVICE_FILTER_4=ar-es-filter-2
+
+      - MONITOR_SERVICE_FILTER_5=ar-filter-1
+      - MONITOR_SERVICE_FILTER_6=ar-filter-2
+
+      - MONITOR_SERVICE_FILTER_7=single-country-origin-filter-1
+      - MONITOR_SERVICE_FILTER_8=single-country-origin-filter-2
+
+      - MONITOR_SERVICE_FILTER_9=nlp-1
+      - MONITOR_SERVICE_FILTER_10=nlp-2
+
+      - MONITOR_SERVICE_JOINER_1=joiner_group_by_movie_id_ratings-1
+      - MONITOR_SERVICE_JOINER_2=joiner_group_by_movie_id_ratings-2
+
+      - MONITOR_SERVICE_JOINER_3=joiner_group_by_movie_id_credits-1
+      - MONITOR_SERVICE_JOINER_4=joiner_group_by_movie_id_credits-2
+      - MONITOR_SERVICE_AGGREGATOR_1=aggregator_movies
+      - MONITOR_SERVICE_AGGREGATOR_2=aggregator_top_5
+      - MONITOR_SERVICE_AGGREGATOR_3=aggregator_top_10
+      - MONITOR_SERVICE_AGGREGATOR_4=aggregator_top_and_bottom
+      - MONITOR_SERVICE_AGGREGATOR_5=aggregator_metrics
+
+      - MONITOR_SERVICE_CONTROLLER_1=controller
+      - MONITOR_SERVICE_REPORT_1=report
+    restart: always
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
 
 networks:
   tp1_net:
