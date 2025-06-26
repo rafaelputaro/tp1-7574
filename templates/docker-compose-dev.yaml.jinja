@@ -393,8 +393,9 @@ services:
     volumes:
       - /tmp/states:/tmp/states
 
-  resilience_manager:
-    container_name: resilience_manager
+{% for i in range(1, resilience_manager_nodes + 1) %}
+  resilience_manager-{{ i }}:
+    container_name: resilience_manager-{{ i }}
     image: resilience_manager:latest
     build:
       context: .
@@ -412,6 +413,8 @@ services:
       - RESILIENCE_UNHEALTHY_THRESHOLD=3
       - RESILIENCE_RESTART_WAIT=15
       - HEALTH_ENDPOINT=/ping
+      - RESILIENCE_NODE_ID=node-{{ i - 1 }}
+      - RESILIENCE_TOTAL_NODES={{ resilience_manager_nodes }}
 {% for i in range(1, filter_nodes_2000s + 1) %}
       - MONITOR_SERVICE_FILTER_{{ i }}=2000s-filter-{{ i }}
 {%- endfor %}
@@ -448,6 +451,7 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+{% endfor %}
 
 networks:
   tp1_net:

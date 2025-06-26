@@ -3,6 +3,9 @@ package internal
 import (
 	"context"
 	"fmt"
+	"hash/fnv"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -82,6 +85,38 @@ func (r *ResilienceManager) Start(ctx context.Context) {
 	}()
 }
 
+func (r *ResilienceManager) isResponsibleFor(serviceName string) bool {
+	// If only one node, this node is responsible for everything
+	if r.config.TotalNodes <= 1 {
+		return true
+	}
+
+	// Use FNV hash to calculate a hash value for the service name
+	h := fnv.New32a()
+	_, _ = h.Write([]byte(serviceName))
+	hashValue := h.Sum32()
+
+	// Use modulo to determine which node is responsible
+	responsibleNodeIndex := int(hashValue) % r.config.TotalNodes
+
+	// Convert nodeID to index
+	// Assuming node IDs are in the format "node-X" where X is a number
+	// Or directly numeric if desired
+	nodeIndex := 0
+	// Attempt to parse suffix after last dash, if not just use 0
+	nodeIdParts := strings.Split(r.config.NodeID, "-")
+	if len(nodeIdParts) > 1 {
+		nodeIndex, _ = strconv.Atoi(nodeIdParts[len(nodeIdParts)-1])
+	}
+
+	isResponsible := (responsibleNodeIndex == nodeIndex)
+	if !isResponsible {
+		r.log.Debugf("Node %s not responsible for service %s (hash: %d mod %d = %d)",
+			r.config.NodeID, serviceName, hashValue, r.config.TotalNodes, responsibleNodeIndex)
+	}
+	return isResponsible
+}
+
 func (r *ResilienceManager) handleUnhealthyService(ctx context.Context, serviceName string) {
 	r.mutex.RLock()
 	serviceInfo, exists := r.services[serviceName]
@@ -89,6 +124,12 @@ func (r *ResilienceManager) handleUnhealthyService(ctx context.Context, serviceN
 
 	if !exists {
 		r.log.Errorf("Received unhealthy notification for unknown service: %s", serviceName)
+		return
+	}
+
+	// Check if this node is responsible for the unhealthy service
+	if !r.isResponsibleFor(serviceName) {
+		r.log.Infof("Node %s not responsible for handling service %s, ignoring", r.config.NodeID, serviceName)
 		return
 	}
 
@@ -101,7 +142,8 @@ func (r *ResilienceManager) handleUnhealthyService(ctx context.Context, serviceN
 	// Mark the service as pending before restart
 	r.healthChecker.SetServicePending(serviceName)
 
-	r.log.Infof("Attempting to restart unhealthy service %s (container: %s)", serviceName, serviceInfo.ContainerName)
+	r.log.Infof("Node %s attempting to restart unhealthy service %s (container: %s)",
+		r.config.NodeID, serviceName, serviceInfo.ContainerName)
 
 	err := r.dockerClient.RestartContainer(ctx, serviceInfo.ContainerName)
 	if err != nil {
