@@ -118,7 +118,7 @@ func (e *EOFLeader) SendACKs() {
 }
 
 func (e *EOFLeader) startListening() {
-	msgs, err := rabbitmq.ConsumeFromQueue2(e.channel, e.queue)
+	msgs, err := rabbitmq.ConsumeFromQueue(e.channel, e.queue)
 	if err != nil {
 		e.log.Fatalf("failed to start consuming: %v", err)
 	}
