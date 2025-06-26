@@ -21,6 +21,10 @@ type Config struct {
 	HealthEndpoint string
 	// Port on which services expose health checks
 	HealthPort int
+	// Node ID/name for this resilience manager instance
+	NodeID string
+	// Total number of resilience manager nodes in the cluster
+	TotalNodes int
 }
 
 func CreateDefaultConfig(log *logging.Logger) *Config {
@@ -28,10 +32,17 @@ func CreateDefaultConfig(log *logging.Logger) *Config {
 	unhealthyThreshold := getEnvInt("RESILIENCE_UNHEALTHY_THRESHOLD", 3, log)
 	restartWait := getEnvInt("RESILIENCE_RESTART_WAIT", 20, log)
 	healthPort := getEnvInt("RESILIENCE_HEALTH_PORT", 8081, log)
+	totalNodes := getEnvInt("RESILIENCE_TOTAL_NODES", 1, log)
 
 	// Get Docker socket path from env or use default
 	dockerSocket := getEnvString("DOCKER_SOCKET", "/var/run/docker.sock", log)
 	healthEndpoint := getEnvString("HEALTH_ENDPOINT", "/ping", log)
+
+	// Node identity is required when running in a multi-node setup (totalNodes > 1)
+	nodeID := getEnvString("RESILIENCE_NODE_ID", "node-0", log)
+	if totalNodes > 1 && os.Getenv("RESILIENCE_NODE_ID") == "" {
+		log.Critical("RESILIENCE_NODE_ID environment variable is required when running with multiple resilience manager nodes")
+	}
 
 	return &Config{
 		CheckInterval:      time.Duration(checkInterval) * time.Second,
@@ -40,6 +51,8 @@ func CreateDefaultConfig(log *logging.Logger) *Config {
 		DockerSocket:       dockerSocket,
 		HealthEndpoint:     healthEndpoint,
 		HealthPort:         healthPort,
+		NodeID:             nodeID,
+		TotalNodes:         totalNodes,
 	}
 }
 
