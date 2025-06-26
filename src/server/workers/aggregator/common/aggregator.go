@@ -186,7 +186,7 @@ func (aggregator *Aggregator) aggregateMovies() {
 	msgs, err := aggregator.consumeQueue(aggregator.Config.InputQueue)
 	if err == nil {
 		aggregatorState := aggregator.CreateAggregatorMoviesState()
-
+		timestampRcvMsg := state.InitClientsTimeStampsRcvMsg()
 		for msg := range msgs {
 
 			var movie protopb.MovieSanit
@@ -195,9 +195,18 @@ func (aggregator *Aggregator) aggregateMovies() {
 				continue
 			}
 
+			// check duplicate
 			if aggregator.Window.IsDuplicate(*movie.ClientId, movie.GetSourceId(), *movie.MessageId) {
 				aggregator.Log.Debugf("duplicate message: %v", *movie.MessageId)
 				aggregator.sendAck(msg)
+				continue
+			}
+
+			// check discard eof
+			var discard bool
+			timestampRcvMsg[movie.GetClientId()] = state.CheckInitTimeStampRcvMsg(timestampRcvMsg, movie.GetClientId())
+			timestampRcvMsg[movie.GetClientId()], discard = state.CheckAndDiscardEof(msg, timestampRcvMsg[movie.GetClientId()], movie.GetEof())
+			if discard {
 				continue
 			}
 
