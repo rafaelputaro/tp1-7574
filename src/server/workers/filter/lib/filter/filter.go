@@ -1,9 +1,7 @@
 package filter
 
 import (
-	"fmt"
 	"strconv"
-	"strings"
 	"sync"
 	"tp1/coordinator"
 	"tp1/globalconfig"
@@ -281,7 +279,7 @@ func (f *Filter) processYearFilters() {
 
 func (f *Filter) processArFilter() {
 	inputQueues := [2]string{"movies_2000_and_later", "movies_after_2000"}
-	outputExchanges := [2]string{"ar_movies_2000_and_later_exchange", "ar_movies_after_2000_exchange"}
+	outputQueues := [2]string{"ar_movies_2000_and_later", "ar_movies_after_2000"}
 
 	filterFunc := func(movie *protopb.MovieSanit) bool {
 		productionCountries := movie.GetProductionCountries()
@@ -298,12 +296,12 @@ func (f *Filter) processArFilter() {
 
 	go func() {
 		defer wg.Done()
-		f.runShardedFilter(inputQueues[0], true, outputExchanges[0], filterFunc, shardingFunc)
+		f.runShardedFilter(inputQueues[0], true, outputQueues[0], filterFunc, shardingFunc)
 	}()
 
 	go func() {
 		defer wg.Done()
-		f.runShardedFilter(inputQueues[1], true, outputExchanges[1], filterFunc, shardingFunc)
+		f.runShardedFilter(inputQueues[1], true, outputQueues[1], filterFunc, shardingFunc)
 	}()
 
 	wg.Wait()
@@ -381,7 +379,7 @@ func (f *Filter) processSingleCountryOriginFilter() {
 	}
 }
 
-func (f *Filter) runShardedFilter(inputQueue string, declareInput bool, outputExchange string, filterFunc func(movie *protopb.MovieSanit) bool, shardingFunc func(movie *protopb.MovieSanit) int) {
+func (f *Filter) runShardedFilter(inputQueue string, declareInput bool, baseOutputQueue string, filterFunc func(movie *protopb.MovieSanit) bool, shardingFunc func(movie *protopb.MovieSanit) int) {
 	// TODO: sacar esta lógica de acá
 	if declareInput {
 		err := rabbitmq.DeclareDirectQueuesWithFreshChannel(f.conn, inputQueue)
@@ -390,26 +388,12 @@ func (f *Filter) runShardedFilter(inputQueue string, declareInput bool, outputEx
 		}
 	}
 
-	// todo esto todavia usa exchanges?
-	for i := 1; i <= f.config.Shards; i++ {
-		queueName := strings.Replace(outputExchange, "exchange", fmt.Sprintf("shard_%d", i), 1)
-
-		routingKey := fmt.Sprintf("%d", i)
-
+	queueNames := globalconfig.GetAllShardedQueueNames(baseOutputQueue, int64(f.config.Shards))
+	for _, queueName := range queueNames {
+		f.log.Infof("Declaring %v", queueName)
 		err := rabbitmq.DeclareDirectQueuesWithFreshChannel(f.conn, queueName)
-		f.log.Debugf("Declaring %v", queueName)
 		if err != nil {
 			f.log.Fatalf("failed to declare queue '%s': %v", queueName, err)
-		}
-
-		err = rabbitmq.BindQueueWithFreshChannel(
-			f.conn,
-			queueName,
-			outputExchange,
-			routingKey,
-		)
-		if err != nil {
-			f.log.Fatalf("failed to bind queue '%s' to exchange '%s': %v", queueName, outputExchange, err)
 		}
 	}
 
@@ -441,12 +425,6 @@ func (f *Filter) runShardedFilter(inputQueue string, declareInput bool, outputEx
 			continue
 		}
 
-		movieSharded, err := proto.Marshal(&movie)
-		if err != nil {
-			f.log.Fatalf("[cliend_id_%s %s] Failed to marshal message: %v", clientID, f.config.Type, err)
-			continue
-		}
-
 		if movie.GetEof() {
 			f.log.Infof("[client_id:%s] received EOF marker", clientID)
 
@@ -454,52 +432,25 @@ func (f *Filter) runShardedFilter(inputQueue string, declareInput bool, outputEx
 			coord.WaitForACKs(clientID)
 
 			// Propagate EOF
-			for i := 1; i <= f.config.Shards; i++ {
-				routingKey := fmt.Sprintf("%d", i)
-				err := f.channel.Publish(
-					outputExchange, // exchange
-					routingKey,     // routing key
-					false,          // mandatory
-					false,          // immediate
-					amqp.Publishing{
-						ContentType: "application/protobuf",
-						Body:        movieSharded, //msg.Body,
-					},
-				)
+			queueNames := globalconfig.GetAllShardedQueueNames(baseOutputQueue, int64(f.config.Shards))
+			for _, queueName := range queueNames {
+				err = rabbitmq.Publish(f.channel, "", queueName, msg.Body)
 				if err != nil {
-					f.log.Fatalf("failed to publish EOF to %s shard %d: %v", outputExchange, i, err)
+					f.log.Fatalf("[client_id:%s] failed to publish EOF to %s: %v", clientID, queueName, err)
 				}
-
-				f.log.Infof("[client_id:%s] propagated EOF to %s shard %d", clientID, outputExchange, i)
+				f.log.Infof("[client_id:%s] propagated EOF to %s", clientID, queueName)
 			}
 
-			//			f.sendAck(msg)
 			f.SaveDefaultState(msg, *movie.ClientId, sourceId, *movie.MessageId)
 			state.Synch(f.stateHelperDefault, SendAck)
 			continue
 		}
 
 		if filterFunc(&movie) {
-			//shard := shardingFunc(&movie)
-			routingKey := fmt.Sprintf("%d", shard)
-
-			err = f.channel.Publish(
-				outputExchange, // exchange
-				routingKey,     // routing key
-				false,          // mandatory
-				false,          // inmediate
-				amqp.Publishing{
-					ContentType: "application/protobuf",
-					Body:        movieSharded, //msg.Body,
-				})
-			if err != nil {
-				f.log.Errorf("[client_id:%s] failed to publish filtered message: %v", clientID, err)
-			}
-
-			//f.sendAck(msg)
-
-			//coord.SendACKs()
+			queueName := globalconfig.GetShardedQueueName(baseOutputQueue, int64(f.config.Shards), int64(movie.GetId()))
+			err = rabbitmq.Publish(f.channel, "", queueName, msg.Body)
 			f.SaveDefaultStateAndSendAckCoordinator(coord, msg, *movie.ClientId, sourceId, *movie.MessageId)
+			f.log.Infof("[client_id:%s] sent movie to shard %s", clientID, queueName)
 		}
 	}
 }
