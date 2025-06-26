@@ -201,7 +201,8 @@ def main():
 
     channel.basic_qos(prefetch_count=1)
 
-    channel.queue_declare(queue=QUEUE_NAME, durable=True)
+    # Declare as stream queue to match Go code declarations
+    channel.queue_declare(queue=QUEUE_NAME, durable=True, arguments={'x-queue-type': 'stream'})
     channel.exchange_declare(exchange=SENTIMENT_EXCHANGE, exchange_type='direct', durable=True)
     channel.queue_declare(queue=POSITIVE_QUEUE, durable=True)
     channel.queue_declare(queue=NEGATIVE_QUEUE, durable=True)

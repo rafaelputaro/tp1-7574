@@ -1,6 +1,7 @@
 package rabbitmq
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/op/go-logging"
@@ -36,7 +37,7 @@ func DeclareDirectQueues(channel *amqp.Channel, queues ...string) error {
 			false,
 			false,
 			false,
-			nil,
+			map[string]interface{}{"x-queue-type": "stream"},
 		)
 		if err != nil {
 			return err
@@ -135,6 +136,28 @@ func BindQueueWithFreshChannel(conn *amqp.Connection, queue, exchange, routingKe
 }
 
 func ConsumeFromQueue(channel *amqp.Channel, queue string) (<-chan amqp.Delivery, error) {
+	// Set prefetch count to 1 for streams
+	err := channel.Qos(
+		1,     // prefetch count - set to 1 as specified
+		0,     // prefetch size (0 means no specific size limit)
+		false, // global - false means apply to this consumer only
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to set QoS for stream queue '%s': %v", queue, err)
+	}
+
+	return channel.Consume(
+		queue,
+		"",
+		false,
+		false,
+		false,
+		false,
+		nil,
+	)
+}
+
+func ConsumeFromQueue2(channel *amqp.Channel, queue string) (<-chan amqp.Delivery, error) {
 	return channel.Consume(
 		queue,
 		"",
