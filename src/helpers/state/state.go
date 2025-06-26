@@ -107,6 +107,7 @@ func tryCleanFilesOnStart(filePath string, auxFilePath string) {
 		defer fileAux.Close()
 		// Truncate the file
 		cleanFile(fileAux, auxFilePath)
+		CleanOnStart = false
 	}
 }
 
