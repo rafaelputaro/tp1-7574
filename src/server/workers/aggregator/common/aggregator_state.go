@@ -323,12 +323,11 @@ func UpdateTop5(aggregatorState *AggregatorTop5State, messageWindow *window.Mess
 		if !found {
 			aggregatorState.CountriesByClient[clientID] = make(map[string]int64)
 		}
-		countryForClient := aggregatorState.CountriesByClient[clientID]
-		_, found = countryForClient[updateArgs.ProductionCountry]
+		_, found = aggregatorState.CountriesByClient[clientID][updateArgs.ProductionCountry]
 		if !found {
-			countryForClient[updateArgs.ProductionCountry] = 0
+			aggregatorState.CountriesByClient[clientID][updateArgs.ProductionCountry] = 0
 		}
-		countryForClient[updateArgs.ProductionCountry] += updateArgs.Budget
+		aggregatorState.CountriesByClient[clientID][updateArgs.ProductionCountry] += updateArgs.Budget
 	}
 }
 

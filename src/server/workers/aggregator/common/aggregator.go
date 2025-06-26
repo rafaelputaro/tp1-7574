@@ -233,7 +233,6 @@ func (a *Aggregator) aggregateTop5() {
 		a.Log.Fatalf("failed to consume messages: %v", err)
 	}
 	aggregatorState := a.CreateAggregatorTop5State()
-
 	for msg := range msgs {
 		var movie protopb.MovieSanit
 		err = proto.Unmarshal(msg.Body, &movie)
