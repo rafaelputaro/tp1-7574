@@ -33,7 +33,7 @@ func CheckAndDiscardEof(msg amqp.Delivery, lastTimestamp string, isEof bool) (st
 			timeEof := time.Now().UTC()
 			// Eof arrives before max time rcv msg
 			if timeEof.Before(maxTimeRcvMsg) {
-				logger.Debugf("Discard eof")
+				logger.Debugf("Discard eof %v", msg.Expiration)
 				rabbitmq.SingleNack(msg)
 				return lastTimestamp, true
 			}
