@@ -113,7 +113,7 @@ func (h *HealthChecker) checkAllServices(unhealthyCh chan<- string) {
 
 			if status.ErrorCount >= h.unhealthyThreshold {
 				if status.Status == StatusHealthy {
-					// Only if transitioning from HEALTHY to UNHEALTHY
+					// Transition from HEALTHY to UNHEALTHY
 					h.log.Errorf("Service %s is now UNHEALTHY after %d consecutive failures", name, status.ErrorCount)
 					status.Status = StatusUnhealthy
 					unhealthyCh <- name
@@ -125,6 +125,11 @@ func (h *HealthChecker) checkAllServices(unhealthyCh chan<- string) {
 						status.Status = StatusUnhealthy
 						unhealthyCh <- name
 					}
+				} else if status.Status == StatusUnhealthy && status.ErrorCount%h.unhealthyThreshold == 0 {
+					// Service is already UNHEALTHY but continues to fail
+					// Report every N failures (where N is unhealthyThreshold) for another restart attempt
+					h.log.Errorf("Service %s remains UNHEALTHY after %d consecutive failures, requesting another restart", name, status.ErrorCount)
+					unhealthyCh <- name
 				}
 			}
 		}
