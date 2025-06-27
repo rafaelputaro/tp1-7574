@@ -58,6 +58,8 @@ def get_containers_by_type(node_type):
                 containers[name] = container_id
             elif node_type == "aggregator" and "aggregator" in name:
                 containers[name] = container_id
+            elif node_type == "aggregator_movies" and "aggregator_movies" in name:
+                containers[name] = container_id
             elif node_type == "report" and name == "report":
                 containers[name] = container_id
             elif node_type == "controller" and name == "controller":
@@ -100,7 +102,7 @@ def kill_random_containers(containers, count, dry_run=False):
 def main():
     parser = argparse.ArgumentParser(description="Chaos Monkey - Randomly kill Docker containers")
     parser.add_argument("--node-type", default="any",
-                        choices=["filter", "joiner", "aggregator", "report", "controller", "any"],
+                        choices=["filter", "joiner", "aggregator", "aggregator_movies", "report", "controller", "any"],
                         help="Type of node to kill (filter, joiner, aggregator, report, controller, any)")
     parser.add_argument("--kill-count", type=int, default=1,
                         help="Number of containers to kill per round")

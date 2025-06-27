@@ -150,6 +150,10 @@ func SingleAck(msg amqp.Delivery) error {
 	return msg.Ack(false)
 }
 
+func SingleNack(msg amqp.Delivery) error {
+	return msg.Nack(false, true)
+}
+
 func Publish(channel *amqp.Channel, exchange, routingKey string, data []byte) error {
 	return channel.Publish(
 		exchange,
