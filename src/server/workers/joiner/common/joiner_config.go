@@ -1,7 +1,6 @@
 package common
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/op/go-logging"
@@ -11,12 +10,11 @@ import (
 const INPUT_EXCHANGE_BASE_NAME = "joiner_input_exchange"
 
 type JoinerConfig struct {
-	ID                  string
-	JoinerType          string
-	InputQueueName      string
-	InputQueueSecName   string
-	OutputQueueName     string
-	InputQueuesExchange string
+	ID                string
+	JoinerType        string
+	InputQueueName    string
+	InputQueueSecName string
+	OutputQueueName   string
 }
 
 // Returns new joiner config
@@ -25,15 +23,13 @@ func NewJoinerConfig(
 	joiner_type string,
 	inputQueueName string,
 	inputQueueSecName string,
-	outputQueueName string,
-	inputQueuesExchange string) *JoinerConfig {
+	outputQueueName string) *JoinerConfig {
 	config := &JoinerConfig{
-		ID:                  id,
-		JoinerType:          joiner_type,
-		InputQueueName:      inputQueueName,
-		InputQueueSecName:   inputQueueSecName,
-		OutputQueueName:     outputQueueName,
-		InputQueuesExchange: inputQueuesExchange,
+		ID:                id,
+		JoinerType:        joiner_type,
+		InputQueueName:    inputQueueName,
+		InputQueueSecName: inputQueueSecName,
+		OutputQueueName:   outputQueueName,
 	}
 	return config
 }
@@ -47,7 +43,7 @@ func LoadJoinerConfig() *JoinerConfig {
 	v.BindEnv("type")
 	v.BindEnv("id")
 	// input queue
-	v.BindEnv("input_queue", "base_name")
+	v.BindEnv("input_queue", "name")
 	// input queue secondary
 	v.BindEnv("input_queue_sec", "name")
 	// output queue
@@ -55,27 +51,17 @@ func LoadJoinerConfig() *JoinerConfig {
 	// get values
 	id := v.GetString("id")
 	joinerType := v.GetString("type")
-	inputQueue := getShardQueueName(v.GetString("input_queue.base_name"), id) // Esta usando el ID para calcular el shard. En el compose el ID es 2 a pesar de que el shard es 1.
+	inputQueue := v.GetString("input_queue.name")
 	inputQueueSec := v.GetString("input_queue_sec.name")
 	outputQueue := v.GetString("output_queue.name")
-	inputQueuesExchange := getExchangeName(id)
-	var config *JoinerConfig = NewJoinerConfig(
+	var config = NewJoinerConfig(
 		id,
 		joinerType,
 		inputQueue,
 		inputQueueSec,
 		outputQueue,
-		inputQueuesExchange,
 	)
 	return config
-}
-
-func getExchangeName(id string) string {
-	return fmt.Sprintf("%s_%s", INPUT_EXCHANGE_BASE_NAME, id)
-}
-
-func getShardQueueName(baseName string, id string) string {
-	return fmt.Sprintf("%s_shard_%s", baseName, id)
 }
 
 func (config *JoinerConfig) LogConfig(log *logging.Logger) {
@@ -86,5 +72,4 @@ func (config *JoinerConfig) LogConfig(log *logging.Logger) {
 	log.Debugf("InputQueue: %v", config.InputQueueName)
 	log.Debugf("InputQueueSec: %v", config.InputQueueSecName)
 	log.Debugf("OutputQueue: %v", config.OutputQueueName)
-	log.Debugf("InputQueuesExchange: %v", config.InputQueuesExchange)
 }

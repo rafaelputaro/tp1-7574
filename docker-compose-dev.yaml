@@ -24,8 +24,8 @@ services:
     environment:
       - FILTER_TYPE=2000s_filter
       - FILTER_NUM=1
-      - SHARDS=2
-      - FILTER_NODES=2
+      - SHARDS=3
+      - FILTER_NODES=3
       - NODE_NAME=2000s-filter-1
     networks:
       - tp1_net
@@ -44,9 +44,13 @@ services:
         condition: service_healthy
       ar-es-filter-2:
         condition: service_healthy
+      ar-es-filter-3:
+        condition: service_healthy
       ar-filter-1:
         condition: service_healthy
       ar-filter-2:
+        condition: service_healthy
+      ar-filter-3:
         condition: service_healthy
   2000s-filter-2:
     container_name: 2000s-filter-2
@@ -54,8 +58,8 @@ services:
     environment:
       - FILTER_TYPE=2000s_filter
       - FILTER_NUM=2
-      - SHARDS=2
-      - FILTER_NODES=2
+      - SHARDS=3
+      - FILTER_NODES=3
       - NODE_NAME=2000s-filter-2
     networks:
       - tp1_net
@@ -74,9 +78,47 @@ services:
         condition: service_healthy
       ar-es-filter-2:
         condition: service_healthy
+      ar-es-filter-3:
+        condition: service_healthy
       ar-filter-1:
         condition: service_healthy
       ar-filter-2:
+        condition: service_healthy
+      ar-filter-3:
+        condition: service_healthy
+  2000s-filter-3:
+    container_name: 2000s-filter-3
+    image: filter:latest
+    environment:
+      - FILTER_TYPE=2000s_filter
+      - FILTER_NUM=3
+      - SHARDS=3
+      - FILTER_NODES=3
+      - NODE_NAME=2000s-filter-3
+    networks:
+      - tp1_net
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+#    tmpfs:
+#      - /tmp/states
+    volumes:
+      - /tmp/states:/tmp/states
+    depends_on:
+
+      ar-es-filter-1:
+        condition: service_healthy
+      ar-es-filter-2:
+        condition: service_healthy
+      ar-es-filter-3:
+        condition: service_healthy
+      ar-filter-1:
+        condition: service_healthy
+      ar-filter-2:
+        condition: service_healthy
+      ar-filter-3:
         condition: service_healthy
 
 
@@ -86,8 +128,8 @@ services:
     environment:
       - FILTER_TYPE=ar_es_filter
       - FILTER_NUM=1
-      - SHARDS=2
-      - FILTER_NODES=2
+      - SHARDS=3
+      - FILTER_NODES=3
       - NODE_NAME=ar-es-filter-1
     networks:
       - tp1_net
@@ -108,9 +150,31 @@ services:
     environment:
       - FILTER_TYPE=ar_es_filter
       - FILTER_NUM=2
-      - SHARDS=2
-      - FILTER_NODES=2
+      - SHARDS=3
+      - FILTER_NODES=3
       - NODE_NAME=ar-es-filter-2
+    networks:
+      - tp1_net
+    depends_on:
+      aggregator_movies:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    volumes:
+      - /tmp/states:/tmp/states
+
+  ar-es-filter-3:
+    container_name: ar-es-filter-3
+    image: filter:latest
+    environment:
+      - FILTER_TYPE=ar_es_filter
+      - FILTER_NUM=3
+      - SHARDS=3
+      - FILTER_NODES=3
+      - NODE_NAME=ar-es-filter-3
     networks:
       - tp1_net
     depends_on:
@@ -132,8 +196,8 @@ services:
     environment:
       - FILTER_TYPE=ar_filter
       - FILTER_NUM=1
-      - SHARDS=2
-      - FILTER_NODES=2
+      - SHARDS=3
+      - FILTER_NODES=3
       - NODE_NAME=ar-filter-1
     networks:
       - tp1_net
@@ -154,6 +218,10 @@ services:
         condition: service_healthy
       joiner_group_by_movie_id_ratings-2:
         condition: service_healthy
+      joiner_group_by_movie_id_credits-3:
+        condition: service_healthy
+      joiner_group_by_movie_id_ratings-3:
+        condition: service_healthy
 
   ar-filter-2:
     container_name: ar-filter-2
@@ -161,8 +229,8 @@ services:
     environment:
       - FILTER_TYPE=ar_filter
       - FILTER_NUM=2
-      - SHARDS=2
-      - FILTER_NODES=2
+      - SHARDS=3
+      - FILTER_NODES=3
       - NODE_NAME=ar-filter-2
     networks:
       - tp1_net
@@ -183,6 +251,43 @@ services:
         condition: service_healthy
       joiner_group_by_movie_id_ratings-2:
         condition: service_healthy
+      joiner_group_by_movie_id_credits-3:
+        condition: service_healthy
+      joiner_group_by_movie_id_ratings-3:
+        condition: service_healthy
+
+  ar-filter-3:
+    container_name: ar-filter-3
+    image: filter:latest
+    environment:
+      - FILTER_TYPE=ar_filter
+      - FILTER_NUM=3
+      - SHARDS=3
+      - FILTER_NODES=3
+      - NODE_NAME=ar-filter-3
+    networks:
+      - tp1_net
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    volumes:
+      - /tmp/states:/tmp/states
+    depends_on:
+
+      joiner_group_by_movie_id_credits-1:
+        condition: service_healthy
+      joiner_group_by_movie_id_ratings-1:
+        condition: service_healthy
+      joiner_group_by_movie_id_credits-2:
+        condition: service_healthy
+      joiner_group_by_movie_id_ratings-2:
+        condition: service_healthy
+      joiner_group_by_movie_id_credits-3:
+        condition: service_healthy
+      joiner_group_by_movie_id_ratings-3:
+        condition: service_healthy
 
 
 
@@ -192,8 +297,8 @@ services:
     environment:
       - FILTER_TYPE=single_country_origin_filter
       - FILTER_NUM=1
-      - SHARDS=2
-      - FILTER_NODES=2
+      - SHARDS=3
+      - FILTER_NODES=3
       - NODE_NAME=single-country-origin-filter-1
     networks:
       - tp1_net
@@ -214,9 +319,31 @@ services:
     environment:
       - FILTER_TYPE=single_country_origin_filter
       - FILTER_NUM=2
-      - SHARDS=2
-      - FILTER_NODES=2
+      - SHARDS=3
+      - FILTER_NODES=3
       - NODE_NAME=single-country-origin-filter-2
+    networks:
+      - tp1_net
+    depends_on:
+      aggregator_top_5:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    volumes:
+      - /tmp/states:/tmp/states
+
+  single-country-origin-filter-3:
+    container_name: single-country-origin-filter-3
+    image: filter:latest
+    environment:
+      - FILTER_TYPE=single_country_origin_filter
+      - FILTER_NUM=3
+      - SHARDS=3
+      - FILTER_NODES=3
+      - NODE_NAME=single-country-origin-filter-3
     networks:
       - tp1_net
     depends_on:
@@ -238,7 +365,7 @@ services:
     environment:
       - JOINER_TYPE=group_by_movie_id_ratings
       - JOINER_ID=1
-      - JOINER_INPUT_QUEUE_BASE_NAME=ar_movies_2000_and_later
+      - JOINER_INPUT_QUEUE_NAME=ar_movies_2000_and_later_1
       - JOINER_INPUT_QUEUE_SEC_NAME=ratings_1
       - JOINER_OUTPUT_QUEUE_NAME=movies_top_and_bottom
     networks:
@@ -262,8 +389,32 @@ services:
     environment:
       - JOINER_TYPE=group_by_movie_id_ratings
       - JOINER_ID=2
-      - JOINER_INPUT_QUEUE_BASE_NAME=ar_movies_2000_and_later
+      - JOINER_INPUT_QUEUE_NAME=ar_movies_2000_and_later_2
       - JOINER_INPUT_QUEUE_SEC_NAME=ratings_2
+      - JOINER_OUTPUT_QUEUE_NAME=movies_top_and_bottom
+    networks:
+      - tp1_net
+    depends_on:
+      aggregator_top_and_bottom:
+        condition: service_healthy
+    links:
+      - rabbitmq
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    volumes:
+      - /tmp/states:/tmp/states
+
+  joiner_group_by_movie_id_ratings-3:
+    container_name: joiner_group_by_movie_id_ratings-3
+    image: joiner:latest
+    environment:
+      - JOINER_TYPE=group_by_movie_id_ratings
+      - JOINER_ID=3
+      - JOINER_INPUT_QUEUE_NAME=ar_movies_2000_and_later_3
+      - JOINER_INPUT_QUEUE_SEC_NAME=ratings_3
       - JOINER_OUTPUT_QUEUE_NAME=movies_top_and_bottom
     networks:
       - tp1_net
@@ -288,7 +439,7 @@ services:
     environment:
       - JOINER_TYPE=group_by_movie_id_credits
       - JOINER_ID=1
-      - JOINER_INPUT_QUEUE_BASE_NAME=ar_movies_after_2000
+      - JOINER_INPUT_QUEUE_NAME=ar_movies_after_2000_1
       - JOINER_INPUT_QUEUE_SEC_NAME=credits_1
       - JOINER_OUTPUT_QUEUE_NAME=actor_movies_count
     networks:
@@ -312,8 +463,32 @@ services:
     environment:
       - JOINER_TYPE=group_by_movie_id_credits
       - JOINER_ID=2
-      - JOINER_INPUT_QUEUE_BASE_NAME=ar_movies_after_2000
+      - JOINER_INPUT_QUEUE_NAME=ar_movies_after_2000_2
       - JOINER_INPUT_QUEUE_SEC_NAME=credits_2
+      - JOINER_OUTPUT_QUEUE_NAME=actor_movies_count
+    networks:
+      - tp1_net
+    depends_on:
+      aggregator_top_10:
+        condition: service_healthy
+    links:
+      - rabbitmq
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    volumes:
+      - /tmp/states:/tmp/states
+
+  joiner_group_by_movie_id_credits-3:
+    container_name: joiner_group_by_movie_id_credits-3
+    image: joiner:latest
+    environment:
+      - JOINER_TYPE=group_by_movie_id_credits
+      - JOINER_ID=3
+      - JOINER_INPUT_QUEUE_NAME=ar_movies_after_2000_3
+      - JOINER_INPUT_QUEUE_SEC_NAME=credits_3
       - JOINER_OUTPUT_QUEUE_NAME=actor_movies_count
     networks:
       - tp1_net
@@ -385,7 +560,7 @@ services:
     environment:
       - AGGREGATOR_TYPE=top_10
       - AGGREGATOR_ID=3
-      - AGGREGATOR_AMOUNT_SOURCES=2
+      - AGGREGATOR_AMOUNT_SOURCES=3
       - AGGREGATOR_INPUT_QUEUE_NAME=actor_movies_count
       - AGGREGATOR_OUTPUT_QUEUE_NAME=top_10_report
     networks:
@@ -409,7 +584,7 @@ services:
     environment:
       - AGGREGATOR_TYPE=top_and_bottom
       - AGGREGATOR_ID=4
-      - AGGREGATOR_AMOUNT_SOURCES=2
+      - AGGREGATOR_AMOUNT_SOURCES=3
       - AGGREGATOR_INPUT_QUEUE_NAME=movies_top_and_bottom
       - AGGREGATOR_OUTPUT_QUEUE_NAME=top_and_bottom_report
     networks:
@@ -458,8 +633,8 @@ services:
     image: nlp:latest
     environment:
       - NODE_NUM=1
-      - SHARDS=2
-      - NLP_NODES=2
+      - SHARDS=3
+      - NLP_NODES=3
       - NODE_NAME=nlp-1
     networks:
       - tp1_net
@@ -475,9 +650,26 @@ services:
     image: nlp:latest
     environment:
       - NODE_NUM=2
-      - SHARDS=2
-      - NLP_NODES=2
+      - SHARDS=3
+      - NLP_NODES=3
       - NODE_NAME=nlp-2
+    networks:
+      - tp1_net
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./nlp-cache:/app/cache
+      - /tmp/states:/tmp/states
+
+  nlp-3:
+    container_name: nlp-3
+    image: nlp:latest
+    environment:
+      - NODE_NUM=3
+      - SHARDS=3
+      - NLP_NODES=3
+      - NODE_NAME=nlp-3
     networks:
       - tp1_net
     depends_on:
@@ -495,7 +687,7 @@ services:
       context: .
       dockerfile: src/server/gateway/Dockerfile
     environment:
-      - SHARDS=2
+      - SHARDS=3
     networks:
       - tp1_net
     healthcheck:
@@ -508,9 +700,13 @@ services:
         condition: service_healthy
       2000s-filter-2:
         condition: service_healthy
+      2000s-filter-3:
+        condition: service_healthy
       single-country-origin-filter-1:
         condition: service_healthy
       single-country-origin-filter-2:
+        condition: service_healthy
+      single-country-origin-filter-3:
         condition: service_healthy
       joiner_group_by_movie_id_credits-1:
         condition: service_healthy
@@ -520,9 +716,15 @@ services:
         condition: service_healthy
       joiner_group_by_movie_id_ratings-2:
         condition: service_healthy
+      joiner_group_by_movie_id_credits-3:
+        condition: service_healthy
+      joiner_group_by_movie_id_ratings-3:
+        condition: service_healthy
       nlp-1:
         condition: service_started
       nlp-2:
+        condition: service_started
+      nlp-3:
         condition: service_started
 
 
@@ -549,6 +751,27 @@ services:
 
   client-2:
     container_name: client-2
+    image: client:latest
+    build:
+      context: .
+      dockerfile: src/client/Dockerfile
+    networks:
+      - tp1_net
+    depends_on:
+      controller:
+        condition: service_healthy
+    volumes:
+      - ./src/client/datasets:/app/datasets
+      - ./reports:/app
+      - /tmp/states:/tmp/states
+    entrypoint: /client
+    command:
+      - /app/datasets/movies.csv
+      - /app/datasets/ratings.csv
+      - /app/datasets/credits.csv
+
+  client-3:
+    container_name: client-3
     image: client:latest
     build:
       context: .
@@ -608,28 +831,35 @@ services:
       - RESILIENCE_RESTART_WAIT=15
       - HEALTH_ENDPOINT=/ping
       - RESILIENCE_NODE_ID=node-0
-      - RESILIENCE_TOTAL_NODES=2
+      - RESILIENCE_TOTAL_NODES=3
 
       - MONITOR_SERVICE_FILTER_1=2000s-filter-1
       - MONITOR_SERVICE_FILTER_2=2000s-filter-2
+      - MONITOR_SERVICE_FILTER_3=2000s-filter-3
 
-      - MONITOR_SERVICE_FILTER_3=ar-es-filter-1
-      - MONITOR_SERVICE_FILTER_4=ar-es-filter-2
+      - MONITOR_SERVICE_FILTER_4=ar-es-filter-1
+      - MONITOR_SERVICE_FILTER_5=ar-es-filter-2
+      - MONITOR_SERVICE_FILTER_6=ar-es-filter-3
 
-      - MONITOR_SERVICE_FILTER_5=ar-filter-1
-      - MONITOR_SERVICE_FILTER_6=ar-filter-2
+      - MONITOR_SERVICE_FILTER_7=ar-filter-1
+      - MONITOR_SERVICE_FILTER_8=ar-filter-2
+      - MONITOR_SERVICE_FILTER_9=ar-filter-3
 
-      - MONITOR_SERVICE_FILTER_7=single-country-origin-filter-1
-      - MONITOR_SERVICE_FILTER_8=single-country-origin-filter-2
+      - MONITOR_SERVICE_FILTER_10=single-country-origin-filter-1
+      - MONITOR_SERVICE_FILTER_11=single-country-origin-filter-2
+      - MONITOR_SERVICE_FILTER_12=single-country-origin-filter-3
 
-      - MONITOR_SERVICE_FILTER_9=nlp-1
-      - MONITOR_SERVICE_FILTER_10=nlp-2
+      - MONITOR_SERVICE_FILTER_13=nlp-1
+      - MONITOR_SERVICE_FILTER_14=nlp-2
+      - MONITOR_SERVICE_FILTER_15=nlp-3
 
       - MONITOR_SERVICE_JOINER_1=joiner_group_by_movie_id_ratings-1
       - MONITOR_SERVICE_JOINER_2=joiner_group_by_movie_id_ratings-2
+      - MONITOR_SERVICE_JOINER_3=joiner_group_by_movie_id_ratings-3
 
-      - MONITOR_SERVICE_JOINER_3=joiner_group_by_movie_id_credits-1
-      - MONITOR_SERVICE_JOINER_4=joiner_group_by_movie_id_credits-2
+      - MONITOR_SERVICE_JOINER_4=joiner_group_by_movie_id_credits-1
+      - MONITOR_SERVICE_JOINER_5=joiner_group_by_movie_id_credits-2
+      - MONITOR_SERVICE_JOINER_6=joiner_group_by_movie_id_credits-3
       - MONITOR_SERVICE_AGGREGATOR_1=aggregator_movies
       - MONITOR_SERVICE_AGGREGATOR_2=aggregator_top_5
       - MONITOR_SERVICE_AGGREGATOR_3=aggregator_top_10
@@ -666,28 +896,100 @@ services:
       - RESILIENCE_RESTART_WAIT=15
       - HEALTH_ENDPOINT=/ping
       - RESILIENCE_NODE_ID=node-1
-      - RESILIENCE_TOTAL_NODES=2
+      - RESILIENCE_TOTAL_NODES=3
 
       - MONITOR_SERVICE_FILTER_1=2000s-filter-1
       - MONITOR_SERVICE_FILTER_2=2000s-filter-2
+      - MONITOR_SERVICE_FILTER_3=2000s-filter-3
 
-      - MONITOR_SERVICE_FILTER_3=ar-es-filter-1
-      - MONITOR_SERVICE_FILTER_4=ar-es-filter-2
+      - MONITOR_SERVICE_FILTER_4=ar-es-filter-1
+      - MONITOR_SERVICE_FILTER_5=ar-es-filter-2
+      - MONITOR_SERVICE_FILTER_6=ar-es-filter-3
 
-      - MONITOR_SERVICE_FILTER_5=ar-filter-1
-      - MONITOR_SERVICE_FILTER_6=ar-filter-2
+      - MONITOR_SERVICE_FILTER_7=ar-filter-1
+      - MONITOR_SERVICE_FILTER_8=ar-filter-2
+      - MONITOR_SERVICE_FILTER_9=ar-filter-3
 
-      - MONITOR_SERVICE_FILTER_7=single-country-origin-filter-1
-      - MONITOR_SERVICE_FILTER_8=single-country-origin-filter-2
+      - MONITOR_SERVICE_FILTER_10=single-country-origin-filter-1
+      - MONITOR_SERVICE_FILTER_11=single-country-origin-filter-2
+      - MONITOR_SERVICE_FILTER_12=single-country-origin-filter-3
 
-      - MONITOR_SERVICE_FILTER_9=nlp-1
-      - MONITOR_SERVICE_FILTER_10=nlp-2
+      - MONITOR_SERVICE_FILTER_13=nlp-1
+      - MONITOR_SERVICE_FILTER_14=nlp-2
+      - MONITOR_SERVICE_FILTER_15=nlp-3
 
       - MONITOR_SERVICE_JOINER_1=joiner_group_by_movie_id_ratings-1
       - MONITOR_SERVICE_JOINER_2=joiner_group_by_movie_id_ratings-2
+      - MONITOR_SERVICE_JOINER_3=joiner_group_by_movie_id_ratings-3
 
-      - MONITOR_SERVICE_JOINER_3=joiner_group_by_movie_id_credits-1
-      - MONITOR_SERVICE_JOINER_4=joiner_group_by_movie_id_credits-2
+      - MONITOR_SERVICE_JOINER_4=joiner_group_by_movie_id_credits-1
+      - MONITOR_SERVICE_JOINER_5=joiner_group_by_movie_id_credits-2
+      - MONITOR_SERVICE_JOINER_6=joiner_group_by_movie_id_credits-3
+      - MONITOR_SERVICE_AGGREGATOR_1=aggregator_movies
+      - MONITOR_SERVICE_AGGREGATOR_2=aggregator_top_5
+      - MONITOR_SERVICE_AGGREGATOR_3=aggregator_top_10
+      - MONITOR_SERVICE_AGGREGATOR_4=aggregator_top_and_bottom
+      - MONITOR_SERVICE_AGGREGATOR_5=aggregator_metrics
+
+      - MONITOR_SERVICE_CONTROLLER_1=controller
+      - MONITOR_SERVICE_REPORT_1=report
+    restart: always
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8081/ping | grep -q pong" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  resilience_manager-3:
+    container_name: resilience_manager-3
+    image: resilience_manager:latest
+    build:
+      context: .
+      dockerfile: src/server/resilience_manager/Dockerfile
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/states:/tmp/states
+    networks:
+      - tp1_net
+    depends_on:
+      controller:
+        condition: service_healthy
+    environment:
+      - RESILIENCE_CHECK_INTERVAL=5
+      - RESILIENCE_UNHEALTHY_THRESHOLD=3
+      - RESILIENCE_RESTART_WAIT=15
+      - HEALTH_ENDPOINT=/ping
+      - RESILIENCE_NODE_ID=node-2
+      - RESILIENCE_TOTAL_NODES=3
+
+      - MONITOR_SERVICE_FILTER_1=2000s-filter-1
+      - MONITOR_SERVICE_FILTER_2=2000s-filter-2
+      - MONITOR_SERVICE_FILTER_3=2000s-filter-3
+
+      - MONITOR_SERVICE_FILTER_4=ar-es-filter-1
+      - MONITOR_SERVICE_FILTER_5=ar-es-filter-2
+      - MONITOR_SERVICE_FILTER_6=ar-es-filter-3
+
+      - MONITOR_SERVICE_FILTER_7=ar-filter-1
+      - MONITOR_SERVICE_FILTER_8=ar-filter-2
+      - MONITOR_SERVICE_FILTER_9=ar-filter-3
+
+      - MONITOR_SERVICE_FILTER_10=single-country-origin-filter-1
+      - MONITOR_SERVICE_FILTER_11=single-country-origin-filter-2
+      - MONITOR_SERVICE_FILTER_12=single-country-origin-filter-3
+
+      - MONITOR_SERVICE_FILTER_13=nlp-1
+      - MONITOR_SERVICE_FILTER_14=nlp-2
+      - MONITOR_SERVICE_FILTER_15=nlp-3
+
+      - MONITOR_SERVICE_JOINER_1=joiner_group_by_movie_id_ratings-1
+      - MONITOR_SERVICE_JOINER_2=joiner_group_by_movie_id_ratings-2
+      - MONITOR_SERVICE_JOINER_3=joiner_group_by_movie_id_ratings-3
+
+      - MONITOR_SERVICE_JOINER_4=joiner_group_by_movie_id_credits-1
+      - MONITOR_SERVICE_JOINER_5=joiner_group_by_movie_id_credits-2
+      - MONITOR_SERVICE_JOINER_6=joiner_group_by_movie_id_credits-3
       - MONITOR_SERVICE_AGGREGATOR_1=aggregator_movies
       - MONITOR_SERVICE_AGGREGATOR_2=aggregator_top_5
       - MONITOR_SERVICE_AGGREGATOR_3=aggregator_top_10

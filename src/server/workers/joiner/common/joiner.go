@@ -24,7 +24,6 @@ const DEFAULT_MESSAGE_ID_EOF_UNIQUE_OUTPUT int64 = 1
 // Messages to log:
 const MSG_START = "Starting job for ID"
 const MSG_JOB_FINISHED = "Job finished"
-const MSG_RECEIVED_EOF_MARKER = "Received EOF marker"
 const MSG_FAILED_TO_PUBLISH_ON_OUTPUT_QUEUE = "Failed to publish on outputqueue"
 
 // Joiner which can be of types "group_by_movie_id_ratings" or "group_by_movie_id_credits".
@@ -44,24 +43,14 @@ func NewJoiner(log *logging.Logger) (*Joiner, error) {
 		Shutdown(log, connection, nil, "Error on dial rabbitmq", err)
 	}
 
+	err = rabbitmq.DeclareDirectQueuesWithFreshChannel(connection, c.InputQueueName, c.InputQueueSecName, c.OutputQueueName)
+	if err != nil {
+		Shutdown(log, connection, nil, "Error on declare queue", err)
+	}
+
 	channel, err := connection.Channel()
 	if err != nil {
 		Shutdown(log, connection, channel, "Error on create rabbitmq channel", err)
-	}
-
-	err = rabbitmq.DeclareDirectExchanges(channel, c.InputQueuesExchange)
-	if err != nil {
-		Shutdown(log, connection, channel, "Failed to declare exchange", err)
-	}
-
-	err = rabbitmq.DeclareDirectQueues(channel, c.InputQueueName, c.OutputQueueName, c.InputQueueSecName)
-	if err != nil {
-		Shutdown(log, connection, channel, "Error on declare queue", err)
-	}
-
-	err = rabbitmq.BindQueueToExchange(channel, c.InputQueueName, c.InputQueuesExchange, "")
-	if err != nil {
-		Shutdown(log, connection, channel, "Failed to bin queue", err)
 	}
 
 	return &Joiner{
@@ -84,11 +73,6 @@ func (joiner *Joiner) Start() {
 	joiner.Log.Infof("[%s] %s", joiner.Config.JoinerType, MSG_JOB_FINISHED)
 }
 
-// Check EOF condition
-func (joiner *Joiner) logEofQueue(queueName string) {
-	joiner.Log.Infof("[%s,%s] %s", joiner.Config.JoinerType, queueName, MSG_RECEIVED_EOF_MARKER)
-}
-
 // Send to report
 func (joiner *Joiner) publishData(data []byte) {
 	err := joiner.Channel.Publish("", joiner.Config.OutputQueueName, false, false, amqp.Publishing{
@@ -101,24 +85,6 @@ func (joiner *Joiner) publishData(data []byte) {
 }
 
 func (joiner *Joiner) joiner_g_b_m_id_credits() {
-	inputExchange := "ar_movies_after_2000_exchange"
-
-	err := rabbitmq.DeclareDirectExchanges(joiner.Channel, inputExchange)
-	if err != nil {
-		Shutdown(joiner.Log, joiner.Connection, joiner.Channel, "failed to declare exchange", err)
-	}
-
-	err = rabbitmq.DeclareDirectQueues(joiner.Channel, joiner.Config.InputQueueName, joiner.Config.InputQueueSecName)
-	if err != nil {
-		Shutdown(joiner.Log, joiner.Connection, joiner.Channel, "failed to declare queue", err)
-	}
-
-	err = rabbitmq.BindQueueToExchange(joiner.Channel, joiner.Config.InputQueueName, inputExchange, joiner.Config.ID)
-	if err != nil {
-		Shutdown(joiner.Log, joiner.Connection, joiner.Channel, "failed to bind queue to exchange", err)
-	}
-
-	// Store client-specific data
 	type clientState struct {
 		counter   *utils.ActorsCounter
 		movieEOF  bool
@@ -249,24 +215,6 @@ func (joiner *Joiner) joiner_g_b_m_id_credits() {
 }
 
 func (joiner *Joiner) joiner_g_b_m_id_ratings() {
-	inputExchange := "ar_movies_2000_and_later_exchange"
-
-	err := rabbitmq.DeclareDirectExchanges(joiner.Channel, inputExchange)
-	if err != nil {
-		Shutdown(joiner.Log, joiner.Connection, joiner.Channel, "failed to declare exchange", err)
-	}
-
-	err = rabbitmq.DeclareDirectQueues(joiner.Channel, joiner.Config.InputQueueName, joiner.Config.InputQueueSecName)
-	if err != nil {
-		Shutdown(joiner.Log, joiner.Connection, joiner.Channel, "failed to declare queue", err)
-	}
-
-	err = rabbitmq.BindQueueToExchange(joiner.Channel, joiner.Config.InputQueueName, inputExchange, joiner.Config.ID)
-	if err != nil {
-		Shutdown(joiner.Log, joiner.Connection, joiner.Channel, "failed to bind queue to exchange", err)
-	}
-
-	// Store client-specific data
 	type clientState struct {
 		totalizer *utils.RatingTotalizer
 		movieEOF  bool
