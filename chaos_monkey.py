@@ -10,7 +10,7 @@ Usage:
   python chaos_monkey.py [options]
 
 Options:
-  --node-type=TYPE    Type of node to kill: filter, joiner, aggregator, report, controller, or any [default: any]
+  --node-type=TYPE    Node type to kill: filter, joiner, aggregator, report, controller, resilience_manager, or any [default: any]
   --kill-count=N      Number of containers to kill [default: 1]
   --interval=N        Seconds to wait between kill rounds [default: 60]
   --rounds=N          Number of kill rounds to perform [default: 5]
@@ -62,6 +62,8 @@ def get_containers_by_type(node_type):
                 containers[name] = container_id
             elif node_type == "controller" and name == "controller":
                 containers[name] = container_id
+            elif node_type == "resilience_manager" and "resilience_manager" in name:
+                containers[name] = container_id
 
         return containers
     except subprocess.CalledProcessError as e:
@@ -100,8 +102,8 @@ def kill_random_containers(containers, count, dry_run=False):
 def main():
     parser = argparse.ArgumentParser(description="Chaos Monkey - Randomly kill Docker containers")
     parser.add_argument("--node-type", default="any",
-                        choices=["filter", "joiner", "aggregator", "report", "controller", "any"],
-                        help="Type of node to kill (filter, joiner, aggregator, report, controller, any)")
+                        choices=["filter", "joiner", "aggregator", "report", "controller", "resilience_manager", "any"],
+                        help="Type of node to kill (filter, joiner, aggregator, report, controller, resilience_manager, any)")
     parser.add_argument("--kill-count", type=int, default=1,
                         help="Number of containers to kill per round")
     parser.add_argument("--interval", type=int, default=60,

@@ -141,7 +141,6 @@ def send_ack(client_id):
 
 
 def callback(ch, method, properties, body):
-    ch.basic_ack(delivery_tag=method.delivery_tag)
     movie = movie_sanit_pb2.MovieSanit()
     movie.ParseFromString(body)
 
@@ -152,9 +151,9 @@ def callback(ch, method, properties, body):
         wait_for_acks(movie.clientId)
 
         movie.eof = True
-        eof_message = movie.SerializeToString()
-        channel.basic_publish(exchange=SENTIMENT_EXCHANGE, routing_key=POSITIVE_QUEUE, body=eof_message)
-        channel.basic_publish(exchange=SENTIMENT_EXCHANGE, routing_key=NEGATIVE_QUEUE, body=eof_message)
+        channel.basic_publish(exchange=SENTIMENT_EXCHANGE, routing_key=POSITIVE_QUEUE, body=body)
+        channel.basic_publish(exchange=SENTIMENT_EXCHANGE, routing_key=NEGATIVE_QUEUE, body=body)
+        ch.basic_ack(delivery_tag=method.delivery_tag)
         return
 
     label = cached_sentiment(movie)
@@ -170,6 +169,8 @@ def callback(ch, method, properties, body):
         for client_id in not_leading_for:
             send_ack(client_id)
         not_leading_for.clear()
+
+    ch.basic_ack(delivery_tag=method.delivery_tag)
 
     # logger.info(f"[client_id:{movie.clientId}] message published to {target_queue}")
 
