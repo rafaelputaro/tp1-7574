@@ -188,19 +188,23 @@ func (rr *ReportRegistry) GetReport(clientID string) *pb.ReportResponse {
 
 	r, ok := rr.reports[clientID]
 	if !ok {
+		logger.Infof("[client_id:%s] reports not found", clientID)
 		return nil
 	}
 
 	d, ok := rr.doneReports[clientID]
 	if !ok {
+		logger.Infof("[client_id:%s] done reports not found", clientID)
 		return nil
 	}
 
 	if r.Answer1 == nil || r.Answer2 == nil || r.Answer3 == nil || r.Answer4 == nil || r.Answer5 == nil {
+		logger.Infof("[client_id:%s] answers still nil - Answer1:(%v) - Answer2:(%v) - Answer3:(%v) - Answer4:(%v) - Answer5:(%v)", clientID, r.Answer1, r.Answer2, r.Answer3, r.Answer4, r.Answer5)
 		return nil
 	}
 
 	if d < 5 {
+		logger.Infof("[client_id:%s] done reports less that 5: %d", clientID, d)
 		return nil
 	}
 
@@ -226,13 +230,17 @@ func (rr *ReportRegistry) DoneAnswer(clientID string) {
 		SourceId:     DEFAULT_SOURCE_ID,
 	}
 
+	// Save the incremental update and sync state
 	reportState := ReportState{
 		Reports:     rr.reports,
 		DoneReports: rr.doneReports,
 	}
-
-	// Save the incremental update
-	_ = state.SaveState(rr.stateHelper, reportState, nil, SendAck, rr.messageWindow, updateArgs)
+	var err error
+	err = state.SaveState(rr.stateHelper, reportState, nil, SendAck, rr.messageWindow, updateArgs)
+	if err != nil {
+		logger.Errorf("Failed to save state: %v", err)
+	}
+	state.Synch(rr.stateHelper, SendAck)
 }
 
 // AddToAnswer1 adds a movie entry to answer 1
@@ -262,13 +270,17 @@ func (rr *ReportRegistry) AddToAnswer1(clientID string, entry *pb.MovieEntry) {
 		SourceId:     DEFAULT_SOURCE_ID,
 	}
 
+	// Save the incremental update and sync state
 	reportState := ReportState{
 		Reports:     rr.reports,
 		DoneReports: rr.doneReports,
 	}
-
-	// Save the incremental update
-	_ = state.SaveState(rr.stateHelper, reportState, nil, SendAck, rr.messageWindow, updateArgs)
+	var err error
+	err = state.SaveState(rr.stateHelper, reportState, nil, SendAck, rr.messageWindow, updateArgs)
+	if err != nil {
+		logger.Errorf("Failed to save state: %v", err)
+	}
+	state.Synch(rr.stateHelper, SendAck)
 }
 
 // AddAnswer2 adds country data to answer 2
@@ -291,13 +303,17 @@ func (rr *ReportRegistry) AddAnswer2(clientID string, answer2 *pb.Answer2) {
 		SourceId:     DEFAULT_SOURCE_ID,
 	}
 
+	// Save the incremental update and sync state
 	reportState := ReportState{
 		Reports:     rr.reports,
 		DoneReports: rr.doneReports,
 	}
-
-	// Save the incremental update
-	_ = state.SaveState(rr.stateHelper, reportState, nil, SendAck, rr.messageWindow, updateArgs)
+	var err error
+	err = state.SaveState(rr.stateHelper, reportState, nil, SendAck, rr.messageWindow, updateArgs)
+	if err != nil {
+		logger.Errorf("Failed to save state: %v", err)
+	}
+	state.Synch(rr.stateHelper, SendAck)
 }
 
 // AddAnswer3 adds rating data to answer 3
@@ -320,13 +336,17 @@ func (rr *ReportRegistry) AddAnswer3(clientID string, answer3 *pb.Answer3) {
 		SourceId:     DEFAULT_SOURCE_ID,
 	}
 
+	// Save the incremental update and sync state
 	reportState := ReportState{
 		Reports:     rr.reports,
 		DoneReports: rr.doneReports,
 	}
-
-	// Save the incremental update
-	_ = state.SaveState(rr.stateHelper, reportState, nil, SendAck, rr.messageWindow, updateArgs)
+	var err error
+	err = state.SaveState(rr.stateHelper, reportState, nil, SendAck, rr.messageWindow, updateArgs)
+	if err != nil {
+		logger.Errorf("Failed to save state: %v", err)
+	}
+	state.Synch(rr.stateHelper, SendAck)
 }
 
 // AddAnswer4 adds actor data to answer 4
@@ -349,13 +369,17 @@ func (rr *ReportRegistry) AddAnswer4(clientID string, answer4 *pb.Answer4) {
 		SourceId:     DEFAULT_SOURCE_ID,
 	}
 
+	// Save the incremental update and sync state
 	reportState := ReportState{
 		Reports:     rr.reports,
 		DoneReports: rr.doneReports,
 	}
-
-	// Save the incremental update
-	_ = state.SaveState(rr.stateHelper, reportState, nil, SendAck, rr.messageWindow, updateArgs)
+	var err error
+	err = state.SaveState(rr.stateHelper, reportState, nil, SendAck, rr.messageWindow, updateArgs)
+	if err != nil {
+		logger.Errorf("Failed to save state: %v", err)
+	}
+	state.Synch(rr.stateHelper, SendAck)
 }
 
 // AddAnswer5 adds sentiment data to answer 5
@@ -378,13 +402,17 @@ func (rr *ReportRegistry) AddAnswer5(clientID string, answer5 *pb.Answer5) {
 		SourceId:     DEFAULT_SOURCE_ID,
 	}
 
+	// Save the incremental update and sync state
 	reportState := ReportState{
 		Reports:     rr.reports,
 		DoneReports: rr.doneReports,
 	}
-
-	// Save the incremental update
-	_ = state.SaveState(rr.stateHelper, reportState, nil, SendAck, rr.messageWindow, updateArgs)
+	var err error
+	err = state.SaveState(rr.stateHelper, reportState, nil, SendAck, rr.messageWindow, updateArgs)
+	if err != nil {
+		logger.Errorf("Failed to save state: %v", err)
+	}
+	state.Synch(rr.stateHelper, SendAck)
 }
 
 // Used to generate unique IDs for messages
