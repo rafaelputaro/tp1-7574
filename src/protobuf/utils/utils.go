@@ -98,7 +98,7 @@ func MetricsToString(metrics *protopb.Metrics) string {
 	return fmt.Sprintf("Negative: %v | Positive: %v", metrics.GetAvgRevenueOverBudgetNegative(), metrics.GetAvgRevenueOverBudgetPositive())
 }
 
-func CreateDummyMovieSanit(clientId string, messageId int64, eof bool) *protopb.MovieSanit {
+func CreateDummyMovieSanit(clientId string, messageId int64, sourceId string, eof bool) *protopb.MovieSanit {
 	return &protopb.MovieSanit{
 		Budget:              proto.Int64(0),
 		Genres:              []string{"dummy_gen"},
@@ -110,16 +110,22 @@ func CreateDummyMovieSanit(clientId string, messageId int64, eof bool) *protopb.
 		Title:               proto.String("Dummy"),
 		ClientId:            &clientId,
 		MessageId:           proto.Int64(messageId),
+		SourceId:            proto.String(sourceId),
 		Eof:                 proto.Bool(eof),
 	}
 }
 
-func CreateEofMovieSanit(clientId string, messageId int64) *protopb.MovieSanit {
-	return CreateDummyMovieSanit(clientId, messageId, true)
+func CreateEofMovieSanit(clientId string, messageId int64, sourceId string) *protopb.MovieSanit {
+	return CreateDummyMovieSanit(clientId, messageId, sourceId, true)
 }
 
-func CreateEofMessageMovieSanit(clientId string, messageId int64) ([]byte, error) {
-	return proto.Marshal(CreateEofMovieSanit(clientId, messageId))
+func CreateEofMessageMovieSanit(clientId string, messageId int64, sourceId string) ([]byte, error) {
+	return proto.Marshal(CreateEofMovieSanit(clientId, messageId, sourceId))
+}
+
+func AppendSourceIdMovieSanit(movie *protopb.MovieSanit, sourceId string) ([]byte, error) {
+	movie.SourceId = proto.String(movie.GetSourceId() + sourceId)
+	return proto.Marshal(movie)
 }
 
 func CreateDummyMovie(clientId string, messageId int64, eof bool) *protopb.Movie {

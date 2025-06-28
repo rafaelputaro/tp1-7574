@@ -354,7 +354,7 @@ func (f *Filter) processSingleCountryOriginFilter() {
 			coord.TakeLeadership(clientID)
 			coord.WaitForACKs(clientID)
 
-			dataEof, err := protoUtils.CreateEofMessageMovieSanit(clientID, movie.GetMessageId())
+			dataEof, err := protoUtils.CreateEofMessageMovieSanit(clientID, movie.GetMessageId(), strconv.Itoa(f.config.ID)+movie.GetSourceId())
 			if err != nil {
 				f.log.Fatalf("[client_id:%s] failed to marshal eof: %v", clientID, err)
 			}
@@ -371,7 +371,13 @@ func (f *Filter) processSingleCountryOriginFilter() {
 		}
 
 		if filterFunc(&movie) {
-			err = rabbitmq.Publish(f.channel, "", outputQueue, msg.Body)
+			data, err := protoUtils.AppendSourceIdMovieSanit(&movie, strconv.Itoa(f.config.ID)+movie.GetSourceId())
+			if err != nil {
+				f.log.Fatalf("[client_id:%s] failed to marshal movie: %v", clientID, err)
+			}
+
+			err = rabbitmq.Publish(f.channel, "", outputQueue, data)
+
 			if err != nil {
 				f.log.Errorf("[client_id:%s] failed to publish movie: %v", clientID, err)
 			}

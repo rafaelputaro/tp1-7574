@@ -83,6 +83,7 @@ func TestMovieSanit(t *testing.T) {
 		Title:               proto.String("Toy Story"),
 		ClientId:            proto.String("1"),
 		MessageId:           proto.Int64(1),
+		SourceId:            proto.String(""),
 		Eof:                 proto.Bool(false),
 	}
 	data, err := proto.Marshal(message)
@@ -123,7 +124,7 @@ func TestEof(t *testing.T) {
 	creditSanit := protoUtils.CreateEofCreditSanit("0", 1)
 	metrics := protoUtils.CreateEofMetrics("0", 1)
 	movie := protoUtils.CreateEofMovie("0", 1)
-	movieSanit := protoUtils.CreateEofMovieSanit("0", 1)
+	movieSanit := protoUtils.CreateEofMovieSanit("0", 1, "source_1")
 	rating := protoUtils.CreateEofRating("0", 1)
 	ratingSanit := protoUtils.CreateEofRatingSanit("0", 1)
 	revOveBud := protoUtils.CreateEofRevenueOverBudget("0", 1)

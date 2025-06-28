@@ -219,7 +219,7 @@ func (aggregator *Aggregator) aggregateMovies() {
 
 				// If all sources sent EOF, submit the EOF to report
 				if aggregator.checkEofSingleQueue(aggregatorState.AmountEOF[movie.GetClientId()]) {
-					dataEof, errEof := protoUtils.CreateEofMessageMovieSanit(movie.GetClientId(), movie.GetMessageId())
+					dataEof, errEof := protoUtils.CreateEofMessageMovieSanit(movie.GetClientId(), movie.GetMessageId(), movie.GetSourceId())
 					aggregator.checkErrorAndPublish(clientID, dataEof, errEof)
 					aggregator.Log.Infof("[client_id:%s] sent eof marker", clientID)
 				}
@@ -241,6 +241,7 @@ func (a *Aggregator) aggregateTop5() {
 		a.Log.Fatalf("failed to consume messages: %v", err)
 	}
 	aggregatorState := a.CreateAggregatorTop5State()
+	timestampRcvMsg := state.InitClientsTimeStampsRcvMsg()
 	for msg := range msgs {
 		var movie protopb.MovieSanit
 		err = proto.Unmarshal(msg.Body, &movie)
@@ -253,6 +254,15 @@ func (a *Aggregator) aggregateTop5() {
 			a.sendAck(msg)
 			continue
 		}
+
+		// check discard eof
+		var discard bool
+		timestampRcvMsg[movie.GetClientId()] = state.CheckInitTimeStampRcvMsg(timestampRcvMsg, movie.GetClientId())
+		timestampRcvMsg[movie.GetClientId()], discard = state.CheckAndDiscardEof(msg, timestampRcvMsg[movie.GetClientId()], movie.GetEof())
+		if discard {
+			continue
+		}
+
 		clientID := movie.GetClientId()
 		_, found := aggregatorState.CountriesByClient[clientID]
 		if !found {

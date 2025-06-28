@@ -327,7 +327,7 @@ func UpdateTop5(aggregatorState *AggregatorTop5State, messageWindow *window.Mess
 		if !found {
 			aggregatorState.CountriesByClient[clientID][updateArgs.ProductionCountry] = 0
 		}
-		aggregatorState.CountriesByClient[clientID][updateArgs.ProductionCountry] += updateArgs.Budget
+		aggregatorState.CountriesByClient[clientID][updateArgs.ProductionCountry] = aggregatorState.CountriesByClient[clientID][updateArgs.ProductionCountry] + updateArgs.Budget
 	}
 }
 
@@ -346,6 +346,7 @@ func UpdateTop10(aggregatorState *AggregatorTop10State, messageWindow *window.Me
 			aggregatorState.ActorsData[updateArgs.ClientId] = *utils.InitActorsData(updateArgs.ClientId)
 			actorsCount := aggregatorState.ActorsData[updateArgs.ClientId]
 			actorsCount.DoUpdateCount(updateArgs.ProfilePath, updateArgs.Name, updateArgs.CountMovies)
+			aggregatorState.ActorsData[updateArgs.ClientId] = actorsCount
 		}
 	}
 }

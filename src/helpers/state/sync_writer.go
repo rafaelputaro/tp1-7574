@@ -7,7 +7,7 @@ import (
 	"github.com/op/go-logging"
 )
 
-const TIMEOUT = 3 * time.Second
+const TIMEOUT = 1 * time.Second //3 * time.Second
 const MAX_MESSAGES = 1000
 const MESSAGE_FAILED_TO_SEND_ACK string = "failed to ack message: %v"
 const MESSAGE_FAILED_TO_SYNCH string = "Failed to sync with disk: %v"
