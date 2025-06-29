@@ -2,18 +2,19 @@ package main
 
 import (
 	"context"
-	"github.com/op/go-logging"
-	amqp "github.com/rabbitmq/amqp091-go"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/proto"
 	"net"
 	"tp1/globalconfig"
 	"tp1/health"
 	pb "tp1/protobuf/protopb"
 	"tp1/rabbitmq"
 	"tp1/server/report/internal"
+
+	"github.com/op/go-logging"
+	amqp "github.com/rabbitmq/amqp091-go"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 )
 
 var logger = logging.MustGetLogger("report")
@@ -120,6 +121,12 @@ func processMovies(data []byte, rr *internal.ReportRegistry) {
 		Title:  movie.Title,
 		Genres: movie.Genres,
 	}
+	if rr.MessageWindow.IsDuplicate(movie.GetClientId(), "movies_"+movie.GetSourceId(), movie.GetMessageId()) {
+		logger.Infof("[client_id:%s] duplicate answer1: %v", movie.GetClientId(), &entry)
+		return
+	}
+	// Add to MessageWindow
+	rr.MessageWindow.AddMessage(movie.GetClientId(), "movies_"+movie.GetSourceId(), movie.GetMessageId())
 
 	logger.Infof("[client_id:%s] adding answer1: %v", movie.GetClientId(), &entry)
 	rr.AddToAnswer1(movie.GetClientId(), &entry)
@@ -144,6 +151,11 @@ func processTop5(data []byte, rr *internal.ReportRegistry) {
 	var top5 pb.Top5Country
 	_ = proto.Unmarshal(data, &top5)
 
+	if rr.MessageWindow.IsDuplicate(top5.GetClientId(), "top5", top5.GetMessageId()) {
+		logger.Infof("[client_id:%s] duplicate answer1: %v", top5.GetClientId(), &top5)
+		return
+	}
+
 	for i := 0; i < len(top5.ProductionCountries); i++ {
 		entry := pb.CountryEntry{
 			Name:   &top5.ProductionCountries[i],
@@ -152,6 +164,8 @@ func processTop5(data []byte, rr *internal.ReportRegistry) {
 
 		answer2.Countries = append(answer2.Countries, &entry)
 	}
+	// Add to MessageWindow
+	rr.MessageWindow.AddMessage(top5.GetClientId(), "top5", top5.GetMessageId())
 
 	logger.Infof("[client_id:%s] Adding answer2: %v", top5.GetClientId(), &answer2)
 	rr.AddAnswer2(top5.GetClientId(), &answer2)

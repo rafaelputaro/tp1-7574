@@ -38,7 +38,7 @@ type ReportRegistry struct {
 	reports       map[string]*pb.ReportResponse
 	doneReports   map[string]int
 	stateHelper   *state.StateHelper[ReportState, ReportUpdateArgs, AckArgs]
-	messageWindow window.MessageWindow
+	MessageWindow window.MessageWindow
 	moduleName    string
 }
 
@@ -53,7 +53,7 @@ func NewReportRegistry(moduleName string) *ReportRegistry {
 	rr := &ReportRegistry{
 		reports:       make(map[string]*pb.ReportResponse),
 		doneReports:   make(map[string]int),
-		messageWindow: *window.NewMessageWindow(),
+		MessageWindow: *window.NewMessageWindow(),
 		moduleName:    moduleName,
 	}
 
@@ -70,7 +70,7 @@ func NewReportRegistry(moduleName string) *ReportRegistry {
 	if initialState != nil {
 		rr.reports = initialState.Reports
 		rr.doneReports = initialState.DoneReports
-		rr.messageWindow = msgWindow
+		rr.MessageWindow = msgWindow
 		logger.Infof("Recovered state for module %s with %d reports and %d done markers",
 			moduleName, len(rr.reports), len(rr.doneReports))
 	} else {
@@ -236,7 +236,7 @@ func (rr *ReportRegistry) DoneAnswer(clientID string) {
 		DoneReports: rr.doneReports,
 	}
 	var err error
-	err = state.SaveState(rr.stateHelper, reportState, nil, SendAck, rr.messageWindow, updateArgs)
+	err = state.SaveState(rr.stateHelper, reportState, nil, SendAck, rr.MessageWindow, updateArgs)
 	if err != nil {
 		logger.Errorf("Failed to save state: %v", err)
 	}
@@ -276,7 +276,7 @@ func (rr *ReportRegistry) AddToAnswer1(clientID string, entry *pb.MovieEntry) {
 		DoneReports: rr.doneReports,
 	}
 	var err error
-	err = state.SaveState(rr.stateHelper, reportState, nil, SendAck, rr.messageWindow, updateArgs)
+	err = state.SaveState(rr.stateHelper, reportState, nil, SendAck, rr.MessageWindow, updateArgs)
 	if err != nil {
 		logger.Errorf("Failed to save state: %v", err)
 	}
@@ -309,7 +309,7 @@ func (rr *ReportRegistry) AddAnswer2(clientID string, answer2 *pb.Answer2) {
 		DoneReports: rr.doneReports,
 	}
 	var err error
-	err = state.SaveState(rr.stateHelper, reportState, nil, SendAck, rr.messageWindow, updateArgs)
+	err = state.SaveState(rr.stateHelper, reportState, nil, SendAck, rr.MessageWindow, updateArgs)
 	if err != nil {
 		logger.Errorf("Failed to save state: %v", err)
 	}
@@ -342,7 +342,7 @@ func (rr *ReportRegistry) AddAnswer3(clientID string, answer3 *pb.Answer3) {
 		DoneReports: rr.doneReports,
 	}
 	var err error
-	err = state.SaveState(rr.stateHelper, reportState, nil, SendAck, rr.messageWindow, updateArgs)
+	err = state.SaveState(rr.stateHelper, reportState, nil, SendAck, rr.MessageWindow, updateArgs)
 	if err != nil {
 		logger.Errorf("Failed to save state: %v", err)
 	}
@@ -375,7 +375,7 @@ func (rr *ReportRegistry) AddAnswer4(clientID string, answer4 *pb.Answer4) {
 		DoneReports: rr.doneReports,
 	}
 	var err error
-	err = state.SaveState(rr.stateHelper, reportState, nil, SendAck, rr.messageWindow, updateArgs)
+	err = state.SaveState(rr.stateHelper, reportState, nil, SendAck, rr.MessageWindow, updateArgs)
 	if err != nil {
 		logger.Errorf("Failed to save state: %v", err)
 	}
@@ -408,7 +408,7 @@ func (rr *ReportRegistry) AddAnswer5(clientID string, answer5 *pb.Answer5) {
 		DoneReports: rr.doneReports,
 	}
 	var err error
-	err = state.SaveState(rr.stateHelper, reportState, nil, SendAck, rr.messageWindow, updateArgs)
+	err = state.SaveState(rr.stateHelper, reportState, nil, SendAck, rr.MessageWindow, updateArgs)
 	if err != nil {
 		logger.Errorf("Failed to save state: %v", err)
 	}
