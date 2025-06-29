@@ -92,6 +92,7 @@ func NewAggregator(log *logging.Logger) (*Aggregator, error) {
 			log.Fatalf("[aggregator_%s] Failed to declare exchange %s: %v", config.AggregatorType, "", err)
 		}
 	}
+
 	err = rabbitmq.DeclareDirectQueues(channel, config.InputQueue, config.OutputQueue)
 	if err != nil {
 		connection.Close()
@@ -99,6 +100,22 @@ func NewAggregator(log *logging.Logger) (*Aggregator, error) {
 		log.Fatalf("%v: %v", MSG_ERROR_ON_DECLARE_QUEUE, err)
 		return nil, err
 	}
+
+	/*
+		err = rabbitmq.DeclareDirectQueuesShortTimeout(channel, config.InputQueue)
+		if err != nil {
+			connection.Close()
+			channel.Close()
+			log.Fatalf("%v: %v", MSG_ERROR_ON_DECLARE_QUEUE, err)
+			return nil, err
+		}
+		err = rabbitmq.DeclareDirectQueues(channel, config.OutputQueue)
+		if err != nil {
+			connection.Close()
+			channel.Close()
+			log.Fatalf("%v: %v", MSG_ERROR_ON_DECLARE_QUEUE, err)
+			return nil, err
+		}*/
 	if config.AggregatorType == METRICS {
 		// Bind the queue to the exchange
 		err = rabbitmq.BindQueueToExchange(channel, config.InputQueue, "sentiment_exchange", "")
@@ -226,6 +243,8 @@ func (aggregator *Aggregator) aggregateMovies() {
 				aggregator.SaveMoviesState(*aggregatorState, msg, clientID, movie.GetSourceId(), true, *movie.MessageId)
 				state.Synch(aggregator.StateHelperMovies, SendAck)
 			} else {
+				//	aggregator.Channel.Reject(msg.DeliveryTag, true)
+				// rabbitUtils.SingleReject(msg)
 				aggregator.Log.Debugf("[client_id:%s] accepted: %s (%d)", movie.GetClientId(), movie.GetTitle(), movie.GetReleaseYear())
 				aggregator.publishData(msg.Body)
 				aggregator.SaveMoviesState(*aggregatorState, msg, *movie.ClientId, movie.GetSourceId(), false, *movie.MessageId)

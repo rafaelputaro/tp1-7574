@@ -7,6 +7,10 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
+var QueueArgsTimeout amqp.Table = amqp.Table{
+	"x-consumer-timeout": 5000, //3600000, // 1 hour in milliseconds
+}
+
 func ConnectRabbitMQ(log *logging.Logger) (*amqp.Connection, error) {
 	var conn *amqp.Connection
 	var err error
@@ -37,6 +41,24 @@ func DeclareDirectQueues(channel *amqp.Channel, queues ...string) error {
 			false,
 			false,
 			nil,
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func DeclareDirectQueuesShortTimeout(channel *amqp.Channel, queues ...string) error {
+	for _, queue := range queues {
+		_, err := channel.QueueDeclare(
+			queue,
+			true,
+			false,
+			false,
+			false,
+			QueueArgsTimeout,
 		)
 		if err != nil {
 			return err
@@ -147,11 +169,48 @@ func ConsumeFromQueue(channel *amqp.Channel, queue string) (<-chan amqp.Delivery
 }
 
 func SingleAck(msg amqp.Delivery) error {
-	return msg.Ack(false)
+	maxRetries := 10
+	var err error = nil
+	for i := 1; i <= maxRetries; i++ {
+		err = msg.Ack(false)
+		if err == nil {
+			return nil
+		}
+		if i < maxRetries {
+			time.Sleep(300 * time.Millisecond)
+		}
+	}
+	return err
 }
 
 func SingleNack(msg amqp.Delivery) error {
-	return msg.Nack(false, true)
+	maxRetries := 10
+	var err error = nil
+	for i := 1; i <= maxRetries; i++ {
+		err = msg.Nack(false, true)
+		if err == nil {
+			return nil
+		}
+		if i < maxRetries {
+			time.Sleep(300 * time.Millisecond)
+		}
+	}
+	return err
+}
+
+func SingleReject(msg amqp.Delivery) error {
+	maxRetries := 10
+	var err error = nil
+	for i := 1; i <= maxRetries; i++ {
+		err = msg.Reject(true)
+		if err == nil {
+			return nil
+		}
+		if i < maxRetries {
+			time.Sleep(300 * time.Millisecond)
+		}
+	}
+	return err
 }
 
 func Publish(channel *amqp.Channel, exchange, routingKey string, data []byte) error {

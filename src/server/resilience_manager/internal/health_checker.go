@@ -41,7 +41,7 @@ func NewHealthChecker(config *Config, log *logging.Logger) *HealthChecker {
 		unhealthyThreshold: config.UnhealthyThreshold,
 		log:                log,
 		client: &http.Client{
-			Timeout: 2 * time.Second, // Short timeout to detect unresponsive services quickly
+			Timeout: 20 * time.Second, // Short timeout to detect unresponsive services quickly
 		},
 	}
 }
